@@ -13,6 +13,9 @@
             <button type="submit" :disabled="isSubmitting">登录</button>
         </form>
         <p>还没有账号？<router-link to="/register">注册</router-link></p>
+        <div v-if="snackbar" :class="['snackbar', snackbarType]">
+            {{ snackbarMessage }}
+        </div>
     </div>
 </template>
 
@@ -31,54 +34,117 @@ export default {
         const username = ref('');
         const password = ref('');
         const isSubmitting = ref(false);
+        const snackbar = ref(false); // 控制 snackbar 显示
+        const snackbarMessage = ref(''); // snackbar 提示信息
+        const snackbarType = ref(''); // snackbar 类型（success/error）
+
+        const showSnackbar = (message, type, duration = 3000) => {
+            snackbarMessage.value = message;
+            snackbarType.value = type;
+            snackbar.value = true;
+
+            // 自动关闭 snackbar
+            setTimeout(() => {
+                snackbar.value = false;
+            }, duration);
+        };
 
         const submitLogin = async () => {
-  isSubmitting.value = true;
-  try {
-    const response = await axios.post('http://127.0.0.1:5000/login', {
-      username: username.value,
-      password: password.value
-    });
+            isSubmitting.value = true;
+            try {
+                const response = await axios.post('http://aidudio.2000gallery.art:5000/login', {
+                    username: username.value,
+                    password: password.value,
+                });
 
-   
-    const { token, user } = response.data;
+                // 从响应中提取 accessToken、refreshToken 和 user
+                const { accessToken, refreshToken, user } = response.data;
 
-    // 调用 Vuex 的 login action，传递 token 和 user
-    store.dispatch('login', { token, user });
+                // 调用 Vuex 的 login action，传递 accessToken、refreshToken 和 user
+                store.dispatch('login', { accessToken, refreshToken, user });
 
-    alert('登录成功');
+                // 显示成功提示
+                showSnackbar('登录成功', 'success', 2000);
 
-    // 检查是否有重定向路径
-    const redirect = router.currentRoute.value.query.redirect;
-    if (redirect) {
-      router.push(redirect); 
-    } else {
-      router.push('/'); // 默认跳转到主页
-    }
-  } catch (error) {
-    let errorMessage = '登录失败，请稍后重试';
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage = error.response.data.message;
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    alert(errorMessage);
-  } finally {
-    isSubmitting.value = false;
-  }
-};
+                // 检查是否有重定向路径
+                const redirect = router.currentRoute.value.query.redirect;
+                if (redirect) {
+                    router.push(redirect);
+                } else {
+                    router.push('/'); // 默认跳转到主页
+                }
+            } catch (error) {
+                let errorMessage = '登录失败，请稍后重试';
+                if (error.response && error.response.data && error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+
+                // 显示错误提示
+                showSnackbar(errorMessage, 'error', 3000);
+            } finally {
+                isSubmitting.value = false;
+            }
+        };
 
         return {
             username,
             password,
             isSubmitting,
-            submitLogin
+            snackbar,
+            snackbarMessage,
+            snackbarType,
+            submitLogin,
         };
-    }
+    },
 };
 </script>
 
 <style scoped>
+.snackbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 30px;
+    border-radius: 8px;
+    color: #fff;
+    z-index: 1000;
+    animation: fadeInOut 3s ease-in-out;
+}
+
+.snackbar.success {
+    background-color: #4caf50;
+    /* 成功提示背景色 */
+}
+
+.snackbar.error {
+    background-color: #f44336;
+    /* 错误提示背景色 */
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+
+    10% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    90% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+}
 
 .auth-container {
     max-width: 400px;

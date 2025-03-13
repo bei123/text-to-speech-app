@@ -7,225 +7,379 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const redis = require('redis');
+const Bull = require('bull'); // 修正导入方式
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// 验证 JWT 的中间件
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Redis 客户端初始化
+const redisClient = redis.createClient({
+    url: 'redis://localhost:6379' // 直接硬编码 Redis 连接信息
+});
 
-  if (!token) {
-    return res.status(401).json({ message: '未提供 Token' });
-  }
+redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+});
 
-  jwt.verify(token, 'your_jwt_secret', (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token 无效或已过期' });
-    }
-    req.user = user;
-    next();
-  });
-};
+redisClient.connect();
 
+// Bull 任务队列初始化
+const speechQueue = new Bull('speechGeneration', {
+    redis: 'redis://localhost:6379' // 直接硬编码 Redis 连接信息
+});
 
+// 数据库连接池
 const pool = mysql.createPool({
-  host: '127.0.0.1',
-  user: 'text_to_speech',
-  password: 'KSrJpjNsCSfp8WRH',
-  database: 'text_to_speech',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+    host: '127.0.0.1', // 直接硬编码数据库连接信息
+    user: 'text_to_speech',
+    password: 'KSrJpjNsCSfp8WRH',
+    database: 'text_to_speech',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
 });
 
 // 音频文件保存路径
 const AUDIO_DIR = path.join(__dirname, 'audio_files');
 if (!fs.existsSync(AUDIO_DIR)) {
-  fs.mkdirSync(AUDIO_DIR);
+    fs.mkdirSync(AUDIO_DIR);
 }
+
+// JWT 验证中间件
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: '未提供 Token' });
+    }
+
+    jwt.verify(token, 'your_jwt_secret', (err, user) => { // 直接硬编码 JWT 密钥
+        if (err) {
+            return res.status(401).json({
+                message: 'Token 无效或已过期',
+                code: 'TOKEN_INVALID_OR_EXPIRED'
+            });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// 任务队列处理器
+speechQueue.process(async (job) => {
+    const { text, text_language, model_name, userId, userEmail, username } = job.data;
+
+    try {
+        // 调用外部 API 生成语音
+        const response = await axios.post('http://192.168.0.53:49295/', {
+            text,
+            text_language,
+            model_name
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            responseType: 'arraybuffer'
+        });
+
+        // 生成文件名和保存路径
+        const fileName = `${username}_${model_name}_${Date.now()}.wav`; // 使用 username + model_name + 时间戳
+        const filePath = path.join(AUDIO_DIR, fileName);
+
+        // 保存音频文件
+        fs.writeFileSync(filePath, response.data);
+
+        // 记录请求到数据库
+        const insertRequestQuery = `
+            INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language]);
+
+        // 记录音频文件信息
+        const insertFileQuery = `
+            INSERT INTO audio_files (request_id, file_name, file_path)
+            VALUES (?, ?, ?)
+        `;
+        await pool.query(insertFileQuery, [requestResult.insertId, fileName, filePath]);
+
+        // 返回下载链接
+        return `http://aidudio.2000gallery.art:5000/download/${fileName}`;
+    } catch (error) {
+        console.error('生成语音失败:', error);
+        throw new Error('生成语音失败');
+    }
+});
 
 // 用户注册
 app.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+    const { username, email, password } = req.body;
 
-  try {
-    // 检查用户名和邮箱是否已存在
-    const checkUserQuery = 'SELECT * FROM users WHERE username = ? OR email = ?';
-    const [results] = await pool.query(checkUserQuery, [username, email]);
+    try {
+        // 检查用户名和邮箱是否已存在
+        const checkUserQuery = 'SELECT * FROM users WHERE username = ? OR email = ?';
+        const [results] = await pool.query(checkUserQuery, [username, email]);
 
-    if (results.length > 0) {
-      return res.status(400).json({ message: '用户名或邮箱已存在' });
+        if (results.length > 0) {
+            return res.status(400).json({ message: '用户名或邮箱已存在' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // 插入新用户
+        const insertUserQuery = 'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)';
+        await pool.query(insertUserQuery, [username, email, passwordHash]);
+
+        res.status(201).json({ message: '用户注册成功' });
+    } catch (error) {
+        console.error('注册失败:', error);
+        res.status(500).json({ message: '注册失败' });
     }
-
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // 插入新用户
-    const insertUserQuery = 'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)';
-    await pool.query(insertUserQuery, [username, email, passwordHash]);
-
-    res.status(201).json({ message: '用户注册成功' });
-  } catch (error) {
-    console.error('注册失败:', error);
-    res.status(500).json({ message: '注册失败' });
-  }
 });
 
 // 用户登录
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+    const { username, password } = req.body;
 
-  try {
-    // 查找用户
-    const findUserQuery = 'SELECT * FROM users WHERE username = ?';
-    const [results] = await pool.query(findUserQuery, [username]);
+    try {
+        // 查找用户
+        const findUserQuery = 'SELECT * FROM users WHERE username = ?';
+        const [results] = await pool.query(findUserQuery, [username]);
 
-    if (results.length === 0) {
-      return res.status(400).json({ message: '用户名或密码错误' });
+        if (results.length === 0) {
+            return res.status(400).json({ message: '用户名或密码错误' });
+        }
+
+        const user = results[0];
+
+        // 验证密码
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(400).json({ message: '用户名或密码错误' });
+        }
+
+        // 生成 Access Token
+        const accessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
+
+        // 生成 Refresh Token
+        const refreshToken = jwt.sign({ id: user.id }, 'your_refresh_secret', { expiresIn: '7d' });
+
+        // 返回的用户信息
+        const userResponse = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+        };
+
+        // 记录登录信息
+        const userAgent = req.headers['user-agent'];
+        const ipAddress = req.ip || req.connection.remoteAddress;
+
+        const insertLoginLogQuery = `
+            INSERT INTO user_login_logs (user_id, user_agent, ip_address)
+            VALUES (?, ?, ?)
+        `;
+        await pool.query(insertLoginLogQuery, [user.id, userAgent, ipAddress]);
+
+        // 返回登录成功信息
+        res.json({
+            accessToken,
+            refreshToken,
+            user: userResponse
+        });
+    } catch (error) {
+        console.error('登录失败:', error);
+        res.status(500).json({ message: '登录失败' });
     }
-
-    const user = results[0];
-
-    // 验证密码
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(400).json({ message: '用户名或密码错误' });
-    }
-
-    // 生成 JWT
-    const token = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '1h' });
-
-    // 返回 token 和 user 信息（移除敏感字段）
-    const userResponse = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-    };
-
-    res.json({ token, user: userResponse });
-  } catch (error) {
-    console.error('登录失败:', error);
-    res.status(500).json({ message: '登录失败' });
-  }
 });
 
+// 刷新 Token
+app.post('/refresh-token', async (req, res) => {
+    const { refreshToken } = req.body;
 
+    if (!refreshToken) {
+        return res.status(401).json({ message: '未提供 Refresh Token' });
+    }
+
+    try {
+        // 验证 Refresh Token
+        jwt.verify(refreshToken, 'your_refresh_secret', (err, user) => {
+            if (err) {
+                return res.status(403).json({ message: 'Refresh Token 无效或已过期' });
+            }
+
+            // 生成新的 Access Token
+            const newAccessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
+
+            // 返回新的 Access Token
+            res.json({ accessToken: newAccessToken });
+        });
+    } catch (error) {
+        console.error('刷新 Token 失败:', error);
+        res.status(500).json({ message: '刷新 Token 失败' });
+    }
+});
+
+// 受保护的路由
 app.get('/protected', authenticateToken, (req, res) => {
-  res.json({ message: '这是受保护的路由', user: req.user });
+    res.json({ message: '这是受保护的路由', user: req.user });
 });
 
 // 获取模型数据
 app.get('/models', async (req, res) => {
-  try {
-    const query = 'SELECT value, label, avatar_url FROM models';
-    const [results] = await pool.query(query);
-    res.json(results);
-  } catch (error) {
-    console.error('获取模型数据失败:', error);
-    res.status(500).json({ message: '获取模型数据失败' });
-  }
+    try {
+        const query = 'SELECT value, label, avatar_url FROM models';
+        const [results] = await pool.query(query);
+        res.json(results);
+    } catch (error) {
+        console.error('获取模型数据失败:', error);
+        res.status(500).json({ message: '获取模型数据失败' });
+    }
 });
 
-
+// 生成语音 API
 app.post('/generate-speech', authenticateToken, async (req, res) => {
-  const { text, text_language, model_name } = req.body;
-  const userId = req.user.id; // 从 JWT 中获取用户 ID
+    const { text, text_language, model_name } = req.body;
+    const userId = req.user.id;
 
-  try {
-    // 获取当前用户的用户名
-    const getUserQuery = 'SELECT username FROM users WHERE id = ?';
-    const [userResults] = await pool.query(getUserQuery, [userId]);
+    // 缓存键
+    const cacheKey = `speech:${userId}:${text}:${text_language}:${model_name}`;
 
-    if (userResults.length === 0) {
-      return res.status(404).json({ message: '用户未找到' });
+    try {
+        // 检查缓存
+        const cachedResult = await redisClient.get(cacheKey);
+        if (cachedResult) {
+            return res.json({ downloadLink: cachedResult });
+        }
+
+        // 获取用户信息
+        const getUserQuery = 'SELECT username, email FROM users WHERE id = ?';
+        const [userResults] = await pool.query(getUserQuery, [userId]);
+        const username = userResults[0].username; // 获取用户名
+        const userEmail = userResults[0].email;
+
+        // 添加任务到队列
+        const job = await speechQueue.add({
+            text,
+            text_language,
+            model_name,
+            userId,
+            userEmail,
+            username // 将用户名传递给任务处理器
+        });
+
+        // 等待任务完成
+        const downloadLink = await job.finished();
+
+        // 缓存结果
+        await redisClient.set(cacheKey, downloadLink, 'EX', 3600); // 缓存1小时
+
+        // 返回下载链接
+        res.json({ downloadLink });
+    } catch (error) {
+        console.error('生成语音失败:', error);
+        res.status(500).json({ message: '生成语音失败' });
     }
-
-    const username = userResults[0].username;
-
-
-    const response = await axios.post('http://192.168.0.53:49295/', {
-      text,
-      text_language,
-      model_name
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    });
-
-    // 生成文件名：username + model_name + 时间戳
-    const fileName = `${username}_${model_name}_${Date.now()}.wav`;
+});
+// 下载音频文件 API
+app.get('/download/:fileName', (req, res) => {
+    const fileName = req.params.fileName;
     const filePath = path.join(AUDIO_DIR, fileName);
 
-
-    fs.writeFileSync(filePath, response.data);
-
-
-    const downloadLink = `http://127.0.0.1:5000/download/${fileName}`;
-
-
-    res.json({ downloadLink });
-  } catch (error) {
-    console.error('生成语音失败:', error);
-    res.status(500).json({ message: '生成语音失败' });
-  }
-});
-
-
-app.get('/download/:fileName', (req, res) => {
-  const fileName = req.params.fileName;
-  const filePath = path.join(AUDIO_DIR, fileName);
-
-  if (fs.existsSync(filePath)) {
-    res.download(filePath);
-  } else {
-    res.status(404).json({ message: '文件未找到' });
-  }
+    if (fs.existsSync(filePath)) {
+        res.download(filePath);
+    } else {
+        res.status(404).json({ message: '文件未找到' });
+    }
 });
 
 // DeepSeek API 配置
 const DEEPSEEK_API_KEY = 'sk-65061bf460e14ec283f1f0d287827ba4';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-
+// 调用 DeepSeek API
 app.post('/call-deepseek', async (req, res) => {
-  try {
-    const { prompt, system = '' } = req.body;
+    try {
+        const { prompt, system = '' } = req.body;
 
+        const headers = {
+            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json',
+        };
 
-    const headers = {
-      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-      'Content-Type': 'application/json',
-    };
+        const payload = {
+            messages: [
+                { role: 'system', content: system },
+                { role: 'user', content: prompt },
+            ],
+            model: "deepseek-chat",
+            max_tokens: 500,
+        };
 
-    const payload = {
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-      model: "deepseek-chat",
-      max_tokens: 500,
-    };
+        const response = await axios.post(DEEPSEEK_API_URL, payload, { headers });
 
-    const response = await axios.post(DEEPSEEK_API_URL, payload, { headers });
-
-
-    res.json({ text: response.data.choices[0].message.content });
-  } catch (error) {
-    console.error('调用 DeepSeek API 失败:', error.response?.data || error.message);
-    res.status(500).json({ error: '调用 DeepSeek API 失败' });
-  }
+        res.json({ text: response.data.choices[0].message.content });
+    } catch (error) {
+        console.error('调用 DeepSeek API 失败:', error.response?.data || error.message);
+        res.status(500).json({ error: '调用 DeepSeek API 失败' });
+    }
 });
 
+// 获取用户历史语音记录
+app.get('/history', authenticateToken, async (req, res) => {
+    const userId = req.user.id; // 从 JWT 中获取用户 ID
+    const { keyword } = req.query; // 从查询参数中获取关键词
 
+    try {
+        // 构建 SQL 查询
+        let query = `
+            SELECT 
+                ar.id, 
+                ar.text, 
+                m.label AS model_name,  -- 使用 models 表的 label
+                ar.text_language, 
+                ar.created_at AS createdAt, 
+                CONCAT('http://aidudio.2000gallery.art:5000/download/', af.file_name) AS audioUrl
+            FROM 
+                audio_requests ar
+            LEFT JOIN 
+                audio_files af ON ar.id = af.request_id
+            LEFT JOIN 
+                models m ON ar.model_name = m.value  -- 关联 models 表
+            WHERE 
+                ar.user_id = ?
+        `;
 
+        // 如果有关键词且不为空，添加过滤条件
+        if (keyword && keyword.trim()) {
+            query += ` AND ar.text LIKE ?`;
+        }
 
-const PORT = 5000;
+        // 排序
+        query += ` ORDER BY ar.created_at DESC`;
+
+        // 执行查询
+        const params = [userId];
+        if (keyword && keyword.trim()) {
+            params.push(`%${keyword.trim()}%`); // 使用 % 实现模糊匹配，并去除前后空格
+        }
+
+        const [results] = await pool.query(query, params);
+
+        // 返回历史记录
+        res.json(results);
+    } catch (error) {
+        console.error('获取历史记录失败:', error);
+        res.status(500).json({ message: '获取历史记录失败' });
+    }
+});
+
+// 启动服务器
+const PORT = 5000; // 直接硬编码端口号
 app.listen(PORT, () => {
-  console.log(`服务器运行在 http://127.0.0.1:${PORT}`);
+    console.log(`服务器运行在 http://aidudio.2000gallery.art:${PORT}`);
 });

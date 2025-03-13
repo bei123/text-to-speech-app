@@ -1,4 +1,14 @@
 <template>
+  <div id="app">
+    <nav class="navbar">
+      <div class="nav-links">
+        <router-link to="/" class="nav-link">Home</router-link>
+        <router-link to="/history" class="nav-link">生成记录</router-link>
+      </div>
+    </nav>
+    <router-view></router-view>
+
+  </div>
   <div class="container">
     <!-- 顶部导航 -->
     <div class="topBar">
@@ -63,14 +73,21 @@
     <!-- 底部提示 -->
     <div class="footer">
       <span class="footerText">如果你有好的模型提供,或愿意赞助GPU算力,请联系我!</span>
+      <span class="footerText">QQ交流群：621244714</span>
     </div>
   </div>
+  <div>
+    <span></span>
+  </div>
+  <footer>
+    <!-- 页脚内容 -->
+    <p>© 2025 Ai 语音生命</p>
+  </footer>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-
 
 // 数据
 const voiceModelProviders = ref([
@@ -86,27 +103,64 @@ const gpuSponsors = ref([
 const authors = ref([
   { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=492drdEvk6DNbt3bvzDq01oBNqIQZOCI4l2EuXbN3e6MxMNUuYuBuNlXpChRylIzEYVtlDCl" }
 ]);
+
 const GSVDeveloper = ref([
   { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=e9f1aNyZzhKuVpndyTokIkPqD5NfCUIdJttgR-FsWW8Dz7mIMCT2YnJ20GWqDwLsMYwcGAQl" }
 ]);
 
-
+// 复制链接
 const copyLink = () => {
   const link = "https://github.com/RVC-Boss/GPT-SoVITS";
-  navigator.clipboard.writeText(link).then(() => {
-    alert("链接已复制");
-  }).catch((error) => {
-    console.error("复制失败:", error);
-    alert("复制失败，请手动复制链接");
-  });
+  navigator.clipboard.writeText(link)
+    .then(() => {
+      alert("链接已复制");
+    })
+    .catch((error) => {
+      console.error("复制失败:", error);
+      alert("复制失败，请手动复制链接");
+    });
 };
 
+// 处理图片加载失败
 const handleImageError = (event) => {
   event.target.src = "https://example.com/default-avatar.png"; // 默认头像
 };
 </script>
 
 <style lang="scss" scoped>
+/* 导航栏样式 */
+.navbar {
+  background: linear-gradient(135deg, #42b983, #3aa876);
+  padding: 10px 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.router-link-exact-active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
 .container {
   display: flex;
   flex-direction: column;
@@ -178,7 +232,7 @@ const handleImageError = (event) => {
   padding: 10px;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  width: calc(50% - 5px); 
+  width: calc(50% - 5px);
 }
 
 .cardImage {
@@ -205,17 +259,15 @@ const handleImageError = (event) => {
   color: #666;
 }
 
-
 @media (min-width: 768px) {
   .card {
-    width: calc(33.33% - 7px); 
+    width: calc(33.33% - 7px);
   }
 }
 
-
 @media (min-width: 1024px) {
   .card {
-    width: calc(25% - 8px); 
+    width: calc(25% - 8px);
   }
 
   .container {
