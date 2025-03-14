@@ -74,7 +74,7 @@ speechQueue.process(async (job) => {
 
     try {
         // 调用外部 API 生成语音
-        const response = await axios.post('http://192.168.0.53:49295/', {
+        const response = await axios.post('http://192.168.0.53:9646/', {
             text,
             text_language,
             model_name
@@ -241,7 +241,6 @@ app.get('/models', async (req, res) => {
     }
 });
 
-// 生成语音 API
 app.post('/generate-speech', authenticateToken, async (req, res) => {
     const { text, text_language, model_name } = req.body;
     const userId = req.user.id;
@@ -277,6 +276,10 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
 
         // 缓存结果
         await redisClient.set(cacheKey, downloadLink, 'EX', 3600); // 缓存1小时
+
+        // 检查缓存的 TTL
+        const ttl = await redisClient.ttl(cacheKey);
+        console.log(`缓存键 ${cacheKey} 的 TTL: ${ttl} 秒`);
 
         // 返回下载链接
         res.json({ downloadLink });
