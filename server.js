@@ -361,7 +361,6 @@ app.get('/download/:fileName', (req, res) => {
 const DEEPSEEK_API_KEY = 'sk-65061bf460e14ec283f1f0d287827ba4';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-// 调用 DeepSeek API
 app.post('/call-deepseek', async (req, res) => {
     try {
         const { prompt, system = '' } = req.body;
@@ -382,7 +381,13 @@ app.post('/call-deepseek', async (req, res) => {
 
         const response = await axios.post(DEEPSEEK_API_URL, payload, { headers });
 
-        res.json({ text: response.data.choices[0].message.content });
+        // 获取 API 返回的文本
+        let text = response.data.choices[0].message.content;
+
+        // 保留中文、英文、数字、空格和常用标点符号，移除其他特殊字符
+        text = text.replace(/[^\w\s\u4e00-\u9fa5,.!?，。！？]/g, ''); // 保留中英文、数字、空格和常用标点符号
+
+        res.json({ text });
     } catch (error) {
         console.error('调用 DeepSeek API 失败:', error.response?.data || error.message);
         res.status(500).json({ error: '调用 DeepSeek API 失败' });
