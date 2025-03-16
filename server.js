@@ -8,15 +8,16 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const redis = require('redis');
-const Bull = require('bull'); // 修正导入方式
-
+const Bull = require('bull');
+const crypto = require('crypto');
+const CryptoJS = require('crypto-js'); // 确保导入 CryptoJS
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
 // Redis 客户端初始化
 const redisClient = redis.createClient({
-    url: 'redis://localhost:6379' // 直接硬编码 Redis 连接信息
+    url: 'redis://localhost:6379'
 });
 
 redisClient.on('error', (err) => {
@@ -27,12 +28,12 @@ redisClient.connect();
 
 // Bull 任务队列初始化
 const speechQueue = new Bull('speechGeneration', {
-    redis: 'redis://localhost:6379' // 直接硬编码 Redis 连接信息
+    redis: 'redis://localhost:6379'
 });
 
 // 数据库连接池
 const pool = mysql.createPool({
-    host: '127.0.0.1', // 直接硬编码数据库连接信息
+    host: '127.0.0.1',
     user: 'text_to_speech',
     password: 'KSrJpjNsCSfp8WRH',
     database: 'text_to_speech',
@@ -56,7 +57,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ message: '未提供 Token' });
     }
 
-    jwt.verify(token, 'your_jwt_secret', (err, user) => { // 直接硬编码 JWT 密钥
+    jwt.verify(token, 'your_jwt_secret', (err, user) => {
         if (err) {
             return res.status(401).json({
                 message: 'Token 无效或已过期',
@@ -70,11 +71,11 @@ const authenticateToken = (req, res, next) => {
 
 // 任务队列处理器
 speechQueue.process(async (job) => {
-    const { text, text_language, model_name, userId, userEmail, username } = job.data;
+    const { text, text_language, model_name, userId, userEmail, username, requestId } = job.data;
 
     try {
         // 更新任务状态为 processing
-        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', job.id]);
+        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
         // 调用外部 API 生成语音
         const response = await axios.post('http://192.168.0.53:9646/', {
@@ -95,25 +96,21 @@ speechQueue.process(async (job) => {
         // 保存音频文件
         fs.writeFileSync(filePath, response.data);
 
-        // 记录请求到数据库
-        const insertRequestQuery = `
-            INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `;
-        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language, 'completed']);
+        // 更新任务状态为 completed
+        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
 
         // 记录音频文件信息
         const insertFileQuery = `
             INSERT INTO audio_files (request_id, file_name, file_path)
             VALUES (?, ?, ?)
         `;
-        await pool.query(insertFileQuery, [requestResult.insertId, fileName, filePath]);
+        await pool.query(insertFileQuery, [requestId, fileName, filePath]);
 
         // 返回下载链接
         return `http://aidudio.2000gallery.art:5000/download/${fileName}`;
     } catch (error) {
         console.error('生成语音失败:', error);
-        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', job.id]);
+        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
         throw new Error('生成语音失败');
     }
 });
@@ -145,9 +142,43 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// 用户登录
+// 生成一个随机的加密密钥
+const generateEncryptionKey = () => {
+    return crypto.randomBytes(32).toString('hex'); // 生成 256 位的随机密钥
+};
+
+// 提供加密密钥的接口
+app.get('/api/encryption-key', async (req, res) => {
+    try {
+        const encryptionKey = generateEncryptionKey(); // 每次请求生成一个新的密钥
+        const username = req.query.username; // 获取用户名
+
+        // 将密钥存储在 Redis 中，设置过期时间（例如 5 分钟）
+        await redisClient.set(`encryptionKey:${username}`, encryptionKey, 'EX', 300);
+
+        res.json({ key: encryptionKey });
+    } catch (error) {
+        console.error('生成加密密钥失败:', error);
+        res.status(500).json({ message: '生成加密密钥失败' });
+    }
+});
+
+// 解密密码函数
+const decryptPassword = (encryptedPassword, secretKey) => {
+    if (!encryptedPassword) {
+        throw new Error('加密密码为空');
+    }
+    const bytes = CryptoJS.AES.decrypt(encryptedPassword, secretKey); // 解密
+    const decryptedPassword = bytes.toString(CryptoJS.enc.Utf8); // 转换为 UTF-8 字符串
+    if (!decryptedPassword) {
+        throw new Error('解密失败，密钥可能不匹配');
+    }
+    return decryptedPassword;
+};
+
+// 用户登录接口
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, encryptedPassword } = req.body;
 
     try {
         // 查找用户
@@ -160,8 +191,18 @@ app.post('/login', async (req, res) => {
 
         const user = results[0];
 
+        // 从 Redis 中获取加密密钥
+        const secretKey = await redisClient.get(`encryptionKey:${username}`);
+        if (!secretKey) {
+            return res.status(400).json({ message: '加密密钥无效' });
+        }
+
+        // 解密密码
+        const decryptedPassword = decryptPassword(encryptedPassword, secretKey);
+        // console.log('解密后的密码:', decryptedPassword);
+
         // 验证密码
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        const isMatch = await bcrypt.compare(decryptedPassword, user.password_hash);
         if (!isMatch) {
             return res.status(400).json({ message: '用户名或密码错误' });
         }
@@ -265,6 +306,13 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
         const username = userResults[0].username; // 获取用户名
         const userEmail = userResults[0].email;
 
+        // 插入初始状态为 pending 的任务
+        const insertRequestQuery = `
+            INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language, 'pending']);
+
         // 添加任务到队列
         const job = await speechQueue.add({
             text,
@@ -272,8 +320,12 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
             model_name,
             userId,
             userEmail,
-            username // 将用户名传递给任务处理器
+            username, // 将用户名传递给任务处理器
+            requestId: requestResult.insertId // 传递任务 ID
         });
+
+        // 更新任务 ID
+        await pool.query('UPDATE audio_requests SET job_id = ? WHERE id = ?', [job.id, requestResult.insertId]);
 
         // 等待任务完成
         const downloadLink = await job.finished();
@@ -292,6 +344,7 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
         res.status(500).json({ message: '生成语音失败' });
     }
 });
+
 // 下载音频文件 API
 app.get('/download/:fileName', (req, res) => {
     const fileName = req.params.fileName;
@@ -406,6 +459,7 @@ app.get('/history', authenticateToken, async (req, res) => {
         res.status(500).json({ message: '获取历史记录失败' });
     }
 });
+
 // 启动服务器
 const PORT = 5000; // 直接硬编码端口号
 app.listen(PORT, () => {
