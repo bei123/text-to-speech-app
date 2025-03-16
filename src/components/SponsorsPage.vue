@@ -94,21 +94,21 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 // 数据
 const voiceModelProviders = ref([
-  { name: "@白菜工厂1145号员工", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=339cusijah2f4-mOVX_LlYAuwT_vIQtZ-NrhqChoyAC0DIkD09ZalHjtRS6_mN_GnvEnBYID" },
-  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=294b-g5aWxAKNS-hbjWn17uiwy-Jk5eeG5BQrdy25m3EJoL8tUiW6IfbF_ZSg8Lh6a9Gsxes" },
-  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=492drdEvk6DNbt3bvzDq01oBNqIQZOCI4l2EuXbN3e6MxMNUuYuBuNlXpChRylIzEYVtlDCl" }
+  { name: "@白菜工厂1145号员工", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=05cbkovzGmIo5yFijIwGsqKwPRfgCf6MER92kwfyVgYMExGWY513evqYHfr3mtskGY5gdcLV" },
+  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=b0f4cECYwnzg0VEei7yEUhtEnPiOr-41W4oLpLl9NwySNnVZR1T3IGgwMJcxmbo4lWHzQdlo" },
+  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=4c93iYZa1wvtsLJnWvMYUesDx0IdWoZmaBtS2n9sVMKk3HdGfhDZGsbRfy0IOmXYRg5L1BVd" }
 ]);
 
 const gpuSponsors = ref([
-  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=294b-g5aWxAKNS-hbjWn17uiwy-Jk5eeG5BQrdy25m3EJoL8tUiW6IfbF_ZSg8Lh6a9Gsxes" }
+  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=165aTnIcy47SmaDKVNwRNfi7Ik6tCyPRt8UvMUjKYLm6qKcg3OKCSFPDOt9tf2GhP915JIrB" }
 ]);
 
 const authors = ref([
-  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=492drdEvk6DNbt3bvzDq01oBNqIQZOCI4l2EuXbN3e6MxMNUuYuBuNlXpChRylIzEYVtlDCl" }
+  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=4c93iYZa1wvtsLJnWvMYUesDx0IdWoZmaBtS2n9sVMKk3HdGfhDZGsbRfy0IOmXYRg5L1BVd" }
 ]);
 
 const GSVDeveloper = ref([
-  { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=e9f1aNyZzhKuVpndyTokIkPqD5NfCUIdJttgR-FsWW8Dz7mIMCT2YnJ20GWqDwLsMYwcGAQl" }
+  { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=50c82Jpxtw_9aO90Z1wvyWJvTxy5--N3ZUllGwNEcEeB72PJMetdxBez-7wHlwYhrqwaRqRr" }
 ]);
 
 const copyLink = () => {
