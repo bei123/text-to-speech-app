@@ -1,17 +1,17 @@
 <template>
   <div id="app">
-    <nav class="navbar">
+    <!-- <nav class="navbar">
       <div class="nav-links">
         <router-link to="/" class="nav-link">Home</router-link>
         <router-link to="/history" class="nav-link">生成记录</router-link>
       </div>
-    </nav>
-    <router-view></router-view>
+    </nav> -->
+    <!-- <router-view></router-view> -->
 
   </div>
   <div class="app-container">
-    <h1 class="app-title">AI语音生命</h1>
-    <button @click="logoutUser" class="logout-button">退出登录</button>
+    <!-- <h1 class="app-title">AI语音生命</h1> -->
+    <!-- <button @click="logoutUser" class="logout-button">退出登录</button> -->
 
     <!-- 模型头像 -->
     <div class="model-avatar">
@@ -78,13 +78,11 @@
     <Snackbar v-if="snackbar" :message="snackbarMessage" @close="snackbar = false" />
 
     <!-- 底部图标 -->
-    <div class="footer-icon" @click="goToSponsorsPage">
-      <span class="icon-text">为爱发电的人们</span>
-    </div>
+    
   </div>
   <footer>
     <!-- 页脚内容 -->
-    <p>© 2025 Ai 语音生命</p>
+    <!-- <p>© 2025 Ai 语音生命</p> -->
   </footer>
   <!-- <button @click="goToHistory" class="button button-primary history-button">查看历史记录</button> -->
 </template>
@@ -160,16 +158,16 @@ const selectedModelAvatar = computed(() => {
   return model ? model.avatar_url : '';
 });
 
-// 跳转到赞助页面
-const goToSponsorsPage = () => {
-  router.push('/sponsors');
-};
+// // 跳转到赞助页面
+// const goToSponsorsPage = () => {
+//   router.push('/sponsors');
+// };
 
-// 退出登录
-const logoutUser = () => {
-  store.dispatch('logout');
-  router.push('/login');
-};
+// // 退出登录
+// const logoutUser = () => {
+//   store.dispatch('logout');
+//   router.push('/login');
+// };
 
 // // 跳转到历史记录页面
 // const goToHistory = () => {

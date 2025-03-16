@@ -1,12 +1,12 @@
 <template>
   <div id="app">
-    <nav class="navbar">
+    <!-- <nav class="navbar">
       <div class="nav-links">
         <router-link to="/" class="nav-link">Home</router-link>
         <router-link to="/history" class="nav-link">生成记录</router-link>
       </div>
     </nav>
-    <router-view></router-view>
+    <router-view></router-view> -->
 
   </div>
   <div class="container">
@@ -81,13 +81,16 @@
   </div>
   <footer>
     <!-- 页脚内容 -->
-    <p>© 2025 Ai 语音生命</p>
+    <!-- <p>© 2025 Ai 语音生命</p> -->
   </footer>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+
+
+
 
 // 数据
 const voiceModelProviders = ref([
@@ -108,17 +111,26 @@ const GSVDeveloper = ref([
   { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=e9f1aNyZzhKuVpndyTokIkPqD5NfCUIdJttgR-FsWW8Dz7mIMCT2YnJ20GWqDwLsMYwcGAQl" }
 ]);
 
-// 复制链接
 const copyLink = () => {
   const link = "https://github.com/RVC-Boss/GPT-SoVITS";
-  navigator.clipboard.writeText(link)
-    .then(() => {
-      alert("链接已复制");
-    })
-    .catch((error) => {
-      console.error("复制失败:", error);
-      alert("复制失败，请手动复制链接");
-    });
+
+  // 检测是否为移动设备
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // 移动端：复制链接并提示
+    navigator.clipboard.writeText(link)
+      .then(() => {
+        alert("已复制，请在浏览器中打开", 'success');
+      })
+      .catch((error) => {
+        console.error("复制失败:", error);
+        alert("复制失败，请手动复制链接", 'error');
+      });
+  } else {
+    // PC端：在新标签页中打开链接
+    window.open(link, '_blank');
+  }
 };
 
 // 处理图片加载失败

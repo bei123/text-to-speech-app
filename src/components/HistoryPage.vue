@@ -1,12 +1,12 @@
 <template>
     <div id="app">
-        <nav class="navbar">
+        <!-- <nav class="navbar">
             <div class="nav-links">
                 <router-link to="/" class="nav-link">Home</router-link>
                 <router-link to="/history" class="nav-link">生成记录</router-link>
             </div>
         </nav>
-        <router-view></router-view>
+        <router-view></router-view> -->
 
     </div>
     <div class="history-container">
@@ -60,7 +60,7 @@
     </div>
     <footer>
         <!-- 页脚内容 -->
-        <p>© 2025 Ai 语音生命</p>
+        <!-- <p>© 2025 Ai 语音生命</p> -->
     </footer>
 </template>
 

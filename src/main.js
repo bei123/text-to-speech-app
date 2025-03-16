@@ -5,6 +5,7 @@ import router from './router'; // 引入路由
 import store from './store'; // 引入 Vuex 状态管理
 import '@fortawesome/fontawesome-free/css/all.css'; // 引入 FontAwesome 样式
 import api from './utils/axios'; // 引入 Axios 实例
+import '@mdi/font/css/materialdesignicons.min.css';
 
 // 创建 Vue 应用
 const app = createApp(App);
