@@ -24,6 +24,7 @@ import { ref } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import CryptoJS from 'crypto-js';
 
 export default {
     name: 'UserLogin',
@@ -49,12 +50,27 @@ export default {
             }, duration);
         };
 
+        const encryptPassword = (password, secretKey) => {
+            return CryptoJS.AES.encrypt(password, secretKey).toString(); // 返回 Base64 编码的字符串
+        };
+
         const submitLogin = async () => {
             isSubmitting.value = true;
             try {
+                // 1. 从后端获取加密密钥
+                const keyResponse = await axios.get('http://aidudio.2000gallery.art:5000/api/encryption-key', {
+                    params: { username: username.value } // 传递用户名
+                });
+                const secretKey = keyResponse.data.key;
+
+                // 2. 加密密码
+                const encryptedPassword = encryptPassword(password.value, secretKey);
+                // console.log('加密后的密码:', encryptedPassword);
+
+                // 3. 发送登录请求
                 const response = await axios.post('http://aidudio.2000gallery.art:5000/login', {
                     username: username.value,
-                    password: password.value,
+                    encryptedPassword, // 发送加密后的密码
                 });
 
                 // 从响应中提取 accessToken、refreshToken 和 user
