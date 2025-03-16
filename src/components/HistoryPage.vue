@@ -31,6 +31,7 @@
                 <!-- 中间内容区域 -->
                 <div class="record-info">
                     <span class="record-date">{{ formatDate(record.createdAt) }}</span>
+                    <span class="record-status">状态: {{ mapStatusToChinese(record.status) }}</span>
                     <span class="record-text">
                         {{ record.isExpanded ? record.text : record.text.slice(0, maxTextLength) + (record.text.length >
                             maxTextLength ? '...' : '') }}
@@ -42,12 +43,20 @@
                 </div>
 
                 <!-- 右侧固定下载按钮 -->
-                <a :href="record.audioUrl" download class="download-button">下载音频</a>
+                <a v-if="record.status === 'completed'" :href="record.audioUrl" download
+                    class="download-button">下载音频</a>
+                <span v-else class="download-button disabled">下载音频</span>
             </li>
         </ul>
 
         <!-- 无记录提示 -->
         <p v-show="historyList.length === 0" class="no-records">暂无历史语音记录</p>
+    </div>
+    <!-- 分页控件 -->
+    <div class="pagination">
+        <button @click="prevPage" :disabled="currentPage === 1">上一页</button>
+        <span>第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+        <button @click="nextPage" :disabled="currentPage === totalPages">下一页</button>
     </div>
     <footer>
         <!-- 页脚内容 -->
@@ -56,6 +65,7 @@
 </template>
 
 <script setup>
+
 import { computed, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { debounce } from 'lodash';
@@ -67,20 +77,49 @@ const maxTextLength = 100;
 
 // 关键词输入
 const searchKeyword = ref('');
-
+const currentPage = computed(() => store.state.history.currentPage);
+const totalPages = computed(() => store.getters['history/totalPages']);
 // 获取历史记录
+
 const fetchHistory = async () => {
-    await store.dispatch('history/fetchHistory', searchKeyword.value.trim());
+  await store.dispatch('history/fetchHistory', {
+    keyword: searchKeyword.value.trim(),
+    page: Number(currentPage.value), // 确保是数字
+    itemsPerPage: Number(store.state.history.itemsPerPage), // 确保是数字
+  });
+};
+
+const prevPage = () => {
+    if (currentPage.value > 1) {
+        store.commit('history/SET_CURRENT_PAGE', currentPage.value - 1);
+        fetchHistory();
+    }
+};
+
+const nextPage = () => {
+    if (currentPage.value < totalPages.value) {
+        store.commit('history/SET_CURRENT_PAGE', currentPage.value + 1);
+        fetchHistory();
+    }
 };
 
 // 从 Vuex 中获取历史记录
 const historyList = computed(() => {
     return store.state.history.historyList.map((record) => ({
         ...record,
-        isExpanded: record.isExpanded || false, // 直接使用 record 的 isExpanded 属性
+        isExpanded: record.isExpanded || false,
+        status: record.status || 'pending' // 确保 status 字段存在
     }));
 });
-
+const mapStatusToChinese = (status) => {
+    const statusMap = {
+        pending: '等待中',
+        processing: '处理中',
+        completed: '已完成',
+        failed: '失败'
+    };
+    return statusMap[status] || '未知状态';
+};
 // 切换文本展开状态
 const toggleExpand = (record) => {
     record.isExpanded = !record.isExpanded;
@@ -108,6 +147,39 @@ onMounted(() => {
 
 <style scoped>
 /* 导航栏样式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.pagination button {
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.pagination button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.record-status {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.download-button.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
 .navbar {
     background: linear-gradient(135deg, #42b983, #3aa876);
     padding: 10px 20px;

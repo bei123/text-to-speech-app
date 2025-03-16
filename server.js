@@ -73,6 +73,9 @@ speechQueue.process(async (job) => {
     const { text, text_language, model_name, userId, userEmail, username } = job.data;
 
     try {
+        // 更新任务状态为 processing
+        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', job.id]);
+
         // 调用外部 API 生成语音
         const response = await axios.post('http://192.168.0.53:9646/', {
             text,
@@ -86,7 +89,7 @@ speechQueue.process(async (job) => {
         });
 
         // 生成文件名和保存路径
-        const fileName = `${username}_${model_name}_${Date.now()}.wav`; // 使用 username + model_name + 时间戳
+        const fileName = `${username}_${model_name}_${Date.now()}.wav`;
         const filePath = path.join(AUDIO_DIR, fileName);
 
         // 保存音频文件
@@ -94,10 +97,10 @@ speechQueue.process(async (job) => {
 
         // 记录请求到数据库
         const insertRequestQuery = `
-            INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language, status)
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
-        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language]);
+        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language, 'completed']);
 
         // 记录音频文件信息
         const insertFileQuery = `
@@ -110,6 +113,7 @@ speechQueue.process(async (job) => {
         return `http://aidudio.2000gallery.art:5000/download/${fileName}`;
     } catch (error) {
         console.error('生成语音失败:', error);
+        await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', job.id]);
         throw new Error('生成语音失败');
     }
 });
@@ -334,53 +338,74 @@ app.post('/call-deepseek', async (req, res) => {
 
 // 获取用户历史语音记录
 app.get('/history', authenticateToken, async (req, res) => {
-    const userId = req.user.id; // 从 JWT 中获取用户 ID
-    const { keyword } = req.query; // 从查询参数中获取关键词
+    const userId = req.user.id;
+    const { keyword, page = 1, itemsPerPage = 10 } = req.query;
 
     try {
-        // 构建 SQL 查询
         let query = `
             SELECT 
                 ar.id, 
                 ar.text, 
-                m.label AS model_name,  -- 使用 models 表的 label
+                m.label AS model_name,
                 ar.text_language, 
                 ar.created_at AS createdAt, 
+                ar.status,  -- 返回任务状态
                 CONCAT('http://aidudio.2000gallery.art:5000/download/', af.file_name) AS audioUrl
             FROM 
                 audio_requests ar
             LEFT JOIN 
                 audio_files af ON ar.id = af.request_id
             LEFT JOIN 
-                models m ON ar.model_name = m.value  -- 关联 models 表
+                models m ON ar.model_name = m.value
             WHERE 
                 ar.user_id = ?
         `;
 
-        // 如果有关键词且不为空，添加过滤条件
         if (keyword && keyword.trim()) {
             query += ` AND ar.text LIKE ?`;
         }
 
-        // 排序
-        query += ` ORDER BY ar.created_at DESC`;
+        query += ` ORDER BY ar.created_at DESC LIMIT ? OFFSET ?`;
 
-        // 执行查询
         const params = [userId];
         if (keyword && keyword.trim()) {
-            params.push(`%${keyword.trim()}%`); // 使用 % 实现模糊匹配，并去除前后空格
+            params.push(`%${keyword.trim()}%`);
         }
+
+        const offset = (parseInt(page) - 1) * parseInt(itemsPerPage);
+        params.push(parseInt(itemsPerPage), offset);
 
         const [results] = await pool.query(query, params);
 
-        // 返回历史记录
-        res.json(results);
+        // 获取总记录数
+        let countQuery = `
+            SELECT COUNT(*) AS total 
+            FROM audio_requests ar
+            WHERE ar.user_id = ?
+        `;
+        if (keyword && keyword.trim()) {
+            countQuery += ` AND ar.text LIKE ?`;
+        }
+
+        const countParams = [userId];
+        if (keyword && keyword.trim()) {
+            countParams.push(`%${keyword.trim()}%`);
+        }
+
+        const [totalResults] = await pool.query(countQuery, countParams);
+        const total = totalResults[0].total;
+
+        res.json({
+            data: results,
+            total,
+            page: parseInt(page),
+            itemsPerPage: parseInt(itemsPerPage)
+        });
     } catch (error) {
         console.error('获取历史记录失败:', error);
         res.status(500).json({ message: '获取历史记录失败' });
     }
 });
-
 // 启动服务器
 const PORT = 5000; // 直接硬编码端口号
 app.listen(PORT, () => {
