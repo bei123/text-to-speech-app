@@ -24,7 +24,8 @@ const routes = [
     name: 'Sponsors',
     component: () => import('@/components/SponsorsPage.vue'),
     meta: {
-      title: '为爱发电', // 设置标题
+      requiresAuth: true,
+      title: '为爱发电的人们', // 设置标题
     },
   },
   {
