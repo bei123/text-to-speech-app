@@ -70,14 +70,15 @@ const authenticateToken = (req, res, next) => {
 };
 
 // 任务队列处理器
-speechQueue.process(async (job) => {
+// 设置并发数为 2
+speechQueue.process(2, async (job) => {
     const { text, text_language, model_name, userId, userEmail, username, requestId } = job.data;
 
     try {
         // 更新任务状态为 processing
         await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
-        // 调用外部 API 生成语音
+        
         const response = await axios.post('http://192.168.0.53:9646/', {
             text,
             text_language,
@@ -89,11 +90,11 @@ speechQueue.process(async (job) => {
             responseType: 'arraybuffer'
         });
 
-        // 生成文件名和保存路径
+        
         const fileName = `${username}_${model_name}_${Date.now()}.wav`;
         const filePath = path.join(AUDIO_DIR, fileName);
 
-        // 保存音频文件
+      
         fs.writeFileSync(filePath, response.data);
 
         // 更新任务状态为 completed
