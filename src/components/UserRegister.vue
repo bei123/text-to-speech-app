@@ -65,7 +65,7 @@ const register = async () => {
   isSubmitting.value = true;
 
   try {
-    await axios.post('http://aidudio.2000gallery.art:5000/register', {
+    await axios.post('http://aittsssh.2000gallery.art:9005/register', {
       username: form.value.username,
       email: form.value.email,
       password: form.value.password

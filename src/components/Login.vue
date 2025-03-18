@@ -58,7 +58,7 @@ export default {
             isSubmitting.value = true;
             try {
                 // 1. 从后端获取加密密钥
-                const keyResponse = await axios.get('http://aidudio.2000gallery.art:5000/api/encryption-key', {
+                const keyResponse = await axios.get('http://aittsssh.2000gallery.art:9005/api/encryption-key', {
                     params: { username: username.value } // 传递用户名
                 });
                 const secretKey = keyResponse.data.key;
@@ -68,7 +68,7 @@ export default {
                 // console.log('加密后的密码:', encryptedPassword);
 
                 // 3. 发送登录请求
-                const response = await axios.post('http://aidudio.2000gallery.art:5000/login', {
+                const response = await axios.post('http://aittsssh.2000gallery.art:9005/login', {
                     username: username.value,
                     encryptedPassword, // 发送加密后的密码
                 });

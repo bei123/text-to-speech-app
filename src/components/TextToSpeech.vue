@@ -124,7 +124,7 @@ const store = useStore();
 // 获取模型数据
 const fetchModels = async () => {
   try {
-    const response = await axios.get('http://aidudio.2000gallery.art:5000/models');
+    const response = await axios.get('http://aittsssh.2000gallery.art:9005/models');
     models.value = response.data;
     if (models.value.length > 0) {
       selectedModel.value = models.value[0].value;
@@ -203,7 +203,7 @@ const generateSpeech = async () => {
 
     if (isOpenAIGPT.value) {
       const response = await axios.post(
-        'http://aidudio.2000gallery.art:5000/call-deepseek',
+        'http://aittsssh.2000gallery.art:9005/call-deepseek',
         {
           prompt: inputText.value,
           system: systemPrompt.value
@@ -213,7 +213,7 @@ const generateSpeech = async () => {
     }
 
     const speechResponse = await axios.post(
-      'http://aidudio.2000gallery.art:5000/generate-speech',
+      'http://aittsssh.2000gallery.art:9005/generate-speech',
       {
         text: textToGenerate,
         text_language: selectedLanguage.value,

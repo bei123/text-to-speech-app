@@ -24,7 +24,7 @@ export default {
   // 服务器基础配置
   server: {
     port: parseInt(process.env.PORT || 5000, 10),
-    baseUrl: process.env.BASE_URL || 'http://aidudio.2000gallery.art:5000'
+    baseUrl: process.env.BASE_URL || 'http://aidudio.2000gallery.art:10000'
   },
 
   // 数据库配置

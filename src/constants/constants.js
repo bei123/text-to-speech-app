@@ -6,6 +6,6 @@ export const LOCAL_STORAGE_KEYS = {
   };
   
   export const API_URLS = {
-    HISTORY: 'http://aidudio.2000gallery.art:5000/history',
-    REFRESH_TOKEN: 'http://aidudio.2000gallery.art:5000/refresh-token',
+    HISTORY: 'http://aittsssh.2000gallery.art:9005/history',
+    REFRESH_TOKEN: 'http://aittsssh.2000gallery.art:9005/refresh-token',
   };
