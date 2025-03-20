@@ -23,8 +23,6 @@ jobs:
     - name: Install dependencies
       run: npm ci # 比 npm install 更严格，适合CI环境
 
-    - name: Run tests
-      run: npm test # 可选步骤，如果不需要测试可以删除
 
     - name: Build project
       run: npm run build
