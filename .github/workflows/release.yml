@@ -1,64 +1,53 @@
-name: Auto Version Release
+name: Build and Release
 
 on:
   push:
-    branches: [ main ]  # 在 main 分支推送时触发
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*' # 必须严格使用 v 前缀的 tag（如 v1.0.0）
 
 jobs:
-  versioning:
+  build-and-release:
     runs-on: ubuntu-latest
+
+    # 关键权限设置
     permissions:
-      contents: write  # 必须的写入权限
+      contents: write  # 必须显式声明写入权限
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # 获取完整提交历史
-
-    - name: Auto Version
-      id: auto-version
-      uses: mathieudutour/github-tag-action@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        tag-prefix: "v"  # 版本前缀
-        bump-on-commit-types: feat,fix,chore,revert  # 触发版本更新的提交类型
-        default-bump: patch  # 默认版本更新级别
-        with-v: true  # 生成带 v 前缀的版本号
+        fetch-depth: 0  # 需要获取完整的 git 历史记录
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 20
+        cache: 'npm'
 
-    - name: Update package.json version
-      run: |
-        npm version ${{ steps.auto-version.outputs.new_version }} --no-git-tag-version
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add package.json
-        git commit -m "chore: bump version to ${{ steps.auto-version.outputs.new_version }}"
-        git push origin main
+    - name: Install dependencies
+      run: npm ci
 
     - name: Build project
-      run: |
-        npm ci
-        npm run build
-        zip -r build-${{ steps.auto-version.outputs.new_version }}.zip ./dist/
+      run: npm run build
 
+    # 压缩构建产物（必须步骤）
+    - name: Compress artifacts
+      run: zip -r build-${{ github.ref_name }}.zip ./dist/
+
+    # 创建 Release（使用现代写法）
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.auto-version.outputs.new_tag }}
-        name: Release ${{ steps.auto-version.outputs.new_version }}
+        tag_name: ${{ github.ref_name }}  # 使用简洁的 tag 名称
+        name: Release ${{ github.ref_name }}
         body: |
-          **自动生成版本**  
-          - 版本号: ${{ steps.auto-version.outputs.new_version }}
-          - 变更类型: ${{ steps.auto-version.outputs.bump_type }}
-          - 提交日志: https://github.com/${{ github.repository }}/compare/${{ steps.auto-version.outputs.previous_tag }}...${{ steps.auto-version.outputs.new_tag }}
+          Auto-generated build artifacts
+          Version: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+        draft: false
+        prerelease: false
         files: |
-          build-${{ steps.auto-version.outputs.new_version }}.zip
+          build-${{ github.ref_name }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
