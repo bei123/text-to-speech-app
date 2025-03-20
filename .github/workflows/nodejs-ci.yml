@@ -1,0 +1,30 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20 # 根据你的项目需求修改版本（如18.x, 20.x）
+        cache: 'npm' # 自动缓存依赖
+
+    - name: Install dependencies
+      run: npm ci # 比 npm install 更严格，适合CI环境
+
+    - name: Run tests
+      run: npm test # 可选步骤，如果不需要测试可以删除
+
+    - name: Build project
+      run: npm run build
