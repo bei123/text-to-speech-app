@@ -185,21 +185,34 @@ const handleImageError = (event) => {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
 }
 
 .navigatorBtn {
   cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navigatorBtn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .navigatorIcon {
-  font-size: 24px;
-  color: #000;
+  font-size: 20px;
+  color: #42b983;
 }
 
 .topText {
   font-size: 20px;
-  font-weight: bold;
-  margin-left: 10px;
+  font-weight: 600;
+  margin-left: 16px;
+  color: #333;
 }
 
 .content {
@@ -212,8 +225,20 @@ const handleImageError = (event) => {
 
 .sectionTitle {
   font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background-color: #42b983;
+  margin-right: 8px;
+  border-radius: 2px;
 }
 
 .sectionContent {
@@ -227,8 +252,15 @@ const handleImageError = (event) => {
 
 .textLink {
   font-size: 16px;
-  color: #007BFF;
+  color: #42b983;
   cursor: pointer;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.textLink:hover {
+  color: #3aa876;
+  text-decoration: underline;
 }
 
 .cardContainer {
@@ -240,35 +272,55 @@ const handleImageError = (event) => {
 .card {
   display: flex;
   align-items: center;
-  background-color: #f1f1f1;
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: calc(50% - 5px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #eee;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .cardImage {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 12px;
+  object-fit: cover;
+  border: 2px solid #42b983;
 }
 
 .cardText {
   font-size: 14px;
   color: #333;
+  font-weight: 500;
 }
 
 .footer {
   text-align: center;
-  padding: 20px;
-  background-color: #f9f9f9;
+  padding: 24px;
+  background-color: #f8f9fa;
   border-top: 1px solid #eee;
+  margin-top: 40px;
 }
 
 .footerText {
+  display: block;
   font-size: 14px;
   color: #666;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.footerText:last-child {
+  margin-bottom: 0;
+  color: #42b983;
+  font-weight: 500;
 }
 
 @media (min-width: 768px) {
