@@ -151,10 +151,28 @@ const generateEncryptionKey = () => {
 app.get('/api/encryption-key', async (req, res) => {
     try {
         const encryptionKey = generateEncryptionKey(); // 每次请求生成一个新的密钥
-        const username = req.query.username; // 获取用户名
-
-        // 将密钥存储在 Redis 中，设置过期时间（例如 5 分钟）
-        await redisClient.set(`encryptionKey:${username}`, encryptionKey, 'EX', 300);
+        
+        // 检查是否有加密的用户名
+        if (req.query.encryptedUsername) {
+            // 使用固定的初始密钥解密用户名
+            const initialKey = 'text-to-speech-initial-key';
+            try {
+                const bytes = CryptoJS.AES.decrypt(req.query.encryptedUsername, initialKey);
+                const username = bytes.toString(CryptoJS.enc.Utf8);
+                
+                if (username) {
+                    // 将密钥存储在 Redis 中，设置过期时间（例如 5 分钟）
+                    await redisClient.set(`encryptionKey:${username}`, encryptionKey, 'EX', 300);
+                }
+            } catch (error) {
+                console.error('解密用户名失败:', error);
+                // 即使解密失败也继续，返回密钥但不存储关联
+            }
+        } else if (req.query.username) {
+            // 兼容未加密的用户名
+            const username = req.query.username;
+            await redisClient.set(`encryptionKey:${username}`, encryptionKey, 'EX', 300);
+        }
 
         res.json({ key: encryptionKey });
     } catch (error) {
@@ -178,9 +196,22 @@ const decryptPassword = (encryptedPassword, secretKey) => {
 
 // 用户登录接口
 app.post('/login', async (req, res) => {
-    const { username, encryptedPassword } = req.body;
+    const { encryptedUsername, encryptedPassword, key } = req.body;
 
     try {
+        // 验证请求参数
+        if (!encryptedUsername || !encryptedPassword || !key) {
+            return res.status(400).json({ message: '缺少必要参数' });
+        }
+        
+        // 使用提供的密钥解密用户名
+        const usernameBytes = CryptoJS.AES.decrypt(encryptedUsername, key);
+        const username = usernameBytes.toString(CryptoJS.enc.Utf8);
+        
+        if (!username) {
+            return res.status(400).json({ message: '解密用户名失败' });
+        }
+
         // 查找用户
         const findUserQuery = 'SELECT * FROM users WHERE username = ?';
         const [results] = await pool.query(findUserQuery, [username]);
@@ -191,18 +222,16 @@ app.post('/login', async (req, res) => {
 
         const user = results[0];
 
-        // 从 Redis 中获取加密密钥
-        const secretKey = await redisClient.get(`encryptionKey:${username}`);
-        if (!secretKey) {
-            return res.status(400).json({ message: '加密密钥无效' });
+        // 使用提供的密钥解密密码
+        const passwordBytes = CryptoJS.AES.decrypt(encryptedPassword, key);
+        const password = passwordBytes.toString(CryptoJS.enc.Utf8);
+        
+        if (!password) {
+            return res.status(400).json({ message: '解密密码失败' });
         }
 
-        // 解密密码
-        const decryptedPassword = decryptPassword(encryptedPassword, secretKey);
-        // console.log('解密后的密码:', decryptedPassword);
-
         // 验证密码
-        const isMatch = await bcrypt.compare(decryptedPassword, user.password_hash);
+        const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(400).json({ message: '用户名或密码错误' });
         }
@@ -421,7 +450,32 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
 app.post('/call-deepseek', async (req, res) => {
     try {
-        const { prompt, system = '' } = req.body;
+        let prompt, system = '';
+        
+        // 检查是否有加密数据
+        if (req.body.encryptedData && req.body.key) {
+            try {
+                // 解密数据
+                const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
+                const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                
+                // 从解密后的数据中提取参数
+                prompt = decryptedData.prompt;
+                system = decryptedData.system || '';
+            } catch (decryptError) {
+                console.error('解密请求数据失败:', decryptError);
+                return res.status(400).json({ message: '解密请求数据失败' });
+            }
+        } else {
+            // 兼容未加密的请求
+            prompt = req.body.prompt;
+            system = req.body.system || '';
+        }
+        
+        // 验证必要参数
+        if (!prompt) {
+            return res.status(400).json({ message: '缺少必要参数' });
+        }
 
         const headers = {
             Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
@@ -445,7 +499,13 @@ app.post('/call-deepseek', async (req, res) => {
         // 保留中文、英文、数字、空格和常用标点符号，移除其他特殊字符
         text = text.replace(/[^\w\s\u4e00-\u9fa5,.!?，。！？]/g, ''); // 保留中英文、数字、空格和常用标点符号
 
-        res.json({ text });
+        // 如果请求是加密的，则响应也需要加密
+        if (req.body.encryptedData && req.body.key) {
+            const encryptedText = CryptoJS.AES.encrypt(JSON.stringify({ text }), req.body.key).toString();
+            res.json({ encryptedData: encryptedText });
+        } else {
+            res.json({ text });
+        }
     } catch (error) {
         console.error('调用 DeepSeek API 失败:', error.response?.data || error.message);
         res.status(500).json({ error: '调用 DeepSeek API 失败' });
