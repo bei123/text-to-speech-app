@@ -209,14 +209,22 @@ const fetchModelPrompt = async (modelValue) => {
       }
     );
 
-    // 解析返回的提示词
-    if (promptResponse.data && promptResponse.data.prompt) {
-      defaultSystemPrompt.value = promptResponse.data.prompt;
+    // 解析返回的提示词 - 解密服务器返回的数据
+    if (promptResponse.data && promptResponse.data.encryptedData) {
+      const decryptedBytes = CryptoJS.AES.decrypt(
+        promptResponse.data.encryptedData, 
+        promptResponse.data.key
+      );
+      const decryptedData = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
       
-      // 如果用户未自定义提示词或正在使用默认提示词，则更新当前提示词
-      if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
-        systemPrompt.value = defaultSystemPrompt.value;
-        isUsingDefaultPrompt.value = true;
+      if (decryptedData && decryptedData.prompt) {
+        defaultSystemPrompt.value = decryptedData.prompt;
+        
+        // 如果用户未自定义提示词或正在使用默认提示词，则更新当前提示词
+        if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+          systemPrompt.value = defaultSystemPrompt.value;
+          isUsingDefaultPrompt.value = true;
+        }
       }
     }
   } catch (error) {
