@@ -95,6 +95,7 @@ import axios from 'axios';
 import ModelModal from './ModelModal.vue';
 import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
+import CryptoJS from 'crypto-js';
 
 const inputText = ref('');
 const selectedLanguage = ref('all_zh');
@@ -125,7 +126,12 @@ const store = useStore();
 const fetchModels = async () => {
   try {
     const response = await axios.get('http://aidudio.2000gallery.art:5000/models');
-    models.value = response.data;
+    
+    // 解密响应数据
+    const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
+    const parsedData = JSON.parse(decryptedData.toString(CryptoJS.enc.Utf8));
+    
+    models.value = parsedData;
     if (models.value.length > 0) {
       selectedModel.value = models.value[0].value;
     }

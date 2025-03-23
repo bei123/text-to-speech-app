@@ -279,7 +279,21 @@ app.get('/models', async (req, res) => {
     try {
         const query = 'SELECT value, label, avatar_url FROM models';
         const [results] = await pool.query(query);
-        res.json(results);
+        
+        // 生成加密密钥
+        const secretKey = crypto.randomBytes(32).toString('hex');
+        
+        // 加密响应数据
+        const encryptedData = encryptResponse(results, secretKey);
+
+        // 将密钥存储在 Redis 中，设置过期时间（5分钟）
+        await redisClient.set('modelKey', secretKey, 'EX', 300);
+
+        // 返回加密后的数据
+        res.json({
+            encryptedData,
+            key: secretKey
+        });
     } catch (error) {
         console.error('获取模型数据失败:', error);
         res.status(500).json({ message: '获取模型数据失败' });
@@ -394,10 +408,28 @@ app.post('/call-deepseek', async (req, res) => {
     }
 });
 
+// 添加加密函数
+const encryptResponse = (data, secretKey) => {
+    try {
+        return CryptoJS.AES.encrypt(JSON.stringify(data), secretKey).toString();
+    } catch (error) {
+        console.error('加密响应数据失败:', error);
+        throw error;
+    }
+};
+
 // 获取用户历史语音记录
 app.get('/history', authenticateToken, async (req, res) => {
     const userId = req.user.id;
-    const { keyword, page = 1, itemsPerPage = 10 } = req.query;
+    const { 
+        keyword, 
+        page = 1, 
+        itemsPerPage = 10,
+        startDate,
+        endDate,
+        model,
+        status
+    } = req.query;
 
     try {
         let query = `
@@ -407,7 +439,7 @@ app.get('/history', authenticateToken, async (req, res) => {
                 m.label AS model_name,
                 ar.text_language, 
                 ar.created_at AS createdAt, 
-                ar.status,  -- 返回任务状态
+                ar.status,
                 CONCAT('http://aidudio.2000gallery.art:5000/download/', af.file_name) AS audioUrl
             FROM 
                 audio_requests ar
@@ -419,17 +451,37 @@ app.get('/history', authenticateToken, async (req, res) => {
                 ar.user_id = ?
         `;
 
+        const params = [userId];
+
+        // 关键词搜索
         if (keyword && keyword.trim()) {
             query += ` AND ar.text LIKE ?`;
-        }
-
-        query += ` ORDER BY ar.created_at DESC LIMIT ? OFFSET ?`;
-
-        const params = [userId];
-        if (keyword && keyword.trim()) {
             params.push(`%${keyword.trim()}%`);
         }
 
+        // 日期范围筛选
+        if (startDate) {
+            query += ` AND DATE(ar.created_at) = ?`;
+            params.push(startDate);
+        }
+        if (endDate) {
+            query += ` AND DATE(ar.created_at) = ?`;
+            params.push(endDate);
+        }
+
+        // 模型筛选
+        if (model && model.trim()) {
+            query += ` AND ar.model_name = ?`;
+            params.push(model.trim());
+        }
+
+        // 状态筛选
+        if (status && status.trim()) {
+            query += ` AND ar.status = ?`;
+            params.push(status.trim());
+        }
+
+        query += ` ORDER BY ar.created_at DESC LIMIT ? OFFSET ?`;
         const offset = (parseInt(page) - 1) * parseInt(itemsPerPage);
         params.push(parseInt(itemsPerPage), offset);
 
@@ -441,23 +493,54 @@ app.get('/history', authenticateToken, async (req, res) => {
             FROM audio_requests ar
             WHERE ar.user_id = ?
         `;
+        const countParams = [userId];
+
+        // 添加相同的筛选条件到计数查询
         if (keyword && keyword.trim()) {
             countQuery += ` AND ar.text LIKE ?`;
-        }
-
-        const countParams = [userId];
-        if (keyword && keyword.trim()) {
             countParams.push(`%${keyword.trim()}%`);
+        }
+        if (startDate) {
+            countQuery += ` AND DATE(ar.created_at) = ?`;
+            countParams.push(startDate);
+        }
+        if (endDate) {
+            countQuery += ` AND DATE(ar.created_at) = ?`;
+            countParams.push(endDate);
+        }
+        if (model && model.trim()) {
+            countQuery += ` AND ar.model_name = ?`;
+            countParams.push(model.trim());
+        }
+        if (status && status.trim()) {
+            countQuery += ` AND ar.status = ?`;
+            countParams.push(status.trim());
         }
 
         const [totalResults] = await pool.query(countQuery, countParams);
         const total = totalResults[0].total;
 
-        res.json({
+        // 准备响应数据
+        const responseData = {
             data: results,
             total,
             page: parseInt(page),
             itemsPerPage: parseInt(itemsPerPage)
+        };
+
+        // 生成加密密钥
+        const secretKey = crypto.randomBytes(32).toString('hex');
+        
+        // 加密响应数据
+        const encryptedData = encryptResponse(responseData, secretKey);
+
+        // 将密钥存储在 Redis 中，设置过期时间（例如 5 分钟）
+        await redisClient.set(`responseKey:${userId}`, secretKey, 'EX', 300);
+
+        // 返回加密后的数据
+        res.json({
+            encryptedData,
+            key: secretKey
         });
     } catch (error) {
         console.error('获取历史记录失败:', error);

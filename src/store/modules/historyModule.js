@@ -1,5 +1,7 @@
 import axios from 'axios';
-import { API_URLS } from '@/constants/constants';
+import router from '@/router';
+import { LOCAL_STORAGE_KEYS } from '@/constants/constants';
+import CryptoJS from 'crypto-js';
 
 export default {
   namespaced: true,
@@ -29,55 +31,95 @@ export default {
     SET_TOTAL_ITEMS(state, total) {
       state.totalItems = total;
     },
+    CLEAR_HISTORY(state) {
+      state.historyList = [];
+      state.currentPage = 1;
+      state.totalItems = 0;
+    }
   },
   actions: {
-    async fetchHistory({ commit, rootState, dispatch }, { keyword, page = 1, itemsPerPage = 10 }) {
-      const requestConfig = {
-        headers: {
-          Authorization: `Bearer ${rootState.token}`,
-        },
-        params: {
-          page,
-          itemsPerPage,
-        },
-      };
-
-      if (keyword) {
-        requestConfig.params.keyword = keyword;
-      }
-
+    async fetchHistory({ commit, dispatch, rootState }, { keyword, page = 1, itemsPerPage = 10, startDate, endDate, model, status }) {
       try {
-        if (!rootState.token) {
-          throw new Error('未找到 Token，请重新登录');
+        // 从 Vuex store 获取 token
+        const token = rootState.token || localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN);
+        console.log('当前 token:', token ? '存在' : '不存在');
+
+        if (!token) {
+          console.log('未找到 token，重定向到登录页面');
+          commit('CLEAR_HISTORY');
+          router.push('/login');
+          throw new Error('未登录');
         }
 
-        const response = await axios.get(API_URLS.HISTORY, requestConfig);
-        // console.log('后端返回的数据:', response.data); // 调试日志
-
-        if (!response.data || !Array.isArray(response.data.data)) {
-          throw new Error('后端返回的数据格式不正确');
-        }
-
-        commit('SET_HISTORY_LIST', response.data.data); // 确保传递的是数组
-        commit('SET_TOTAL_ITEMS', response.data.total); // 设置总记录数
-        commit('SET_CURRENT_PAGE', response.data.page); // 设置当前页
-      } catch (error) {
-        if (error.response?.status === 401) {
-          try {
-            await dispatch('refreshToken', {}, { root: true });
-            requestConfig.headers.Authorization = `Bearer ${rootState.token}`;
-            const response = await axios.get(API_URLS.HISTORY, requestConfig);
-            commit('SET_HISTORY_LIST', response.data.data);
-            commit('SET_TOTAL_ITEMS', response.data.total);
-            commit('SET_CURRENT_PAGE', response.data.page);
-          } catch (refreshError) {
-            console.error('刷新 Token 失败:', refreshError);
-            throw new Error('Token 已过期，请重新登录');
+        const requestConfig = {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          params: {
+            page,
+            itemsPerPage
           }
-        } else {
-          console.error('获取历史记录失败:', error);
-          throw error;
+        };
+
+        if (keyword) {
+          requestConfig.params.keyword = keyword;
         }
+
+        // 处理日期范围
+        if (startDate) {
+          // 确保日期格式为 YYYY-MM-DD
+          const formattedStartDate = new Date(startDate).toISOString().split('T')[0];
+          requestConfig.params.startDate = formattedStartDate;
+          console.log('开始日期:', formattedStartDate);
+        }
+        if (endDate) {
+          // 确保日期格式为 YYYY-MM-DD，并设置为当天的结束时间
+          const date = new Date(endDate);
+          date.setHours(23, 59, 59, 999);
+          const formattedEndDate = date.toISOString().split('T')[0];
+          requestConfig.params.endDate = formattedEndDate;
+          console.log('结束日期:', formattedEndDate);
+        }
+
+        if (model) {
+          requestConfig.params.model = model;
+        }
+        if (status) {
+          requestConfig.params.status = status;
+        }
+
+        console.log('发送请求配置:', {
+          ...requestConfig,
+          headers: { ...requestConfig.headers, Authorization: 'Bearer [已隐藏]' }
+        });
+
+        const response = await axios.get('http://aidudio.2000gallery.art:5000/history', requestConfig);
+        
+        // 解密响应数据
+        const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
+        const parsedData = JSON.parse(decryptedData.toString(CryptoJS.enc.Utf8));
+        
+        commit('SET_HISTORY_LIST', parsedData.data);
+        commit('SET_TOTAL_ITEMS', parsedData.total);
+        commit('SET_CURRENT_PAGE', parsedData.page);
+        
+        return parsedData;
+      } catch (error) {
+        console.error('获取历史记录失败:', error);
+        
+        if (error.response?.status === 401) {
+          console.log('Token 已过期，尝试刷新');
+          try {
+            await dispatch('auth/refreshToken', null, { root: true });
+            return dispatch('fetchHistory', { keyword, page, itemsPerPage, startDate, endDate, model, status });
+          } catch (refreshError) {
+            console.error('刷新 token 失败:', refreshError);
+            commit('CLEAR_HISTORY');
+            router.push('/login');
+            throw new Error('登录已过期，请重新登录');
+          }
+        }
+        throw error;
       }
     },
   },
