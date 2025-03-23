@@ -216,19 +216,53 @@ const generateSpeech = async () => {
     let textToGenerate = inputText.value;
 
     if (isOpenAIGPT.value) {
+      // 获取加密密钥
+      const initialKey = 'text-to-speech-initial-key';
+      const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+      
+      const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+        params: { encryptedUsername: encryptedUsernameForKey }
+      });
+      const aiSecretKey = keyResponse.data.key;
+
+      // 准备并加密请求数据
+      const aiRequestData = {
+        prompt: inputText.value,
+        system: systemPrompt.value
+      };
+
+      // 加密请求数据
+      const encryptedAiData = CryptoJS.AES.encrypt(
+        JSON.stringify(aiRequestData),
+        aiSecretKey
+      ).toString();
+
+      // 发送加密后的请求
       const response = await axios.post(
         API_URLS.CALL_DEEPSEEK,
         {
-          prompt: inputText.value,
-          system: systemPrompt.value
+          encryptedData: encryptedAiData,
+          key: aiSecretKey
         }
       );
-      textToGenerate = response.data.text;
+      
+      // 解密响应数据
+      if (response.data.encryptedData) {
+        const decryptedBytes = CryptoJS.AES.decrypt(response.data.encryptedData, aiSecretKey);
+        const decryptedResponse = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
+        textToGenerate = decryptedResponse.text;
+      } else {
+        textToGenerate = response.data.text;
+      }
     }
 
     // 获取加密密钥
+    // 使用固定的初始密钥对用户名进行加密
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+    
     const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
-      params: { username: currentUser.username }
+      params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
 

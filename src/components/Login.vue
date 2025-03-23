@@ -42,18 +42,24 @@ export default {
                 error.value = null;
 
                 // 获取加密密钥
+                // 使用固定的初始密钥对用户名进行加密
+                const initialKey = 'text-to-speech-initial-key';
+                const encryptedUsernameForKey = CryptoJS.AES.encrypt(username.value, initialKey).toString();
+                
                 const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
-                    params: { username: username.value }
+                    params: { encryptedUsername: encryptedUsernameForKey }
                 });
                 const secretKey = keyResponse.data.key;
 
-                // 加密密码
+                // 加密用户名和密码
+                const encryptedUsername = CryptoJS.AES.encrypt(username.value, secretKey).toString();
                 const encryptedPassword = CryptoJS.AES.encrypt(password.value, secretKey).toString();
 
                 // 发送登录请求
                 const response = await axios.post(API_URLS.LOGIN, {
-                    username: username.value,
-                    encryptedPassword
+                    encryptedUsername,
+                    encryptedPassword,
+                    key: secretKey
                 });
 
                 // 记录响应数据，方便调试
