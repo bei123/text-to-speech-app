@@ -72,7 +72,14 @@
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->
-    <SystemModal v-if="showSystemModal" v-model="systemPrompt" @save="saveSystemPrompt" @close="closeSystemModal" />
+    <SystemModal 
+      v-if="showSystemModal" 
+      v-model="systemPrompt" 
+      :defaultValue="defaultSystemPrompt"
+      @save="saveSystemPrompt" 
+      @close="closeSystemModal"
+      @reset="resetToDefaultPrompt" 
+    />
 
     <!-- 提示信息 -->
     <Snackbar v-if="snackbar" :message="snackbarMessage" @close="snackbar = false" />
@@ -108,6 +115,8 @@ const models = ref([]);
 const isOpenAIGPT = ref(false);
 const showSystemModal = ref(false);
 const systemPrompt = ref('');
+const defaultSystemPrompt = ref(''); // 存储模型默认提示词
+const isUsingDefaultPrompt = ref(true); // 标记是否使用默认提示词
 const showModelModal = ref(false);
 const snackbar = ref(false);
 const snackbarMessage = ref('');
@@ -134,11 +143,85 @@ const fetchModels = async () => {
     
     models.value = parsedData;
     if (models.value.length > 0) {
+      // 设置第一个模型为默认选择的模型
       selectedModel.value = models.value[0].value;
+      selectedModelLabel.value = models.value[0].label;
+      
+      // 如果模型数据中直接包含system_prompt字段，则直接使用
+      const selectedModelData = models.value.find(model => model.value === selectedModel.value);
+      if (selectedModelData && selectedModelData.system_prompt) {
+        defaultSystemPrompt.value = selectedModelData.system_prompt;
+        if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+          systemPrompt.value = defaultSystemPrompt.value;
+          isUsingDefaultPrompt.value = true;
+        }
+      } else {
+        // 否则通过API获取默认模型的提示词
+        await fetchModelPrompt(selectedModel.value);
+      }
     }
   } catch (error) {
     console.error('获取模型数据失败:', error);
     showSnackbar('获取模型数据失败，请稍后重试');
+  }
+};
+
+// 获取模型对应的提示词
+const fetchModelPrompt = async (modelValue) => {
+  try {
+    const currentUser = store.getters['auth/user'];
+    if (!currentUser || !currentUser.username) {
+      return;
+    }
+
+    // 获取加密密钥
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+    
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 准备请求数据
+    const requestData = {
+      model_name: modelValue,
+      username: currentUser.username
+    };
+
+    // 加密请求数据
+    const encryptedData = CryptoJS.AES.encrypt(
+      JSON.stringify(requestData),
+      secretKey
+    ).toString();
+
+    // 发送加密后的请求
+    const promptResponse = await axios.post(
+      API_URLS.MODEL_PROMPT,
+      {
+        encryptedData,
+        key: secretKey
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${store.getters['auth/accessToken']}`
+        }
+      }
+    );
+
+    // 解析返回的提示词
+    if (promptResponse.data && promptResponse.data.prompt) {
+      defaultSystemPrompt.value = promptResponse.data.prompt;
+      
+      // 如果用户未自定义提示词或正在使用默认提示词，则更新当前提示词
+      if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+        systemPrompt.value = defaultSystemPrompt.value;
+        isUsingDefaultPrompt.value = true;
+      }
+    }
+  } catch (error) {
+    console.error('获取模型提示词失败:', error);
+    showSnackbar('获取模型提示词失败，将使用默认提示词');
   }
 };
 
@@ -153,10 +236,23 @@ const closeModelModal = () => {
 };
 
 // 选择模型
-const selectModel = (model) => {
+const selectModel = async (model) => {
   selectedModel.value = model.value;
   selectedModelLabel.value = model.label;
   closeModelModal();
+  
+  // 如果模型数据中直接包含system_prompt字段，则直接使用
+  const selectedModelData = models.value.find(m => m.value === model.value);
+  if (selectedModelData && selectedModelData.system_prompt) {
+    defaultSystemPrompt.value = selectedModelData.system_prompt;
+    if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+      systemPrompt.value = defaultSystemPrompt.value;
+      isUsingDefaultPrompt.value = true;
+    }
+  } else {
+    // 否则通过API获取新选择模型的提示词
+    await fetchModelPrompt(model.value);
+  }
 };
 
 // 计算模型头像
@@ -369,7 +465,20 @@ const saveSystemPrompt = () => {
     showSnackbar('请输入提示词');
     return;
   }
+  // 标记为用户自定义提示词
+  isUsingDefaultPrompt.value = false;
   closeSystemModal();
+};
+
+// 重置为默认提示词
+const resetToDefaultPrompt = () => {
+  if (defaultSystemPrompt.value) {
+    systemPrompt.value = defaultSystemPrompt.value;
+    isUsingDefaultPrompt.value = true;
+    showSnackbar('已重置为模型默认提示词');
+  } else {
+    showSnackbar('无法获取默认提示词');
+  }
 };
 
 onMounted(() => {
