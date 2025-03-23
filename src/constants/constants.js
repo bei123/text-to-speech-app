@@ -6,7 +6,7 @@ export const API_URLS = {
     LOGIN: `${API_BASE_URL}/login`,
     REGISTER: `${API_BASE_URL}/register`,
     REFRESH_TOKEN: `${API_BASE_URL}/refresh-token`,
-    ENCRYPTION_KEY: `${API_BASE_URL}/api/encryption-key`,
+    ENCRYPTION_KEY: `${API_BASE_URL}/encryption-key`,
     GENERATE_SPEECH: `${API_BASE_URL}/generate-speech`,
     HISTORY: `${API_BASE_URL}/history`,
     MODELS: `${API_BASE_URL}/models`,
