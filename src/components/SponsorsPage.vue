@@ -82,7 +82,7 @@
     <!-- 底部提示 -->
     <div class="footer">
       <span class="footerText">如果你有好的模型提供,或愿意赞助GPU算力,请联系我!</span>
-      <span class="footerText">QQ交流群：621244714</span>
+      <span class="footerText">QQ交流群：<span class="textLink" @click="copyQQGroup">621244714</span></span>
     </div>
   </div>
   <div>
@@ -132,6 +132,11 @@ const copyGptSoVitsLink = () => {
 const copyProjectLink = () => {
   const link = "https://github.com/bei123/text-to-speech-app";
   copyOrOpenLink(link);
+};
+
+const copyQQGroup = () => {
+  const qqGroup = "621244714";
+  copyOrOpenLink(qqGroup);
 };
 
 const copyOrOpenLink = (link) => {
