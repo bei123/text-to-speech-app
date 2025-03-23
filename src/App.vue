@@ -65,18 +65,24 @@ const { mobile } = useDisplay();
 const store = useStore();
 
 // 使用 computed 优化性能
-const isAuthenticated = computed(() => store.getters.isAuthenticated);
+const isAuthenticated = computed(() => store.getters['auth/isAuthenticated']);
+
 const isMobile = computed(() => mobile.value);
 
 // 优化登出逻辑
 const logout = async () => {
   try {
-    await store.dispatch('logout');
-    router.push('/login');
+    await store.dispatch('auth/logout');
+    // 等待一小段时间确保状态更新完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+    // 使用 replace 而不是 push
+    await router.replace('/login');
   } catch (error) {
     console.error('登出失败:', error);
   }
 };
+
+console.log('isAuthenticated:', isAuthenticated.value);
 </script>
 
 <style>

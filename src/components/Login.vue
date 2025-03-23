@@ -10,12 +10,9 @@
                 <label for="password">密码</label>
                 <input type="password" id="password" v-model="password" autocomplete="current-password" required />
             </div>
-            <button type="submit" :disabled="isSubmitting">登录</button>
+            <button type="submit" :disabled="loading">登录</button>
         </form>
         <p>还没有账号？<router-link to="/register">注册</router-link></p>
-        <div v-if="snackbar" :class="['snackbar', snackbarType]">
-            {{ snackbarMessage }}
-        </div>
     </div>
 </template>
 
@@ -25,6 +22,8 @@ import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
+import { ElMessage } from 'element-plus';
+import { API_URLS } from '@/constants/constants';
 
 export default {
     name: 'UserLogin',
@@ -34,83 +33,65 @@ export default {
 
         const username = ref('');
         const password = ref('');
-        const isSubmitting = ref(false);
-        const snackbar = ref(false); // 控制 snackbar 显示
-        const snackbarMessage = ref(''); // snackbar 提示信息
-        const snackbarType = ref(''); // snackbar 类型（success/error）
-
-        const showSnackbar = (message, type, duration = 3000) => {
-            snackbarMessage.value = message;
-            snackbarType.value = type;
-            snackbar.value = true;
-
-            // 自动关闭 snackbar
-            setTimeout(() => {
-                snackbar.value = false;
-            }, duration);
-        };
-
-        const encryptPassword = (password, secretKey) => {
-            return CryptoJS.AES.encrypt(password, secretKey).toString(); // 返回 Base64 编码的字符串
-        };
+        const loading = ref(false);
+        const error = ref(null);
 
         const submitLogin = async () => {
-            isSubmitting.value = true;
             try {
-                // 1. 从后端获取加密密钥
-                const keyResponse = await axios.get('http://aidudio.2000gallery.art:5000/api/encryption-key', {
-                    params: { username: username.value } // 传递用户名
+                loading.value = true;
+                error.value = null;
+
+                // 获取加密密钥
+                const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+                    params: { username: username.value }
                 });
                 const secretKey = keyResponse.data.key;
 
-                // 2. 加密密码
-                const encryptedPassword = encryptPassword(password.value, secretKey);
-                // console.log('加密后的密码:', encryptedPassword);
+                // 加密密码
+                const encryptedPassword = CryptoJS.AES.encrypt(password.value, secretKey).toString();
 
-                // 3. 发送登录请求
-                const response = await axios.post('http://aidudio.2000gallery.art:5000/login', {
+                // 发送登录请求
+                const response = await axios.post(API_URLS.LOGIN, {
                     username: username.value,
-                    encryptedPassword, // 发送加密后的密码
+                    encryptedPassword
                 });
 
-                // 从响应中提取 accessToken、refreshToken 和 user
-                const { accessToken, refreshToken, user } = response.data;
+                // 记录响应数据，方便调试
+                console.log('登录响应：', response.data);
 
-                // 调用 Vuex 的 login action，传递 accessToken、refreshToken 和 user
-                store.dispatch('login', { accessToken, refreshToken, user });
+                // 调用 Vuex store 的 login action
+                await store.dispatch('auth/login', {
+                    accessToken: response.data.accessToken,
+                    refreshToken: response.data.refreshToken,
+                    user: response.data.user
+                });
 
-                // 显示成功提示
-                showSnackbar('登录成功', 'success', 2000);
+                // 登录成功后的提示
+                ElMessage.success('登录成功');
+
+                // 等待一小段时间确保状态更新完成
+                await new Promise(resolve => setTimeout(resolve, 100));
 
                 // 检查是否有重定向路径
                 const redirect = router.currentRoute.value.query.redirect;
                 if (redirect) {
-                    router.push(redirect);
+                    await router.replace(redirect);
                 } else {
-                    router.push('/'); // 默认跳转到主页
+                    await router.replace('/'); // 默认跳转到主页
                 }
-            } catch (error) {
-                let errorMessage = '登录失败，请稍后重试';
-                if (error.response && error.response.data && error.response.data.message) {
-                    errorMessage = error.response.data.message;
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-
-                // 显示错误提示
-                showSnackbar(errorMessage, 'error', 3000);
+            } catch (err) {
+                console.error('登录失败:', err);
+                error.value = err.response?.data?.message || '登录失败，请重试';
+                ElMessage.error(error.value);
             } finally {
-                isSubmitting.value = false;
+                loading.value = false;
             }
         };
 
         return {
             username,
             password,
-            isSubmitting,
-            snackbar,
-            snackbarMessage,
-            snackbarType,
+            loading,
             submitLogin,
         };
     },
@@ -118,50 +99,6 @@ export default {
 </script>
 
 <style scoped>
-.snackbar {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 15px 30px;
-    border-radius: 8px;
-    color: #fff;
-    z-index: 1000;
-    animation: fadeInOut 3s ease-in-out;
-}
-
-.snackbar.success {
-    background-color: #4caf50;
-    /* 成功提示背景色 */
-}
-
-.snackbar.error {
-    background-color: #f44336;
-    /* 错误提示背景色 */
-}
-
-@keyframes fadeInOut {
-    0% {
-        opacity: 0;
-        transform: translateX(-50%) translateY(20px);
-    }
-
-    10% {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-
-    90% {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translateX(-50%) translateY(20px);
-    }
-}
-
 .auth-container {
     max-width: 400px;
     margin: 50px auto;

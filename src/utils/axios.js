@@ -1,5 +1,6 @@
 import axios from 'axios';
 import store from '@/store';
+import router from '@/router';
 import { API_BASE_URL, HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
 
 const api = axios.create({
@@ -13,7 +14,7 @@ const api = axios.create({
 // 请求拦截器：添加 Token
 api.interceptors.request.use(
     (config) => {
-        const token = store.state.token;
+        const token = store.getters['auth/accessToken'];
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -46,9 +47,20 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
-                // 清除用户状态并跳转到登录页
-                store.dispatch('logout');
-                throw refreshError;
+                
+                // 如果是 refresh token 过期，清除用户状态并跳转到登录页
+                if (refreshError.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {
+                    await store.dispatch('logout');
+                    router.push({
+                        path: '/login',
+                        query: { 
+                            redirect: router.currentRoute.value.fullPath,
+                            message: '登录已过期，请重新登录'
+                        }
+                    });
+                }
+                
+                return Promise.reject(refreshError);
             }
         }
 

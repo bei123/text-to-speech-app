@@ -80,7 +80,7 @@ const setPageTitle = (to) => {
 
 // 检查用户是否已登录
 const checkAuth = () => {
-  return store.getters.isAuthenticated;
+  return store.getters['auth/isAuthenticated'];
 };
 
 // 处理需要登录的路由

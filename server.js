@@ -254,14 +254,23 @@ app.post('/refresh-token', async (req, res) => {
         // 验证 Refresh Token
         jwt.verify(refreshToken, 'your_refresh_secret', (err, user) => {
             if (err) {
-                return res.status(403).json({ message: 'Refresh Token 无效或已过期' });
+                return res.status(403).json({ 
+                    message: 'Refresh Token 无效或已过期',
+                    code: 'REFRESH_TOKEN_EXPIRED'
+                });
             }
 
             // 生成新的 Access Token
             const newAccessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
+            
+            // 生成新的 Refresh Token
+            const newRefreshToken = jwt.sign({ id: user.id }, 'your_refresh_secret', { expiresIn: '7d' });
 
-            // 返回新的 Access Token
-            res.json({ accessToken: newAccessToken });
+            // 返回新的 Token
+            res.json({ 
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken
+            });
         });
     } catch (error) {
         console.error('刷新 Token 失败:', error);
@@ -301,13 +310,41 @@ app.get('/models', async (req, res) => {
 });
 
 app.post('/generate-speech', authenticateToken, async (req, res) => {
-    const { text, text_language, model_name } = req.body;
-    const userId = req.user.id;
-
-    // 缓存键
-    const cacheKey = `speech:${userId}:${text}:${text_language}:${model_name}`;
-
     try {
+        const userId = req.user.id;
+        let text, text_language, model_name, username;
+
+        // 检查是否有加密数据
+        if (req.body.encryptedData && req.body.key) {
+            try {
+                // 解密数据
+                const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
+                const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                
+                // 从解密后的数据中提取参数
+                text = decryptedData.text;
+                text_language = decryptedData.text_language;
+                model_name = decryptedData.model_name;
+                username = decryptedData.username;
+            } catch (decryptError) {
+                console.error('解密请求数据失败:', decryptError);
+                return res.status(400).json({ message: '解密请求数据失败' });
+            }
+        } else {
+            // 兼容未加密的请求
+            text = req.body.text;
+            text_language = req.body.text_language;
+            model_name = req.body.model_name;
+        }
+
+        // 验证必要参数
+        if (!text || !text_language || !model_name) {
+            return res.status(400).json({ message: '缺少必要参数' });
+        }
+
+        // 缓存键
+        const cacheKey = `speech:${userId}:${text}:${text_language}:${model_name}`;
+
         // 检查缓存
         const cachedResult = await redisClient.get(cacheKey);
         if (cachedResult) {
@@ -317,15 +354,26 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
         // 获取用户信息
         const getUserQuery = 'SELECT username, email FROM users WHERE id = ?';
         const [userResults] = await pool.query(getUserQuery, [userId]);
-        const username = userResults[0].username; // 获取用户名
-        const userEmail = userResults[0].email;
+        const userInfo = userResults[0];
+        
+        // 如果请求中没有提供用户名，使用数据库中的用户名
+        if (!username) {
+            username = userInfo.username;
+        }
 
         // 插入初始状态为 pending 的任务
         const insertRequestQuery = `
             INSERT INTO audio_requests (user_id, user_email, text, model_name, text_language, status)
             VALUES (?, ?, ?, ?, ?, ?)
         `;
-        const [requestResult] = await pool.query(insertRequestQuery, [userId, userEmail, text, model_name, text_language, 'pending']);
+        const [requestResult] = await pool.query(insertRequestQuery, [
+            userId, 
+            userInfo.email, 
+            text, 
+            model_name, 
+            text_language, 
+            'pending'
+        ]);
 
         // 添加任务到队列
         const job = await speechQueue.add({
@@ -333,9 +381,9 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
             text_language,
             model_name,
             userId,
-            userEmail,
-            username, // 将用户名传递给任务处理器
-            requestId: requestResult.insertId // 传递任务 ID
+            userEmail: userInfo.email,
+            username,
+            requestId: requestResult.insertId
         });
 
         // 更新任务 ID
@@ -346,10 +394,6 @@ app.post('/generate-speech', authenticateToken, async (req, res) => {
 
         // 缓存结果
         await redisClient.set(cacheKey, downloadLink, 'EX', 3600); // 缓存1小时
-
-        // 检查缓存的 TTL
-        const ttl = await redisClient.ttl(cacheKey);
-        console.log(`缓存键 ${cacheKey} 的 TTL: ${ttl} 秒`);
 
         // 返回下载链接
         res.json({ downloadLink });
