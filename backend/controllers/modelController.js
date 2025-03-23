@@ -53,18 +53,28 @@ const getModelPrompt = async (req, res) => {
         const query = 'SELECT system_prompt FROM models WHERE value = ?';
         const [results] = await pool.query(query, [model_name]);
 
+        let promptData;
         if (results.length === 0) {
             // 如果没有找到对应的提示词，返回默认提示词
-            return res.json({ 
+            promptData = { 
                 prompt: '你是一个有用的AI助手，请根据用户的指令提供帮助。',
                 modelName: model_name
-            });
+            };
+        } else {
+            // 返回找到的提示词
+            promptData = {
+                prompt: results[0].system_prompt,
+                modelName: model_name
+            };
         }
 
-        // 返回找到的提示词
+        // 加密响应数据
+        const encryptedResponse = encryptResponse(promptData, key);
+
+        // 返回加密的响应数据
         res.json({
-            prompt: results[0].system_prompt,
-            modelName: model_name
+            encryptedData: encryptedResponse,
+            key: key
         });
     } catch (error) {
         console.error('获取模型提示词失败:', error);
