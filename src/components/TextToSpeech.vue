@@ -96,6 +96,7 @@ import ModelModal from './ModelModal.vue';
 import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
+import { API_URLS } from '@/constants/constants';
 
 const inputText = ref('');
 const selectedLanguage = ref('all_zh');
@@ -125,7 +126,7 @@ const store = useStore();
 // 获取模型数据
 const fetchModels = async () => {
   try {
-    const response = await axios.get('http://aidudio.2000gallery.art:5000/models');
+    const response = await axios.get(API_URLS.MODELS);
     
     // 解密响应数据
     const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
@@ -196,10 +197,17 @@ const generateSpeech = async () => {
     return;
   }
 
-  const currentUser = store.getters.currentUser;
+  const token = store.getters['auth/accessToken'];
+  const currentUser = store.getters['auth/user'];
+  console.log('当前登录状态：', {
+    token,
+    currentUser,
+    isAuthenticated: store.getters['auth/isAuthenticated']
+  });
+
   if (!currentUser || !currentUser.username) {
     showSnackbar('请先登入');
-    router.push('/login');
+    router.replace('/login');
     return;
   }
 
@@ -209,7 +217,7 @@ const generateSpeech = async () => {
 
     if (isOpenAIGPT.value) {
       const response = await axios.post(
-        'http://aidudio.2000gallery.art:5000/call-deepseek',
+        API_URLS.CALL_DEEPSEEK,
         {
           prompt: inputText.value,
           system: systemPrompt.value
@@ -218,17 +226,36 @@ const generateSpeech = async () => {
       textToGenerate = response.data.text;
     }
 
+    // 获取加密密钥
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { username: currentUser.username }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 准备请求数据
+    const requestData = {
+      text: textToGenerate,
+      text_language: selectedLanguage.value,
+      model_name: selectedModel.value,
+      username: currentUser.username
+    };
+
+    // 加密请求数据
+    const encryptedData = CryptoJS.AES.encrypt(
+      JSON.stringify(requestData),
+      secretKey
+    ).toString();
+
+    // 发送加密后的请求
     const speechResponse = await axios.post(
-      'http://aidudio.2000gallery.art:5000/generate-speech',
+      API_URLS.GENERATE_SPEECH,
       {
-        text: textToGenerate,
-        text_language: selectedLanguage.value,
-        model_name: selectedModel.value,
-        username: currentUser.username
+        encryptedData,
+        key: secretKey
       },
       {
         headers: {
-          Authorization: `Bearer ${store.state.token}`
+          Authorization: `Bearer ${store.getters['auth/accessToken']}`
         }
       }
     );
