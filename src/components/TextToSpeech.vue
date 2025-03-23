@@ -183,11 +183,61 @@ const selectedModelAvatar = computed(() => {
 
 // 显示提示信息
 const showSnackbar = (message) => {
-  snackbarMessage.value = message;
-  snackbar.value = true;
+  // 删除可能存在的旧toast
+  const existingToast = document.getElementById('custom-toast');
+  if (existingToast) {
+    document.body.removeChild(existingToast);
+  }
+
+  // 创建toast元素
+  const toast = document.createElement('div');
+  toast.id = 'custom-toast';
+  toast.innerText = message;
+  
+  // 设置toast样式
+  toast.style.position = 'fixed';
+  toast.style.top = '80px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.backgroundColor = '#42b983';
+  toast.style.color = 'white';
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.zIndex = '9999';
+  toast.style.boxShadow = '0 4px 12px rgba(66, 185, 131, 0.25)';
+  toast.style.fontWeight = '500';
+  toast.style.fontSize = '14px';
+  toast.style.textAlign = 'center';
+  toast.style.minWidth = '240px';
+  toast.style.opacity = '0';
+  toast.style.transition = 'all 0.3s ease-in-out';
+  toast.style.backdropFilter = 'blur(4px)';
+  toast.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+  
+  // 添加到body
+  document.body.appendChild(toast);
+  
+  // 显示toast (使用setTimeout确保CSS过渡效果生效)
   setTimeout(() => {
-    snackbar.value = false;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+  }, 10);
+  
+  // 3秒后隐藏
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-10px)';
+    // 完全隐藏后移除元素
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
   }, 3000);
+  
+  // 不再使用原来的snackbar
+  snackbarMessage.value = message;
+  snackbar.value = false;
 };
 
 // 生成语音
