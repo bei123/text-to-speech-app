@@ -4,18 +4,28 @@ import { API_BASE_URL, HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    timeout: 10000, // 设置请求超时时间
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 // 请求拦截器：添加 Token
-api.interceptors.request.use((config) => {
-    const token = store.state.token;
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(
+    (config) => {
+        const token = store.state.token;
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        console.error('请求错误:', error);
+        return Promise.reject(error);
     }
-    return config;
-});
+);
 
-// 响应拦截器：处理 Token 过期
+// 响应拦截器：处理 Token 过期和错误
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -36,12 +46,26 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
+                // 清除用户状态并跳转到登录页
+                store.dispatch('logout');
                 throw refreshError;
             }
         }
 
-        // 其他错误直接返回
-        return Promise.reject(error);
+        // 处理其他错误
+        if (error.response) {
+            // 服务器响应错误
+            console.error('服务器错误:', error.response.data);
+            return Promise.reject(error.response.data);
+        } else if (error.request) {
+            // 请求未收到响应
+            console.error('网络错误:', error.request);
+            return Promise.reject({ message: '网络连接失败，请检查网络设置' });
+        } else {
+            // 请求配置错误
+            console.error('请求配置错误:', error.message);
+            return Promise.reject({ message: '请求配置错误' });
+        }
     }
 );
 

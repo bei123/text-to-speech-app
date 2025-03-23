@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import store from '@/store';
 
 // 路由配置
 const routes = [
@@ -7,8 +8,9 @@ const routes = [
     name: 'TextToSpeech',
     component: () => import('@/components/TextToSpeech.vue'),
     meta: {
-      requiresAuth: true, // 需要登录
-      title: '首页 - Ai语音生命', // 设置标题
+      requiresAuth: true,
+      title: '首页 - Ai语音生命',
+      keepAlive: true,
     },
   },
   {
@@ -16,7 +18,8 @@ const routes = [
     name: 'Login',
     component: () => import('@/components/Login.vue'),
     meta: {
-      title: '登入', // 设置标题
+      title: '登入',
+      guest: true,
     },
   },
   {
@@ -25,7 +28,7 @@ const routes = [
     component: () => import('@/components/SponsorsPage.vue'),
     meta: {
       requiresAuth: true,
-      title: '为爱发电的人们', // 设置标题
+      title: '为爱发电的人们',
     },
   },
   {
@@ -33,7 +36,8 @@ const routes = [
     name: 'UserRegister',
     component: () => import('@/components/UserRegister.vue'),
     meta: {
-      title: '注册', // 设置标题
+      title: '注册',
+      guest: true,
     },
   },
   {
@@ -41,60 +45,92 @@ const routes = [
     name: 'HistoryPage',
     component: () => import('@/components/HistoryPage.vue'),
     meta: {
-      requiresAuth: true, // 需要登录
-      title: '历史查询', // 设置标题
+      requiresAuth: true,
+      title: '历史查询',
+      keepAlive: true,
+    },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/components/NotFound.vue'),
+    meta: {
+      title: '404 - 页面未找到',
     },
   },
 ];
 
 // 创建路由实例
 const router = createRouter({
-  history: createWebHashHistory(), // 使用 Hash 模式
+  history: createWebHashHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition;
+    } else {
+      return { top: 0 };
+    }
+  },
 });
 
-// 检查用户是否已登录
-function checkAuth() {
-  const token = localStorage.getItem('token');
-  return !!token; // 如果 token 存在，返回 true；否则返回 false
-}
-
 // 动态设置页面标题
-function setPageTitle(to) {
-  if (to.meta.title) {
-    document.title = to.meta.title;
-  }
-}
+const setPageTitle = (to) => {
+  document.title = to.meta.title || 'Ai语音生命';
+};
+
+// 检查用户是否已登录
+const checkAuth = () => {
+  return store.getters.isAuthenticated;
+};
 
 // 处理需要登录的路由
-function handleAuthRequiredRoute(to, next, isAuthenticated) {
+const handleAuthRequiredRoute = (to, next, isAuthenticated) => {
   if (isAuthenticated) {
     next();
   } else {
-    // 保存目标路径到 query 参数中
     next({ name: 'Login', query: { redirect: to.fullPath } });
   }
-}
+};
+
+// 处理仅允许未登录用户访问的路由
+const handleGuestRoute = (to, next, isAuthenticated) => {
+  if (!isAuthenticated) {
+    next();
+  } else {
+    next({ name: 'TextToSpeech' });
+  }
+};
 
 // 路由导航守卫
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = checkAuth();
+router.beforeEach(async (to, from, next) => {
+  try {
+    const isAuthenticated = checkAuth();
 
-  // 动态设置页面标题
-  setPageTitle(to);
+    // 动态设置页面标题
+    setPageTitle(to);
 
-  // 如果用户已经登录，尝试访问登录页面，则重定向到主页
-  if (to.name === 'Login' && isAuthenticated) {
-    next({ name: 'TextToSpeech' });
-    return;
-  }
+    // 处理需要登录的路由
+    if (to.matched.some((record) => record.meta.requiresAuth)) {
+      handleAuthRequiredRoute(to, next, isAuthenticated);
+      return;
+    }
 
-  // 检查是否需要登录
-  if (to.matched.some((record) => record.meta.requiresAuth)) {
-    handleAuthRequiredRoute(to, next, isAuthenticated);
-  } else {
+    // 处理仅允许未登录用户访问的路由
+    if (to.matched.some((record) => record.meta.guest)) {
+      handleGuestRoute(to, next, isAuthenticated);
+      return;
+    }
+
     next();
+  } catch (error) {
+    console.error('路由导航错误:', error);
+    next({ name: 'Login' });
   }
+});
+
+// 路由错误处理
+router.onError((error) => {
+  console.error('路由错误:', error);
 });
 
 export default router;

@@ -16,7 +16,13 @@
     <!-- 主要内容区域 -->
     <v-main app>
       <v-container fluid class="pa-6 main-content">
-        <router-view></router-view>
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <div class="component-wrapper">
+              <component :is="Component" :key="$route.fullPath" />
+            </div>
+          </transition>
+        </router-view>
       </v-container>
     </v-main>
 
@@ -52,22 +58,24 @@
 <script setup>
 import { computed } from 'vue';
 import { useDisplay } from 'vuetify';
-import { useStore } from 'vuex'; // 引入 useStore
+import { useStore } from 'vuex';
 import router from './router';
 
 const { mobile } = useDisplay();
-const store = useStore(); // 获取 Vuex store
+const store = useStore();
 
-// 使用 isAuthenticated getter 判断用户是否已登录
+// 使用 computed 优化性能
 const isAuthenticated = computed(() => store.getters.isAuthenticated);
-
-// 判断是否为移动端
 const isMobile = computed(() => mobile.value);
 
-// 登出逻辑
-const logout = () => {
-  store.dispatch('logout'); // 调用 Vuex 的 logout action
-  router.push('/login'); // 跳转到登录页面
+// 优化登出逻辑
+const logout = async () => {
+  try {
+    await store.dispatch('logout');
+    router.push('/login');
+  } catch (error) {
+    console.error('登出失败:', error);
+  }
 };
 </script>
 
@@ -78,16 +86,49 @@ const logout = () => {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
+  min-height: 5vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 使用 CSS 变量优化样式管理 */
+:root {
+  --bottom-nav-height: 56px;
+  --primary-color: #1976d2;
+  --error-color: #f44336;
 }
 
 /* 主要内容区域底部内边距 */
 .main-content {
-  padding-bottom: 56px !important; /* 确保优先级 */
+  padding-bottom: var(--bottom-nav-height) !important;
+  flex: 1;
+}
+
+/* 组件包装器样式 */
+.component-wrapper {
+  min-height: 100%;
+  width: 100%;
 }
 
 /* 底部导航栏样式 */
 .bottom-nav {
-  height: 56px !important; /* 显式设置高度 */
+  height: var(--bottom-nav-height) !important;
   z-index: 2;
+}
+
+/* 添加过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 </style>

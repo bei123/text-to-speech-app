@@ -12,9 +12,9 @@
   <div class="container">
     <!-- 顶部导航 -->
     <div class="topBar">
-      <navigator open-type="navigateBack" class="navigatorBtn">
-        <font-awesome-icon :icon="['fas', 'arrow-left']" class="navigatorIcon" />
-      </navigator>
+      <v-btn icon @click="goBack" class="navigatorBtn">
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
       <span class="topText">为爱发电的人们</span>
     </div>
 
@@ -87,10 +87,14 @@
 
 <script setup>
 import { ref } from 'vue';
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 
-
+// 返回上一页
+const goBack = () => {
+  router.back();
+};
 
 // 数据
 const voiceModelProviders = ref([
@@ -174,169 +178,155 @@ const handleImageError = (event) => {
 }
 
 .container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 24px;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .topBar {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
 }
 
 .navigatorBtn {
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.navigatorBtn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.navigatorIcon {
-  font-size: 20px;
+  margin-right: 12px;
   color: #42b983;
 }
 
 .topText {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  margin-left: 16px;
-  color: #333;
+  color: #2c3e50;
 }
 
 .content {
-  flex: 1;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
 }
 
 .section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
 }
 
 .sectionTitle {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 16px;
   color: #2c3e50;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
 }
 
 .sectionTitle::before {
   content: '';
-  width: 4px;
-  height: 18px;
+  width: 3px;
+  height: 16px;
   background-color: #42b983;
   margin-right: 8px;
   border-radius: 2px;
 }
 
 .sectionContent {
-  margin: 10px 0;
+  margin: 12px 0;
 }
 
 .textUse01 {
-  font-size: 16px;
-  color: #333;
+  font-size: 14px;
+  color: #666;
 }
 
 .textLink {
-  font-size: 16px;
   color: #42b983;
   cursor: pointer;
-  text-decoration: none;
-  transition: color 0.3s ease;
-}
-
-.textLink:hover {
-  color: #3aa876;
   text-decoration: underline;
+  margin-left: 8px;
+  font-size: 14px;
 }
 
 .cardContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  background-color: white;
   padding: 12px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  width: calc(50% - 5px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid #eee;
+  background-color: #fff;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
 }
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .cardImage {
-  width: 48px;
-  height: 48px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  margin-right: 12px;
+  margin-bottom: 8px;
   object-fit: cover;
-  border: 2px solid #42b983;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .cardText {
   font-size: 14px;
-  color: #333;
+  color: #2c3e50;
+  text-align: center;
   font-weight: 500;
 }
 
 .footer {
-  text-align: center;
-  padding: 24px;
+  margin-top: 24px;
+  padding: 16px;
   background-color: #f8f9fa;
-  border-top: 1px solid #eee;
-  margin-top: 40px;
+  border-radius: 8px;
+  text-align: center;
 }
 
 .footerText {
   display: block;
-  font-size: 14px;
+  margin: 6px 0;
   color: #666;
-  line-height: 1.6;
-  margin-bottom: 8px;
+  font-size: 13px;
 }
 
-.footerText:last-child {
-  margin-bottom: 0;
-  color: #42b983;
-  font-weight: 500;
-}
-
-@media (min-width: 768px) {
-  .card {
-    width: calc(33.33% - 7px);
-  }
-}
-
-@media (min-width: 1024px) {
-  .card {
-    width: calc(25% - 8px);
-  }
-
+@media (max-width: 600px) {
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
+    margin: 10px;
+    padding: 16px;
+  }
+  
+  .cardContainer {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  
+  .cardImage {
+    width: 60px;
+    height: 60px;
   }
 }
 </style>
