@@ -25,7 +25,7 @@
         <h2 class="sectionTitle">本软件基于GPT-SoVITS开发</h2>
         <div class="sectionContent">
           <span class="textUse01">GitHub项目地址:</span>
-          <span class="textLink" @click="copyLink">https://github.com/RVC-Boss/GPT-SoVITS</span>
+          <span class="textLink" @click="copyGptSoVitsLink">https://github.com/RVC-Boss/GPT-SoVITS</span>
           <h2 class="sectionTitle">GPT-SoVITS开发者</h2>
           <div class="cardContainer">
             <div v-for="(item, index) in GSVDeveloper" :key="index" class="card">
@@ -33,6 +33,15 @@
               <span class="cardText">{{ item.name }}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 本项目开源仓库 -->
+      <div class="section">
+        <h2 class="sectionTitle">本项目开源仓库</h2>
+        <div class="sectionContent">
+          <span class="textUse01">GitHub项目地址:</span>
+          <span class="textLink" @click="copyProjectLink">https://github.com/bei123/text-to-speech-app</span>
         </div>
       </div>
 
@@ -73,7 +82,7 @@
     <!-- 底部提示 -->
     <div class="footer">
       <span class="footerText">如果你有好的模型提供,或愿意赞助GPU算力,请联系我!</span>
-      <span class="footerText">QQ交流群：621244714</span>
+      <span class="footerText">QQ交流群：<span class="textLink" @click="copyQQGroup">621244714</span></span>
     </div>
   </div>
   <div>
@@ -115,26 +124,118 @@ const GSVDeveloper = ref([
   { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=50c82Jpxtw_9aO90Z1wvyWJvTxy5--N3ZUllGwNEcEeB72PJMetdxBez-7wHlwYhrqwaRqRr" }
 ]);
 
-const copyLink = () => {
+const copyGptSoVitsLink = () => {
   const link = "https://github.com/RVC-Boss/GPT-SoVITS";
+  copyOrOpenLink(link);
+};
 
+const copyProjectLink = () => {
+  const link = "https://github.com/bei123/text-to-speech-app";
+  copyOrOpenLink(link);
+};
+
+const copyQQGroup = () => {
+  const qqGroup = "621244714";
+  copyOrOpenLink(qqGroup, true);
+};
+
+const copyOrOpenLink = (link, isQQGroup = false) => {
   // 检测是否为移动设备
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   if (isMobile) {
-    // 移动端：复制链接并提示
-    navigator.clipboard.writeText(link)
-      .then(() => {
-        alert("已复制，请在浏览器中打开", 'success');
-      })
-      .catch((error) => {
-        console.error("复制失败:", error);
-        alert("复制失败，请手动复制链接", 'error');
-      });
+    // 创建临时输入框来实现更可靠的复制功能
+    const tempInput = document.createElement('input');
+    tempInput.value = link;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); // 适用于iOS
+    
+    try {
+      // 尝试使用document.execCommand进行复制（更广泛支持）
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showToast(isQQGroup ? "已复制，请在QQ中打开" : "已复制，请在浏览器中打开");
+      } else {
+        // 如果execCommand失败，尝试使用clipboard API
+        navigator.clipboard.writeText(link)
+          .then(() => {
+            showToast(isQQGroup ? "已复制，请在QQ中打开" : "已复制，请在浏览器中打开");
+          })
+          .catch(() => {
+            // 如果都失败了，提示用户手动复制
+            showToast(`复制失败，请手动复制: ${link}`, false);
+          });
+      }
+    } catch (err) {
+      // 如果出现异常，再尝试使用clipboard API
+      navigator.clipboard.writeText(link)
+        .then(() => {
+          showToast(isQQGroup ? "已复制，请在QQ中打开" : "已复制，请在浏览器中打开");
+        })
+        .catch(() => {
+          // 如果都失败了，提示用户手动复制
+          showToast(`复制失败，请手动复制: ${link}`, false);
+        });
+    } finally {
+      // 删除临时输入框
+      document.body.removeChild(tempInput);
+    }
   } else {
     // PC端：在新标签页中打开链接
     window.open(link, '_blank');
   }
+};
+
+// 显示自定义Toast提示
+const showToast = (message, success = true) => {
+  // 删除可能存在的旧toast
+  const existingToast = document.getElementById('custom-toast');
+  if (existingToast) {
+    document.body.removeChild(existingToast);
+  }
+
+  // 创建toast元素
+  const toast = document.createElement('div');
+  toast.id = 'custom-toast';
+  toast.innerText = message;
+  
+  // 设置toast样式
+  toast.style.position = 'fixed';
+  toast.style.bottom = '30px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.backgroundColor = success ? '#42b983' : '#e74c3c';
+  toast.style.color = 'white';
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.zIndex = '9999';
+  toast.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+  toast.style.fontWeight = '500';
+  toast.style.fontSize = '14px';
+  toast.style.textAlign = 'center';
+  toast.style.minWidth = '200px';
+  toast.style.opacity = '0';
+  toast.style.transition = 'opacity 0.3s ease-in-out';
+  
+  // 添加到body
+  document.body.appendChild(toast);
+  
+  // 显示toast (使用setTimeout来确保CSS过渡效果生效)
+  setTimeout(() => {
+    toast.style.opacity = '1';
+  }, 10);
+  
+  // 3秒后隐藏
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    // 完全隐藏后移除元素
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, 3000);
 };
 
 // 处理图片加载失败

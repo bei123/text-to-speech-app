@@ -20,11 +20,13 @@
             @input="handleInput"
           ></textarea>
           <div v-if="error" class="error-message">{{ error }}</div>
+          <div class="hint-text">您可以使用自定义提示词，或使用模型默认提示词</div>
         </div>
       </div>
 
       <div class="modal-footer">
         <button @click="close" class="button button-cancel">取消</button>
+        <button @click="resetToDefault" class="button button-secondary">重置为默认</button>
         <button 
           @click="handleSave" 
           class="button button-primary"
@@ -46,10 +48,14 @@ const props = defineProps({
     type: String,
     required: true,
     default: ''
+  },
+  defaultValue: {
+    type: String,
+    default: ''
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'save', 'close']);
+const emit = defineEmits(['update:modelValue', 'save', 'close', 'reset']);
 /* eslint-enable no-undef */
 
 const localValue = ref('');
@@ -85,6 +91,19 @@ const handleSave = () => {
   } catch (err) {
     error.value = '保存失败，请重试';
     console.error('保存失败:', err);
+  }
+};
+
+const resetToDefault = () => {
+  try {
+    emit('reset');
+    if (props.defaultValue) {
+      localValue.value = props.defaultValue;
+      emit('update:modelValue', props.defaultValue);
+    }
+  } catch (err) {
+    error.value = '重置失败，请重试';
+    console.error('重置失败:', err);
   }
 };
 
@@ -186,6 +205,13 @@ onMounted(() => {
   color: #2c3e50;
 }
 
+.hint-text {
+  font-size: 14px;
+  color: #666;
+  margin-top: 8px;
+  font-style: italic;
+}
+
 .input-field {
   width: 100%;
   padding: 16px;
@@ -262,6 +288,21 @@ onMounted(() => {
 
 .button-primary:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.button-secondary {
+  background: #e1f5ee;
+  color: #42b983;
+  border: 1px solid #c0e6d9;
+}
+
+.button-secondary:hover {
+  background: #d0ede3;
+  color: #3aa876;
+}
+
+.button-secondary:active {
+  background: #c0e6d9;
 }
 
 .button-cancel {
