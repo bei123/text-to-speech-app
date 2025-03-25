@@ -11,6 +11,7 @@ export const API_URLS = {
     HISTORY: `${API_BASE_URL}/history`,
     MODELS: `${API_BASE_URL}/models`,
     CALL_DEEPSEEK: `${API_BASE_URL}/call-deepseek`,
+    MODEL_PROMPT: `${API_BASE_URL}/models/model-prompt`,
 };
 
 export const LOCAL_STORAGE_KEYS = {
@@ -20,3 +21,7 @@ export const LOCAL_STORAGE_KEYS = {
 };
 
 export const HTTP_STATUS_UNAUTHORIZED = 401;
+
+export default {
+    API_URLS
+};

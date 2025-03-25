@@ -22,7 +22,6 @@ import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { ElMessage } from 'element-plus';
 import { API_URLS } from '@/constants/constants';
 
 export default {
@@ -35,6 +34,69 @@ export default {
         const password = ref('');
         const loading = ref(false);
         const error = ref(null);
+
+        // 添加自定义Toast函数
+        const showToast = (message, type = 'success') => {
+            // 删除可能存在的旧toast
+            const existingToast = document.getElementById('custom-toast');
+            if (existingToast) {
+                document.body.removeChild(existingToast);
+            }
+
+            // 创建toast元素
+            const toast = document.createElement('div');
+            toast.id = 'custom-toast';
+            toast.innerText = message;
+            
+            // 根据类型设置背景颜色
+            let bgColor = '#42b983'; // 默认成功绿色
+            if (type === 'error') {
+                bgColor = '#ff4d4d'; // 错误红色
+            } else if (type === 'warning') {
+                bgColor = '#e6a23c'; // 警告黄色
+            }
+            
+            // 设置toast样式
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.backgroundColor = bgColor;
+            toast.style.color = 'white';
+            toast.style.padding = '12px 24px';
+            toast.style.borderRadius = '8px';
+            toast.style.zIndex = '9999';
+            toast.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)';
+            toast.style.fontWeight = '500';
+            toast.style.fontSize = '14px';
+            toast.style.textAlign = 'center';
+            toast.style.minWidth = '240px';
+            toast.style.opacity = '0';
+            toast.style.transition = 'all 0.3s ease-in-out';
+            toast.style.backdropFilter = 'blur(4px)';
+            toast.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+            
+            // 添加到body
+            document.body.appendChild(toast);
+            
+            // 显示toast (使用setTimeout确保CSS过渡效果生效)
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            }, 10);
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(10px)';
+                // 完全隐藏后移除元素
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        };
 
         const submitLogin = async () => {
             try {
@@ -72,8 +134,8 @@ export default {
                     user: response.data.user
                 });
 
-                // 登录成功后的提示
-                ElMessage.success('登录成功');
+                // 登录成功后的提示，使用自定义Toast
+                showToast('登录成功', 'success');
 
                 // 等待一小段时间确保状态更新完成
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -88,7 +150,8 @@ export default {
             } catch (err) {
                 console.error('登录失败:', err);
                 error.value = err.response?.data?.message || '登录失败，请重试';
-                ElMessage.error(error.value);
+                // 使用自定义Toast显示错误
+                showToast(error.value, 'error');
             } finally {
                 loading.value = false;
             }

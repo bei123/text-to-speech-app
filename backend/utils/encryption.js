@@ -29,8 +29,27 @@ const encryptResponse = (data, secretKey) => {
     }
 };
 
+// 解密请求数据
+const decryptRequest = (encryptedData, secretKey) => {
+    try {
+        if (!encryptedData || !secretKey) {
+            return null;
+        }
+        const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+        const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+        if (!decryptedData) {
+            return null;
+        }
+        return JSON.parse(decryptedData);
+    } catch (error) {
+        console.error('解密请求数据失败:', error);
+        return null;
+    }
+};
+
 module.exports = {
     generateEncryptionKey,
     decryptPassword,
-    encryptResponse
+    encryptResponse,
+    decryptRequest
 }; 

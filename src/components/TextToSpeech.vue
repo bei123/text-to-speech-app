@@ -72,7 +72,14 @@
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->
-    <SystemModal v-if="showSystemModal" v-model="systemPrompt" @save="saveSystemPrompt" @close="closeSystemModal" />
+    <SystemModal 
+      v-if="showSystemModal" 
+      v-model="systemPrompt" 
+      :defaultValue="defaultSystemPrompt"
+      @save="saveSystemPrompt" 
+      @close="closeSystemModal"
+      @reset="resetToDefaultPrompt" 
+    />
 
     <!-- 提示信息 -->
     <Snackbar v-if="snackbar" :message="snackbarMessage" @close="snackbar = false" />
@@ -108,6 +115,8 @@ const models = ref([]);
 const isOpenAIGPT = ref(false);
 const showSystemModal = ref(false);
 const systemPrompt = ref('');
+const defaultSystemPrompt = ref(''); // 存储模型默认提示词
+const isUsingDefaultPrompt = ref(true); // 标记是否使用默认提示词
 const showModelModal = ref(false);
 const snackbar = ref(false);
 const snackbarMessage = ref('');
@@ -134,11 +143,93 @@ const fetchModels = async () => {
     
     models.value = parsedData;
     if (models.value.length > 0) {
+      // 设置第一个模型为默认选择的模型
       selectedModel.value = models.value[0].value;
+      selectedModelLabel.value = models.value[0].label;
+      
+      // 如果模型数据中直接包含system_prompt字段，则直接使用
+      const selectedModelData = models.value.find(model => model.value === selectedModel.value);
+      if (selectedModelData && selectedModelData.system_prompt) {
+        defaultSystemPrompt.value = selectedModelData.system_prompt;
+        if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+          systemPrompt.value = defaultSystemPrompt.value;
+          isUsingDefaultPrompt.value = true;
+        }
+      } else {
+        // 否则通过API获取默认模型的提示词
+        await fetchModelPrompt(selectedModel.value);
+      }
     }
   } catch (error) {
     console.error('获取模型数据失败:', error);
     showSnackbar('获取模型数据失败，请稍后重试');
+  }
+};
+
+// 获取模型对应的提示词
+const fetchModelPrompt = async (modelValue) => {
+  try {
+    const currentUser = store.getters['auth/user'];
+    if (!currentUser || !currentUser.username) {
+      return;
+    }
+
+    // 获取加密密钥
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+    
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 准备请求数据
+    const requestData = {
+      model_name: modelValue,
+      username: currentUser.username
+    };
+
+    // 加密请求数据
+    const encryptedData = CryptoJS.AES.encrypt(
+      JSON.stringify(requestData),
+      secretKey
+    ).toString();
+
+    // 发送加密后的请求
+    const promptResponse = await axios.post(
+      API_URLS.MODEL_PROMPT,
+      {
+        encryptedData,
+        key: secretKey
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${store.getters['auth/accessToken']}`
+        }
+      }
+    );
+
+    // 解析返回的提示词 - 解密服务器返回的数据
+    if (promptResponse.data && promptResponse.data.encryptedData) {
+      const decryptedBytes = CryptoJS.AES.decrypt(
+        promptResponse.data.encryptedData, 
+        promptResponse.data.key
+      );
+      const decryptedData = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
+      
+      if (decryptedData && decryptedData.prompt) {
+        defaultSystemPrompt.value = decryptedData.prompt;
+        
+        // 如果用户未自定义提示词或正在使用默认提示词，则更新当前提示词
+        if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+          systemPrompt.value = defaultSystemPrompt.value;
+          isUsingDefaultPrompt.value = true;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('获取模型提示词失败:', error);
+    showSnackbar('获取模型提示词失败，将使用默认提示词');
   }
 };
 
@@ -153,10 +244,23 @@ const closeModelModal = () => {
 };
 
 // 选择模型
-const selectModel = (model) => {
+const selectModel = async (model) => {
   selectedModel.value = model.value;
   selectedModelLabel.value = model.label;
   closeModelModal();
+  
+  // 如果模型数据中直接包含system_prompt字段，则直接使用
+  const selectedModelData = models.value.find(m => m.value === model.value);
+  if (selectedModelData && selectedModelData.system_prompt) {
+    defaultSystemPrompt.value = selectedModelData.system_prompt;
+    if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
+      systemPrompt.value = defaultSystemPrompt.value;
+      isUsingDefaultPrompt.value = true;
+    }
+  } else {
+    // 否则通过API获取新选择模型的提示词
+    await fetchModelPrompt(model.value);
+  }
 };
 
 // 计算模型头像
@@ -183,11 +287,61 @@ const selectedModelAvatar = computed(() => {
 
 // 显示提示信息
 const showSnackbar = (message) => {
-  snackbarMessage.value = message;
-  snackbar.value = true;
+  // 删除可能存在的旧toast
+  const existingToast = document.getElementById('custom-toast');
+  if (existingToast) {
+    document.body.removeChild(existingToast);
+  }
+
+  // 创建toast元素
+  const toast = document.createElement('div');
+  toast.id = 'custom-toast';
+  toast.innerText = message;
+  
+  // 设置toast样式
+  toast.style.position = 'fixed';
+  toast.style.top = '80px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.backgroundColor = '#42b983';
+  toast.style.color = 'white';
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.zIndex = '9999';
+  toast.style.boxShadow = '0 4px 12px rgba(66, 185, 131, 0.25)';
+  toast.style.fontWeight = '500';
+  toast.style.fontSize = '14px';
+  toast.style.textAlign = 'center';
+  toast.style.minWidth = '240px';
+  toast.style.opacity = '0';
+  toast.style.transition = 'all 0.3s ease-in-out';
+  toast.style.backdropFilter = 'blur(4px)';
+  toast.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+  
+  // 添加到body
+  document.body.appendChild(toast);
+  
+  // 显示toast (使用setTimeout确保CSS过渡效果生效)
   setTimeout(() => {
-    snackbar.value = false;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+  }, 10);
+  
+  // 3秒后隐藏
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-10px)';
+    // 完全隐藏后移除元素
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
   }, 3000);
+  
+  // 不再使用原来的snackbar
+  snackbarMessage.value = message;
+  snackbar.value = false;
 };
 
 // 生成语音
@@ -319,7 +473,20 @@ const saveSystemPrompt = () => {
     showSnackbar('请输入提示词');
     return;
   }
+  // 标记为用户自定义提示词
+  isUsingDefaultPrompt.value = false;
   closeSystemModal();
+};
+
+// 重置为默认提示词
+const resetToDefaultPrompt = () => {
+  if (defaultSystemPrompt.value) {
+    systemPrompt.value = defaultSystemPrompt.value;
+    isUsingDefaultPrompt.value = true;
+    showSnackbar('已重置为模型默认提示词');
+  } else {
+    showSnackbar('无法获取默认提示词');
+  }
 };
 
 onMounted(() => {

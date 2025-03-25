@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
 const redisClient = require('../config/redis');
-const { encryptResponse } = require('../utils/encryption');
+const { encryptResponse, decryptRequest } = require('../utils/encryption');
 
 // 获取模型数据
 const getModels = async (req, res) => {
@@ -29,6 +29,60 @@ const getModels = async (req, res) => {
     }
 };
 
+// 获取模型对应的提示词
+const getModelPrompt = async (req, res) => {
+    try {
+        // 获取和验证加密数据
+        const { encryptedData, key } = req.body;
+        if (!encryptedData || !key) {
+            return res.status(400).json({ message: '请求格式不正确' });
+        }
+
+        // 解密请求数据
+        const decryptedData = decryptRequest(encryptedData, key);
+        if (!decryptedData) {
+            return res.status(400).json({ message: '数据解密失败' });
+        }
+
+        const { model_name, username } = decryptedData;
+        if (!model_name || !username) {
+            return res.status(400).json({ message: '请求参数不完整' });
+        }
+
+        // 从数据库获取模型对应的提示词 - 直接从models表获取
+        const query = 'SELECT system_prompt FROM models WHERE value = ?';
+        const [results] = await pool.query(query, [model_name]);
+
+        let promptData;
+        if (results.length === 0) {
+            // 如果没有找到对应的提示词，返回默认提示词
+            promptData = { 
+                prompt: '你是一个有用的AI助手，请根据用户的指令提供帮助。',
+                modelName: model_name
+            };
+        } else {
+            // 返回找到的提示词
+            promptData = {
+                prompt: results[0].system_prompt,
+                modelName: model_name
+            };
+        }
+
+        // 加密响应数据
+        const encryptedResponse = encryptResponse(promptData, key);
+
+        // 返回加密的响应数据
+        res.json({
+            encryptedData: encryptedResponse,
+            key: key
+        });
+    } catch (error) {
+        console.error('获取模型提示词失败:', error);
+        res.status(500).json({ message: '获取模型提示词失败' });
+    }
+};
+
 module.exports = {
-    getModels
+    getModels,
+    getModelPrompt
 }; 
