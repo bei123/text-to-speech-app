@@ -370,48 +370,52 @@ const generateSpeech = async () => {
     let textToGenerate = inputText.value;
 
     if (isOpenAIGPT.value) {
-      // 获取加密密钥
-      const initialKey = 'text-to-speech-initial-key';
-      const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
-      
-      const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
-        params: { encryptedUsername: encryptedUsernameForKey }
-      });
-      const aiSecretKey = keyResponse.data.key;
+      try {
+        // 获取加密密钥
+        const initialKey = 'text-to-speech-initial-key';
+        const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+        
+        const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+          params: { encryptedUsername: encryptedUsernameForKey }
+        });
+        const aiSecretKey = keyResponse.data.key;
 
-      // 准备并加密请求数据
-      const aiRequestData = {
-        prompt: inputText.value,
-        system: systemPrompt.value
-      };
+        // 准备并加密请求数据
+        const aiRequestData = {
+          prompt: inputText.value,
+          system: systemPrompt.value
+        };
 
-      // 加密请求数据
-      const encryptedAiData = CryptoJS.AES.encrypt(
-        JSON.stringify(aiRequestData),
-        aiSecretKey
-      ).toString();
+        // 加密请求数据
+        const encryptedAiData = CryptoJS.AES.encrypt(
+          JSON.stringify(aiRequestData),
+          aiSecretKey
+        ).toString();
 
-      // 发送加密后的请求
-      const response = await axios.post(
-        API_URLS.CALL_DEEPSEEK,
-        {
-          encryptedData: encryptedAiData,
-          key: aiSecretKey
+        // 发送加密后的请求
+        const response = await axios.post(
+          API_URLS.CALL_DEEPSEEK,
+          {
+            encryptedData: encryptedAiData,
+            key: aiSecretKey
+          }
+        );
+        
+        // 解密响应数据
+        if (response.data.encryptedData) {
+          const decryptedBytes = CryptoJS.AES.decrypt(response.data.encryptedData, aiSecretKey);
+          const decryptedResponse = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
+          textToGenerate = decryptedResponse.text;
+        } else {
+          textToGenerate = response.data.text;
         }
-      );
-      
-      // 解密响应数据
-      if (response.data.encryptedData) {
-        const decryptedBytes = CryptoJS.AES.decrypt(response.data.encryptedData, aiSecretKey);
-        const decryptedResponse = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
-        textToGenerate = decryptedResponse.text;
-      } else {
-        textToGenerate = response.data.text;
+      } catch (error) {
+        console.error('AI处理失败:', error);
+        showSnackbar('AI处理失败，将使用原始文本');
       }
     }
 
     // 获取加密密钥
-    // 使用固定的初始密钥对用户名进行加密
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
     
@@ -451,6 +455,25 @@ const generateSpeech = async () => {
     audioUrl.value = speechResponse.data.downloadLink;
   } catch (error) {
     console.error('生成语音失败:', error);
+    
+    // 处理401错误
+    if (error.response?.status === 401) {
+      try {
+        // 尝试刷新token
+        await store.dispatch('auth/refreshToken');
+        // 刷新成功后重试请求
+        await generateSpeech();
+        return;
+      } catch (refreshError) {
+        console.error('Token刷新失败:', refreshError);
+        // 刷新失败，清除用户状态并重定向到登录页
+        await store.dispatch('auth/logout');
+        showSnackbar('登录已过期，请重新登录');
+        router.replace('/login');
+        return;
+      }
+    }
+    
     showSnackbar('生成语音失败，请稍后重试');
   } finally {
     isLoading.value = false;
