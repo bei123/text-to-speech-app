@@ -244,7 +244,8 @@ const historyList = computed(() => {
     return store.state.history.historyList.map(record => ({
         ...record,
         isExpanded: expandedRecords.value.has(record.id),
-        status: record.status || 'pending'
+        status: record.status || 'pending',
+        proxyAudioUrl: record.audioUrl ? getProxyAudioUrl(record.audioUrl) : ''
     }));
 });
 
@@ -380,10 +381,24 @@ const toggleExpand = (record) => {
     }
 };
 
+// 获取代理后的音频URL
+const getProxyAudioUrl = (audioUrl) => {
+    try {
+        const url = new URL(audioUrl);
+        const pathParts = url.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        const username = pathParts[pathParts.length - 2];
+        return `https://backend.2000gallery.art:5000/download/${username}/${filename}`;
+    } catch (error) {
+        console.error('解析音频URL失败:', error);
+        return audioUrl;
+    }
+};
+
 // 下载处理函数
 const handleDownload = async (record) => {
     try {
-        // 从 URL 中提取文件名
+        // 从 URL 中提取文件名和用户名
         const url = new URL(record.audioUrl);
         const pathParts = url.pathname.split('/');
         const filename = pathParts[pathParts.length - 1];
