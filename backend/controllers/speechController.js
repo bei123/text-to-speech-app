@@ -101,18 +101,6 @@ const generateSpeech = async (req, res) => {
     }
 };
 
-// 下载音频文件
-const downloadAudio = (req, res) => {
-    const fileName = req.params.fileName;
-    const filePath = path.join(AUDIO_DIR, fileName);
-
-    if (fs.existsSync(filePath)) {
-        res.download(filePath);
-    } else {
-        res.status(404).json({ message: '文件未找到' });
-    }
-};
-
 // 获取用户历史语音记录
 const getHistory = async (req, res) => {
     const userId = req.user.id;
@@ -135,7 +123,7 @@ const getHistory = async (req, res) => {
                 ar.text_language, 
                 ar.created_at AS createdAt, 
                 ar.status,
-                CONCAT('https://backend.2000gallery.art:5000/download/', af.file_name) AS audioUrl
+                af.oss_url AS audioUrl
             FROM 
                 audio_requests ar
             LEFT JOIN 
@@ -247,6 +235,5 @@ const getHistory = async (req, res) => {
 
 module.exports = {
     generateSpeech,
-    downloadAudio,
     getHistory
 }; 
