@@ -68,7 +68,7 @@
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
       <audio :src="audioUrl" controls class="audio-player"></audio>
-      <a :href="audioUrl" download="speech.wav" class="button button-primary download-button">下载语音</a>
+      <a :href="audioUrl" :download="inputText.substring(0, 20) + '.wav'" class="button button-primary download-button">下载语音</a>
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->

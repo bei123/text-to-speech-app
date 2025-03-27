@@ -154,7 +154,7 @@
                     <a 
                         v-if="record.status === 'completed'" 
                         :href="record.audioUrl" 
-                        download
+                        :download="record.text.substring(0, 20) + '.wav'"
                         class="download-button"
                     >
                         <i class="fas fa-download"></i>
