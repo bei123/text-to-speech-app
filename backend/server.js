@@ -35,7 +35,26 @@ const sslOptions = {
 };
 
 // 安全中间件设置
-app.use(helmet()); // 添加安全头
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:"],
+      fontSrc: ["'self'", "data:", "https:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "https:", "blob:"],
+      frameSrc: ["'none'"],
+      sandbox: ["allow-forms", "allow-scripts", "allow-same-origin"]
+    }
+  },
+  crossOriginResourcePolicy: { policy: "same-site" },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin" }
+}));
+
 app.use(cors({
     origin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
