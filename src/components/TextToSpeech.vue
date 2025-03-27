@@ -67,7 +67,7 @@
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
-      <AudioWaveform :audioUrl="audioUrl" />
+      <audio :src="audioUrl" controls class="audio-player"></audio>
       <a :href="audioUrl" :download="inputText.substring(0, 20) + '.wav'" class="button button-primary download-button">下载语音</a>
     </div>
 
@@ -104,7 +104,6 @@ import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
 import { API_URLS } from '@/constants/constants';
-import AudioWaveform from './AudioWaveform.vue';
 
 const inputText = ref('');
 const selectedLanguage = ref('all_zh');
@@ -813,80 +812,77 @@ onMounted(() => {
 }
 
 .loading-spinner {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 0.8s linear infinite;
 }
 
 /* 音频预览样式优化 */
 .audio-preview {
   margin-top: 32px;
   padding: 24px;
-  background: linear-gradient(135deg, #ffffff, #f8f9fa);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(66, 185, 131, 0.1);
-  transition: all 0.3s ease;
-}
-
-.audio-preview:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(66, 185, 131, 0.1);
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
 }
 
 .preview-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
+  gap: 8px;
 }
 
 .preview-title::before {
   content: '';
-  width: 4px;
-  height: 20px;
-  background: linear-gradient(135deg, #42b983, #3aa876);
+  width: 3px;
+  height: 16px;
+  background-color: #42b983;
   border-radius: 2px;
+}
+
+.audio-player {
+  width: 100%;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.audio-player::-webkit-media-controls-panel {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.audio-player::-webkit-media-controls-current-time-display,
+.audio-player::-webkit-media-controls-time-remaining-display {
+  color: #666;
 }
 
 .download-button {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 24px;
+  gap: 8px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, #42b983, #3aa876);
   color: white;
-  border-radius: 12px;
+  border-radius: 8px;
   text-decoration: none;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.2);
-  border: none;
-  cursor: pointer;
-  margin-top: 20px;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
 }
 
 .download-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(66, 185, 131, 0.3);
-  background: linear-gradient(135deg, #3aa876, #42b983);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.3);
 }
 
 .download-button:active {
@@ -897,7 +893,7 @@ onMounted(() => {
   content: '\f019';
   font-family: 'Font Awesome 5 Free';
   font-weight: 900;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* 退出登录按钮样式 */

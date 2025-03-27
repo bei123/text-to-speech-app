@@ -45,7 +45,6 @@ app.use(cors({
         'http://aidudio.2000gallery.art:9866',
         'https://aidudio.2000gallery.art:9866',
         "https://tts.2000gallery.art",
-        "http://localhost:8080"
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

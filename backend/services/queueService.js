@@ -33,25 +33,17 @@ const initQueueProcessor = () => {
             // 生成文件名
             const fileName = `speech_${requestId}.wav`;
 
-            // 上传到 OSS
-            const { url, ossPath } = await uploadToOSS(
-                response.data,
-                username,
-                fileName,
-                model_name
-            );
+            // 上传到阿里云 OSS
+            const ossResult = await uploadToOSS(response.data, fileName, username, model_name);
 
-            // 更新数据库中的音频 URL
-            await pool.query(
-                'UPDATE audio_requests SET status = ?, oss_url = ? WHERE id = ?',
-                ['completed', url, requestId]
-            );
+            // 更新任务状态为 completed
+            await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
 
             // 处理音频文件
             const audioFile = {
                 request_id: requestId,
                 file_name: fileName,
-                oss_url: ossPath
+                oss_url: ossResult.url
             };
 
             // 保存到数据库
@@ -61,7 +53,7 @@ const initQueueProcessor = () => {
             );
 
             // 返回 OSS 下载链接
-            return url;
+            return ossResult.url;
         } catch (error) {
             console.error('生成语音失败:', error);
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);

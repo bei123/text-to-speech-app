@@ -1,24 +1,31 @@
 require('dotenv').config();
+const OSS = require('ali-oss');
 
-const OSS_ACCESS_KEY_ID = process.env.OSS_ACCESS_KEY_ID;
-const OSS_ACCESS_KEY_SECRET = process.env.OSS_ACCESS_KEY_SECRET;
-const OSS_BUCKET = process.env.OSS_BUCKET;
-const OSS_REGION = process.env.OSS_REGION;
+// 检查必要的环境变量
+const requiredEnvVars = ['OSS_ACCESS_KEY_ID', 'OSS_ACCESS_KEY_SECRET', 'OSS_BUCKET', 'OSS_REGION'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
-// 验证必要的环境变量
-if (!OSS_ACCESS_KEY_ID || !OSS_ACCESS_KEY_SECRET || !OSS_BUCKET || !OSS_REGION) {
-    console.error('OSS 配置错误：缺少必要的环境变量');
-    console.error('请检查 .env 文件中的以下配置：');
-    console.error('OSS_ACCESS_KEY_ID:', OSS_ACCESS_KEY_ID ? '已设置' : '未设置');
-    console.error('OSS_ACCESS_KEY_SECRET:', OSS_ACCESS_KEY_SECRET ? '已设置' : '未设置');
-    console.error('OSS_BUCKET:', OSS_BUCKET ? '已设置' : '未设置');
-    console.error('OSS_REGION:', OSS_REGION ? '已设置' : '未设置');
-    throw new Error('OSS 配置不完整');
+if (missingEnvVars.length > 0) {
+    console.error('缺少必要的环境变量:', missingEnvVars.join(', '));
+    throw new Error('缺少必要的环境变量');
 }
 
-module.exports = {
-    OSS_ACCESS_KEY_ID,
-    OSS_ACCESS_KEY_SECRET,
-    OSS_BUCKET,
-    OSS_REGION
-}; 
+// 创建 OSS 客户端实例
+const ossClient = new OSS({
+    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
+    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
+    bucket: process.env.OSS_BUCKET,
+    region: process.env.OSS_REGION,
+    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`,
+    secure: true
+});
+
+// 测试 OSS 连接
+ossClient.listBuckets().then(() => {
+    console.log('OSS 连接成功');
+}).catch(err => {
+    console.error('OSS 连接失败:', err);
+    throw err;
+});
+
+module.exports = ossClient; 
