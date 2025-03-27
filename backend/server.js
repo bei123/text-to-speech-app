@@ -27,10 +27,18 @@ const sslOptions = {
 // 安全中间件设置
 app.use(helmet()); // 添加安全头
 app.use(cors({
-    origin: ['https://aidudio.2000gallery.art', 'https://www.aidudio.2000gallery.art','http://aidudio.2000gallery.art','http://www.aidudio.2000gallery.art'],
+    origin: [
+        'https://aidudio.2000gallery.art',
+        'https://www.aidudio.2000gallery.art',
+        'http://aidudio.2000gallery.art',
+        'http://www.aidudio.2000gallery.art',
+        'http://aidudio.2000gallery.art:9866',
+        'https://aidudio.2000gallery.art:9866'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
 
