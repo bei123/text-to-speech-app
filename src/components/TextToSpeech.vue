@@ -67,7 +67,7 @@
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
-      <audio :src="audioUrl" controls class="audio-player"></audio>
+      <audio :src="proxyAudioUrl" controls class="audio-player"></audio>
       <button @click="handleDownload" class="button button-primary download-button">下载语音</button>
     </div>
 
@@ -269,21 +269,20 @@ const selectedModelAvatar = computed(() => {
   return model ? model.avatar_url : '';
 });
 
-// // 跳转到赞助页面
-// const goToSponsorsPage = () => {
-//   router.push('/sponsors');
-// };
-
-// // 退出登录
-// const logoutUser = () => {
-//   store.dispatch('logout');
-//   router.push('/login');
-// };
-
-// // 跳转到历史记录页面
-// const goToHistory = () => {
-//   router.push('/history');
-// };
+// 计算代理后的音频URL
+const proxyAudioUrl = computed(() => {
+    if (!audioUrl.value) return '';
+    try {
+        const url = new URL(audioUrl.value);
+        const pathParts = url.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        const username = pathParts[pathParts.length - 2];
+        return `https://backend.2000gallery.art:5000/download/${username}/${filename}`;
+    } catch (error) {
+        console.error('解析音频URL失败:', error);
+        return audioUrl.value;
+    }
+});
 
 // 显示提示信息
 const showSnackbar = (message) => {
