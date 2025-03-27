@@ -60,5 +60,5 @@ app.use('/', aiRoutes);
 // 启动HTTPS服务器
 const PORT = 5000;
 https.createServer(sslOptions, app).listen(PORT, () => {
-    console.log(`HTTPS服务器运行在 https://aidudio.2000gallery.art:${PORT}`);
+    console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
 }); 

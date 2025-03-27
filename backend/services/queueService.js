@@ -44,7 +44,7 @@ const initQueueProcessor = () => {
             await pool.query(insertFileQuery, [requestId, fileName, filePath]);
 
             // 返回下载链接
-            return `https://aidudio.2000gallery.art:5000/download/${fileName}`;
+            return `https://backend.2000gallery.art:5000/download/${fileName}`;
         } catch (error) {
             console.error('生成语音失败:', error);
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
