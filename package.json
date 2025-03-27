@@ -26,6 +26,7 @@
     "element-plus": "^2.9.5",
     "express": "^4.21.2",
     "fs": "^0.0.1-security",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.13.0",
     "openai": "^4.86.2",
