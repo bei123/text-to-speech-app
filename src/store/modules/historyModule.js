@@ -93,7 +93,7 @@ export default {
           headers: { ...requestConfig.headers, Authorization: 'Bearer [已隐藏]' }
         });
 
-        const response = await axios.get('http://aidudio.2000gallery.art:5000/history', requestConfig);
+        const response = await axios.get('https://aidudio.2000gallery.art:5000/history', requestConfig);
         
         // 解密响应数据
         const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
