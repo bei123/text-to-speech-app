@@ -282,7 +282,7 @@ const formatDate = (timestamp) => {
 // 获取模型列表
 const fetchModels = async () => {
     try {
-        const response = await fetch('http://aidudio.2000gallery.art:5000/models');
+        const response = await fetch('https://aidudio.2000gallery.art:5000/models');
         const data = await response.json();
         
         // 解密响应数据

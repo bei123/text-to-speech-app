@@ -135,7 +135,7 @@ const getHistory = async (req, res) => {
                 ar.text_language, 
                 ar.created_at AS createdAt, 
                 ar.status,
-                CONCAT('http://aidudio.2000gallery.art:5000/download/', af.file_name) AS audioUrl
+                CONCAT('https://aidudio.2000gallery.art:5000/download/', af.file_name) AS audioUrl
             FROM 
                 audio_requests ar
             LEFT JOIN 
