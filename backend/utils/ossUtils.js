@@ -11,10 +11,10 @@ const client = new OSS({
 });
 
 // 生成唯一的文件名
-const generateUniqueFileName = (fileName) => {
+const generateUniqueFileName = (fileName, modelName) => {
     const timestamp = Date.now();
     const randomString = uuidv4().substring(0, 8);
-    return `${timestamp}-${randomString}.wav`;
+    return `${modelName}_${timestamp}-${randomString}.wav`;
 };
 
 /**
@@ -22,11 +22,12 @@ const generateUniqueFileName = (fileName) => {
  * @param {Buffer|Object} file - 文件内容或文件对象
  * @param {string} fileName - 文件名
  * @param {string} username - 用户名
+ * @param {string} modelName - 模型名称
  * @returns {Promise<Object>} - 返回包含 ossPath 和 url 的对象
  */
-const uploadToOSS = async (file, fileName, username) => {
+const uploadToOSS = async (file, fileName, username, modelName) => {
     try {
-        const uniqueFileName = generateUniqueFileName(fileName);
+        const uniqueFileName = generateUniqueFileName(fileName, modelName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
         // 上传文件
