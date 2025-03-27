@@ -12,12 +12,12 @@ if (missingEnvVars.length > 0) {
 
 // 创建 OSS 客户端实例
 const ossClient = new OSS({
-    accessKeyId: process.env.OSS_ACCESS_KEY_ID,     // 从环境变量获取 AccessKey ID
-    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET, // 从环境变量获取 AccessKey Secret
-    bucket: process.env.OSS_BUCKET,                 // 存储空间名称
-    region: process.env.OSS_REGION,                 // 存储空间所在地域
-    endpoint: 'https://oss.2000gallery.art',
-    secure: true                                    // 使用 HTTPS
+    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
+    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
+    bucket: process.env.OSS_BUCKET,
+    region: process.env.OSS_REGION,
+    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`,
+    secure: true
 });
 
 // 测试 OSS 连接
