@@ -1,5 +1,5 @@
 // constants.js
-export const API_BASE_URL = 'https://aidudio.2000gallery.art:5000';
+export const API_BASE_URL = 'https://backend.2000gallery.art:5000';
 
 export const API_URLS = {
     API_BASE_URL,
