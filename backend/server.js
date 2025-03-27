@@ -3,6 +3,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const helmet = require('helmet');
 
 // 导入路由
 const authRoutes = require('./routes/authRoutes');
@@ -16,9 +18,21 @@ const { initQueueProcessor } = require('./services/queueService');
 // 创建Express应用
 const app = express();
 
-// 中间件设置
-app.use(cors());
-app.use(bodyParser.json());
+// SSL证书配置
+const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'ssl/private.key')),
+    cert: fs.readFileSync(path.join(__dirname, 'ssl/certificate.crt'))
+};
+
+// 安全中间件设置
+app.use(helmet()); // 添加安全头
+app.use(cors({
+    origin: ['https://aidudio.2000gallery.art', 'https://www.aidudio.2000gallery.art'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
+app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
 
 // 初始化队列处理器
 initQueueProcessor();
@@ -35,8 +49,8 @@ app.use('/models', modelRoutes);
 app.use('/', speechRoutes);
 app.use('/', aiRoutes);
 
-// 启动服务器
+// 启动HTTPS服务器
 const PORT = 5000;
-app.listen(PORT, () => {
-    console.log(`服务器运行在 http://aidudio.2000gallery.art:${PORT}`);
+https.createServer(sslOptions, app).listen(PORT, () => {
+    console.log(`HTTPS服务器运行在 https://aidudio.2000gallery.art:${PORT}`);
 }); 
