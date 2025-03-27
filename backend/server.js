@@ -47,11 +47,8 @@ app.use(cors({
 
 // 添加自定义 CORS 中间件
 app.use((req, res, next) => {
-    // 允许的源
-    const allowedOrigins = ['https://tts.2000gallery.art', 'http://localhost:5173'];
     const origin = req.headers.origin;
-    
-    if (allowedOrigins.includes(origin)) {
+    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:5173') {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');

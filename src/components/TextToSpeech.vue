@@ -525,9 +525,11 @@ const handleDownload = async () => {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${store.getters['auth/accessToken']}`,
-                'Accept': 'audio/wav'
+                'Accept': 'audio/wav',
+                'Origin': window.location.origin
             },
-            credentials: 'include'
+            credentials: 'include',
+            mode: 'cors'
         });
         
         if (!response.ok) {
