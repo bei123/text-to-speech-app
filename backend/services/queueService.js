@@ -28,20 +28,26 @@ const initQueueProcessor = () => {
             const fileName = `${model_name}_${Date.now()}.wav`;
 
             // 上传到阿里云 OSS
-            const ossUrl = await uploadToOSS(response.data, fileName, username);
+            const ossResult = await uploadToOSS(response.data, fileName, username);
 
             // 更新任务状态为 completed
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
 
-            // 记录音频文件信息
-            const insertFileQuery = `
-                INSERT INTO audio_files (request_id, file_name, oss_url)
-                VALUES (?, ?, ?)
-            `;
-            await pool.query(insertFileQuery, [requestId, fileName, ossUrl]);
+            // 处理音频文件
+            const audioFile = {
+                request_id: requestId,
+                file_name: fileName,
+                oss_url: ossResult.url
+            };
+
+            // 保存到数据库
+            await pool.query(
+                'INSERT INTO audio_files (request_id, file_name, oss_url) VALUES (?, ?, ?)',
+                [audioFile.request_id, audioFile.file_name, audioFile.oss_url]
+            );
 
             // 返回 OSS 下载链接
-            return ossUrl;
+            return ossResult.url;
         } catch (error) {
             console.error('生成语音失败:', error);
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
