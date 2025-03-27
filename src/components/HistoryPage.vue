@@ -151,15 +151,14 @@
                 </div>
 
                 <div class="record-actions">
-                    <a 
+                    <button 
                         v-if="record.status === 'completed'" 
-                        :href="record.audioUrl" 
-                        :download="record.text.substring(0, 20) + '.wav'"
+                        @click="handleDownload(record)"
                         class="download-button"
                     >
                         <i class="fas fa-download"></i>
                         下载音频
-                    </a>
+                    </button>
                     <button 
                         v-else 
                         class="download-button disabled"
@@ -378,6 +377,42 @@ const toggleExpand = (record) => {
         expandedRecords.value.delete(record.id);
     } else {
         expandedRecords.value.add(record.id);
+    }
+};
+
+// 下载处理函数
+const handleDownload = async (record) => {
+    try {
+        // 从 URL 中提取文件名
+        const url = new URL(record.audioUrl);
+        const pathParts = url.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        const username = pathParts[pathParts.length - 2];
+        
+        // 使用后端代理下载
+        const response = await fetch(`https://backend.2000gallery.art:5000/download/${username}/${filename}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${store.getters['auth/accessToken']}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        console.error('下载失败:', error);
+        alert('下载失败，请稍后重试');
     }
 };
 
