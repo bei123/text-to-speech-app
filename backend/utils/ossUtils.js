@@ -1,5 +1,23 @@
-const ossClient = require('../config/oss');
-const path = require('path');
+const OSS = require('ali-oss');
+const { v4: uuidv4 } = require('uuid');
+const config = require('../config/config');
+
+// 创建 OSS 客户端
+const client = new OSS({
+    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
+    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
+    bucket: process.env.OSS_BUCKET,
+    endpoint: process.env.OSS_ENDPOINT,
+    region: process.env.OSS_REGION
+});
+
+// 生成唯一的文件名
+const generateUniqueFileName = (originalFileName) => {
+    const timestamp = Date.now();
+    const randomString = uuidv4().substring(0, 8);
+    const extension = originalFileName.split('.').pop();
+    return `${timestamp}-${randomString}.${extension}`;
+};
 
 /**
  * 上传文件到 OSS
@@ -8,24 +26,26 @@ const path = require('path');
  * @param {string} username - 用户名
  * @returns {Promise<string>} - 返回文件的访问 URL
  */
-async function uploadToOSS(fileBuffer, fileName, username) {
+const uploadToOSS = async (file, username) => {
     try {
-        // 生成唯一的文件名
-        const uniqueFileName = `${Date.now()}-${fileName}`;
-        
-        // 构建 OSS 路径：audio/用户名/文件名
+        const uniqueFileName = generateUniqueFileName(file.name);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
         // 上传文件
-        const result = await ossClient.put(ossPath, fileBuffer);
+        const result = await client.put(ossPath, file.buffer);
         
-        // 返回文件的访问 URL（使用自定义域名）
-        return `https://oss.2000gallery.art/${ossPath}`;
+        // 生成带有下载参数的 URL
+        const downloadUrl = `${result.url}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
+        
+        return {
+            ossPath,
+            url: downloadUrl
+        };
     } catch (error) {
-        console.error('上传文件到 OSS 失败:', error);
+        console.error('上传到 OSS 失败:', error);
         throw error;
     }
-}
+};
 
 /**
  * 从 OSS 删除文件
@@ -37,7 +57,7 @@ async function deleteFromOSS(fileName, username) {
     try {
         // 构建 OSS 路径：audio/用户名/文件名
         const ossPath = `audio/${username}/${fileName}`;
-        await ossClient.delete(ossPath);
+        await client.delete(ossPath);
     } catch (error) {
         console.error('从 OSS 删除文件失败:', error);
         throw error;
@@ -46,5 +66,6 @@ async function deleteFromOSS(fileName, username) {
 
 module.exports = {
     uploadToOSS,
-    deleteFromOSS
+    deleteFromOSS,
+    generateUniqueFileName
 }; 
