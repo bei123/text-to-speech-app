@@ -6,8 +6,8 @@ const client = new OSS({
     accessKeyId: process.env.OSS_ACCESS_KEY_ID,
     accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
     bucket: process.env.OSS_BUCKET,
-    endpoint: process.env.OSS_ENDPOINT,
-    region: process.env.OSS_REGION
+    region: process.env.OSS_REGION,
+    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
 });
 
 // 生成唯一的文件名
@@ -32,8 +32,8 @@ const uploadToOSS = async (file, fileName, username) => {
         // 上传文件
         const result = await client.put(ossPath, file);
         
-        // 生成带有下载参数的 URL
-        const downloadUrl = `${result.url}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
+        // 生成带有下载参数的 URL（使用自定义域名）
+        const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
         
         return {
             ossPath,
