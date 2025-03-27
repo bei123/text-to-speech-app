@@ -47,9 +47,21 @@ const uploadToOSS = async (fileBuffer, username, fileName, modelName) => {
         // 上传文件
         const result = await client.put(ossPath, fileBuffer);
         
-        // 使用自定义域名返回 URL
+        // 生成带有 CORS 支持的签名 URL
+        const url = client.signatureUrl(ossPath, {
+            expires: 3600, // URL 有效期 1 小时
+            method: 'GET',
+            response: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Expose-Headers': 'ETag, Content-Length',
+                'Access-Control-Max-Age': '3600'
+            }
+        });
+        
         return {
-            url: `https://oss.2000gallery.art/${ossPath}`,
+            url: url,
             ossPath: ossPath
         };
     } catch (error) {

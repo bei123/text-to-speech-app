@@ -52,6 +52,7 @@ export default {
     const initAudio = () => {
       if (!audio.value) {
         audio.value = new Audio(props.audioUrl);
+        audio.value.crossOrigin = 'anonymous';
       }
       
       if (!audioContext.value) {
@@ -88,6 +89,11 @@ export default {
       });
       
       audio.value.addEventListener('ended', () => {
+        isPlaying.value = false;
+      });
+
+      audio.value.addEventListener('error', (e) => {
+        console.error('音频加载错误:', e);
         isPlaying.value = false;
       });
     };
