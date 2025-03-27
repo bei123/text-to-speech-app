@@ -27,15 +27,24 @@ const configureOSSCORS = async () => {
         const exists = await client.getBucketInfo();
         console.log('Bucket 信息:', exists);
         
-        const corsRules = [{
-            allowedOrigins: ['https://tts.2000gallery.art'],
-            allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE'],
-            allowedHeaders: ['*'],
-            exposeHeaders: ['ETag'],
-            maxAgeSeconds: 3600
-        }];
-        
-        await client.putBucketCORS(corsRules);
+        // 使用 XML 格式的 CORS 规则
+        const corsXML = `<?xml version="1.0" encoding="UTF-8"?>
+<CORSConfiguration>
+    <CORSRule>
+        <AllowedOrigin>https://tts.2000gallery.art</AllowedOrigin>
+        <AllowedMethod>GET</AllowedMethod>
+        <AllowedMethod>HEAD</AllowedMethod>
+        <AllowedMethod>PUT</AllowedMethod>
+        <AllowedMethod>POST</AllowedMethod>
+        <AllowedMethod>DELETE</AllowedMethod>
+        <AllowedHeader>*</AllowedHeader>
+        <ExposeHeader>ETag</ExposeHeader>
+        <MaxAgeSeconds>3600</MaxAgeSeconds>
+    </CORSRule>
+</CORSConfiguration>`;
+
+        // 使用 put 方法直接上传 CORS 配置
+        await client.put('?cors', Buffer.from(corsXML));
         console.log('OSS CORS 规则配置成功');
     } catch (error) {
         console.error('配置 OSS CORS 规则失败:', error);
