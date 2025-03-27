@@ -28,7 +28,15 @@ const corsRules = {
 // 设置CORS规则
 const setOSSCorsRules = async () => {
     try {
-        await client.putBucketCORS(process.env.OSS_BUCKET, [corsRules]);
+        const corsRules = [{
+            allowedOrigin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
+            allowedMethod: ['GET', 'HEAD'],
+            allowedHeader: ['*'],
+            exposeHeader: ['ETag'],
+            maxAgeSeconds: 3600
+        }];
+
+        await client.putBucketCORS(corsRules);
         console.log('OSS CORS规则设置成功');
     } catch (error) {
         console.error('设置OSS CORS规则失败:', error);
