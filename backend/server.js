@@ -1,8 +1,17 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// 调试信息
+console.log('环境变量加载状态:', {
+    OSS_ACCESS_KEY_ID: process.env.OSS_ACCESS_KEY_ID ? '已设置' : '未设置',
+    OSS_ACCESS_KEY_SECRET: process.env.OSS_ACCESS_KEY_SECRET ? '已设置' : '未设置',
+    OSS_BUCKET: process.env.OSS_BUCKET ? '已设置' : '未设置',
+    OSS_REGION: process.env.OSS_REGION ? '已设置' : '未设置'
+});
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const helmet = require('helmet');
