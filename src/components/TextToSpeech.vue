@@ -812,77 +812,196 @@ onMounted(() => {
 }
 
 .loading-spinner {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 音频预览样式优化 */
 .audio-preview {
   margin-top: 32px;
   padding: 24px;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eee;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(66, 185, 131, 0.1);
+  transition: all 0.3s ease;
+}
+
+.audio-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(66, 185, 131, 0.1);
 }
 
 .preview-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
 }
 
 .preview-title::before {
   content: '';
-  width: 3px;
-  height: 16px;
-  background-color: #42b983;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(135deg, #42b983, #3aa876);
   border-radius: 2px;
 }
 
 .audio-player {
   width: 100%;
-  margin-bottom: 16px;
-  border-radius: 8px;
+  margin-bottom: 20px;
+  border-radius: 12px;
   background-color: #f8f9fa;
+  height: 48px;
+  border: 1px solid rgba(66, 185, 131, 0.1);
+  position: relative;
+  overflow: hidden;
 }
 
 .audio-player::-webkit-media-controls-panel {
   background-color: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .audio-player::-webkit-media-controls-current-time-display,
 .audio-player::-webkit-media-controls-time-remaining-display {
-  color: #666;
+  color: #42b983;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.audio-player::-webkit-media-controls-play-button {
+  background-color: #42b983;
+  border-radius: 50%;
+  transform: scale(1.2);
+  margin-right: 8px;
+}
+
+.audio-player::-webkit-media-controls-play-button:hover {
+  background-color: #3aa876;
+}
+
+.audio-player::-webkit-media-controls-volume-slider {
+  background-color: #42b983;
+  border-radius: 10px;
+  padding: 0 5px;
+  height: 4px;
+}
+
+.audio-player::-webkit-media-controls-volume-slider::-webkit-slider-thumb {
+  background: #42b983;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+}
+
+.audio-player::-webkit-media-controls-volume-slider::-webkit-slider-thumb:hover {
+  background: #3aa876;
+}
+
+/* 移除多余的菜单按钮 */
+.audio-player::-webkit-media-controls-mute-button,
+.audio-player::-webkit-media-controls-volume-slider-container,
+.audio-player::-webkit-media-controls-volume-slider {
+  display: none;
+}
+
+/* 添加波形动画效果 */
+.audio-player::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(66, 185, 131, 0.1) 25%,
+    rgba(66, 185, 131, 0.2) 50%,
+    rgba(66, 185, 131, 0.1) 75%,
+    transparent 100%
+  );
+  animation: wave 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 播放时显示波形 */
+.audio-player[data-playing="true"]::before {
+  animation: wave 1s linear infinite;
+}
+
+/* 优化播放按钮样式 */
+.audio-player::-webkit-media-controls-play-button {
+  background-color: #42b983;
+  border-radius: 50%;
+  transform: scale(1.2);
+  margin-right: 8px;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
+  transition: all 0.3s ease;
+}
+
+.audio-player::-webkit-media-controls-play-button:hover {
+  background-color: #3aa876;
+  transform: scale(1.3);
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.3);
+}
+
+.audio-player::-webkit-media-controls-play-button:active {
+  transform: scale(1.1);
 }
 
 .download-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 10px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, #42b983, #3aa876);
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.2);
+  border: none;
+  cursor: pointer;
 }
 
 .download-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(66, 185, 131, 0.3);
+  background: linear-gradient(135deg, #3aa876, #42b983);
 }
 
 .download-button:active {
@@ -893,7 +1012,7 @@ onMounted(() => {
   content: '\f019';
   font-family: 'Font Awesome 5 Free';
   font-weight: 900;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 退出登录按钮样式 */
