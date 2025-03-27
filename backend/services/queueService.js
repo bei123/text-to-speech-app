@@ -61,7 +61,7 @@ const initQueueProcessor = () => {
             );
 
             // 返回 OSS 下载链接
-            return ossPath;
+            return url;
         } catch (error) {
             console.error('生成语音失败:', error);
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);

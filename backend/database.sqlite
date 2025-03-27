@@ -4,3 +4,6 @@ ALTER TABLE audio_files MODIFY COLUMN oss_url VARCHAR(255) NOT NULL;
 
 -- 更新现有记录
 UPDATE audio_files SET oss_url = CONCAT('https://', (SELECT value FROM config WHERE name = 'oss_bucket'), '.oss-', (SELECT value FROM config WHERE name = 'oss_region'), '.aliyuncs.com/', file_name) WHERE oss_url IS NULL;
+
+-- 添加 oss_url 字段到 audio_requests 表
+ALTER TABLE audio_requests ADD COLUMN oss_url TEXT;
