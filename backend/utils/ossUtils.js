@@ -13,7 +13,8 @@ const client = new OSS({
     bucket: OSS_BUCKET,
     region: OSS_REGION,
     endpoint: `https://oss-${OSS_REGION}.aliyuncs.com`,
-    secure: true
+    secure: true,
+    timeout: 60000  // 设置超时时间为 60 秒
 });
 
 // 测试 OSS 连接
@@ -47,21 +48,18 @@ const uploadToOSS = async (fileBuffer, username, fileName, modelName) => {
         // 上传文件
         const result = await client.put(ossPath, fileBuffer);
         
-        // 生成带有 CORS 支持的签名 URL
-        const url = client.signatureUrl(ossPath, {
-            expires: 3600, // URL 有效期 1 小时
-            method: 'GET',
-            response: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE',
-                'Access-Control-Allow-Headers': '*',
-                'Access-Control-Expose-Headers': 'ETag, Content-Length',
-                'Access-Control-Max-Age': '3600'
-            }
+        // 生成公共访问 URL（不带签名）
+        const publicUrl = `https://${OSS_BUCKET}.oss-${OSS_REGION}.aliyuncs.com/${ossPath}`;
+        
+        // 生成带有签名的 URL（用于私有访问）
+        const signedUrl = client.signatureUrl(ossPath, {
+            expires: 3600,  // URL 有效期 1 小时
+            process: 'video/snapshot,t_7000,f_jpg,w_800,h_600,m_fast'  // 添加处理参数
         });
         
+        // 返回公共访问 URL
         return {
-            url: url,
+            url: publicUrl,
             ossPath: ossPath
         };
     } catch (error) {
