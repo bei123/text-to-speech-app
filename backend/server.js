@@ -25,6 +25,9 @@ const aiRoutes = require('./routes/aiRoutes');
 // 导入队列服务
 const { initQueueProcessor } = require('./services/queueService');
 
+// 导入 OSS 工具
+const { configureOSSCORS } = require('./utils/ossUtils');
+
 // 创建Express应用
 const app = express();
 
@@ -71,6 +74,13 @@ app.use('/', aiRoutes);
 
 // 启动HTTPS服务器
 const PORT = process.env.PORT || 5000;
-https.createServer(sslOptions, app).listen(PORT, () => {
+https.createServer(sslOptions, app).listen(PORT, async () => {
     console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
+    
+    // 配置 OSS CORS 规则
+    try {
+        await configureOSSCORS();
+    } catch (error) {
+        console.error('配置 OSS CORS 规则失败:', error);
+    }
 });

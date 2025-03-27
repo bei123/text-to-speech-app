@@ -10,6 +10,28 @@ const client = new OSS({
     endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
 });
 
+/**
+ * 配置 OSS 的 CORS 规则
+ * @returns {Promise<void>}
+ */
+const configureOSSCORS = async () => {
+    try {
+        const corsRules = [{
+            allowedOrigins: ['https://tts.2000gallery.art'],
+            allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE'],
+            allowedHeaders: ['*'],
+            exposeHeaders: ['ETag'],
+            maxAgeSeconds: 3600
+        }];
+        
+        await client.putBucketCORS(corsRules);
+        console.log('OSS CORS 规则配置成功');
+    } catch (error) {
+        console.error('配置 OSS CORS 规则失败:', error);
+        throw error;
+    }
+};
+
 // 生成唯一的文件名
 const generateUniqueFileName = (fileName, modelName) => {
     const timestamp = Date.now();
@@ -66,5 +88,6 @@ async function deleteFromOSS(fileName, username) {
 module.exports = {
     uploadToOSS,
     deleteFromOSS,
-    generateUniqueFileName
+    generateUniqueFileName,
+    configureOSSCORS
 }; 
