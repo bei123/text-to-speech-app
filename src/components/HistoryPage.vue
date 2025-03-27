@@ -408,8 +408,12 @@ const handleDownload = async (record) => {
         const response = await fetch(`https://backend.2000gallery.art:5000/download/${username}/${filename}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${store.getters['auth/accessToken']}`
-            }
+                'Authorization': `Bearer ${store.getters['auth/accessToken']}`,
+                'Accept': 'audio/wav',
+                'Origin': window.location.origin
+            },
+            credentials: 'include',
+            mode: 'cors'
         });
         
         if (!response.ok) {

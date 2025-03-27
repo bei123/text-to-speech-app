@@ -25,7 +25,8 @@ router.get('/download/:username/:filename', async (req, res) => {
             filename,
             ossPath,
             origin,
-            headers: req.headers
+            headers: req.headers,
+            authorization: req.headers.authorization
         });
         
         // 从 OSS 获取文件
@@ -38,6 +39,7 @@ router.get('/download/:username/:filename', async (req, res) => {
         });
         
         console.log('OSS响应状态:', response.status);
+        console.log('OSS响应头:', response.headers);
         
         // 设置响应头
         if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:5173') {
@@ -60,7 +62,8 @@ router.get('/download/:username/:filename', async (req, res) => {
             error: error.message,
             code: error.code,
             stack: error.stack,
-            response: error.response?.data
+            response: error.response?.data,
+            headers: error.response?.headers
         });
         
         res.status(500).json({ 
