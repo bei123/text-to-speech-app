@@ -23,7 +23,8 @@ router.get('/download/:username/:filename', async (req, res) => {
             username,
             filename,
             ossPath,
-            headers: req.headers
+            headers: req.headers,
+            origin: req.headers.origin
         });
         
         // 从 OSS 获取文件
@@ -31,20 +32,24 @@ router.get('/download/:username/:filename', async (req, res) => {
             responseType: 'arraybuffer',
             headers: {
                 'Accept': 'audio/wav',
-                'Origin': 'https://tts.2000gallery.art'
+                'Origin': req.headers.origin || 'https://tts.2000gallery.art'
             }
         });
         
         console.log('OSS响应状态:', response.status);
         
         // 设置响应头
+        const origin = req.headers.origin;
+        if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:5173') {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
+        
         res.setHeader('Content-Type', 'audio/wav');
         res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(filename)}`);
-        res.setHeader('Access-Control-Allow-Origin', 'https://tts.2000gallery.art');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
         
         // 发送文件内容
         res.send(response.data);
