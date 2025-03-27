@@ -15,7 +15,7 @@ const initQueueProcessor = () => {
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
             // 调用外部 API 生成语音
-            const response = await axios.post('http://192.168.0.53:9646/', {
+            const response = await axios.post('http://autodl.2000gallery.art:9646', {
                 text,
                 text_language,
                 model_name
