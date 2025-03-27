@@ -11,27 +11,26 @@ const client = new OSS({
 });
 
 // 生成唯一的文件名
-const generateUniqueFileName = (originalFileName) => {
+const generateUniqueFileName = (fileName) => {
     const timestamp = Date.now();
     const randomString = uuidv4().substring(0, 8);
-    const extension = originalFileName.split('.').pop();
-    return `${timestamp}-${randomString}.${extension}`;
+    return `${timestamp}-${randomString}.wav`;
 };
 
 /**
  * 上传文件到 OSS
- * @param {Buffer} fileBuffer - 文件内容
+ * @param {Buffer|Object} file - 文件内容或文件对象
  * @param {string} fileName - 文件名
  * @param {string} username - 用户名
- * @returns {Promise<string>} - 返回文件的访问 URL
+ * @returns {Promise<Object>} - 返回包含 ossPath 和 url 的对象
  */
-const uploadToOSS = async (file, username) => {
+const uploadToOSS = async (file, fileName, username) => {
     try {
-        const uniqueFileName = generateUniqueFileName(file.name);
+        const uniqueFileName = generateUniqueFileName(fileName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
         // 上传文件
-        const result = await client.put(ossPath, file.buffer);
+        const result = await client.put(ossPath, file);
         
         // 生成带有下载参数的 URL
         const downloadUrl = `${result.url}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;

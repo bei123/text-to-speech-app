@@ -12,20 +12,13 @@ const initQueueProcessor = () => {
             // 更新任务状态为 processing
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
-            // 调用外部 API 生成语音
-            const response = await axios.post('http://autodl.2000gallery.art:9646', {
-                text,
-                text_language,
-                model_name
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+            // 调用语音生成 API
+            const response = await axios.post(API_URL, requestData, {
                 responseType: 'arraybuffer'
             });
 
             // 生成文件名
-            const fileName = `${model_name}_${Date.now()}.wav`;
+            const fileName = `speech_${requestId}.wav`;
 
             // 上传到阿里云 OSS
             const ossResult = await uploadToOSS(response.data, fileName, username);
