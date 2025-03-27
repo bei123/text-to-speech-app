@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -42,6 +43,7 @@ app.use(cors({
     exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // 初始化队列处理器
 initQueueProcessor();
@@ -59,7 +61,7 @@ app.use('/', speechRoutes);
 app.use('/', aiRoutes);
 
 // 启动HTTPS服务器
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 https.createServer(sslOptions, app).listen(PORT, () => {
     console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
-}); 
+});
