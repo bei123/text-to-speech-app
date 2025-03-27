@@ -37,20 +37,30 @@ const sslOptions = {
 // 安全中间件设置
 app.use(helmet()); // 添加安全头
 app.use(cors({
-    origin: [
-        'https://aidudio.2000gallery.art',
-        'https://www.aidudio.2000gallery.art',
-        'http://aidudio.2000gallery.art',
-        'http://www.aidudio.2000gallery.art',
-        'http://aidudio.2000gallery.art:9866',
-        'https://aidudio.2000gallery.art:9866',
-        "https://tts.2000gallery.art",
-    ],
+    origin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length'],
     credentials: true,
-    exposedHeaders: ['Content-Range', 'X-Content-Range']
+    maxAge: 86400 // 24小时
 }));
+
+// 添加自定义 CORS 中间件
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://tts.2000gallery.art');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    
+    // 处理 OPTIONS 请求
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
 app.use(bodyParser.urlencoded({ extended: true }));
 
