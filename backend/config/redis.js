@@ -2,7 +2,8 @@ const redis = require('redis');
 
 // Redis 客户端初始化
 const redisClient = redis.createClient({
-    url: 'redis://localhost:6379'
+    url: 'redis://localhost:6379',
+    database: 1
 });
 
 redisClient.on('error', (err) => {
