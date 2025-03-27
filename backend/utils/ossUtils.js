@@ -10,6 +10,34 @@ const client = new OSS({
     endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
 });
 
+// 配置OSS CORS规则
+const corsRules = {
+    allowedOrigins: [
+        'https://tts.2000gallery.art',
+        'http://tts.2000gallery.art',
+        'https://aidudio.2000gallery.art',
+        'http://aidudio.2000gallery.art',
+        'http://localhost:8080'
+    ],
+    allowedMethods: ['GET', 'HEAD', 'POST', 'PUT'],
+    allowedHeaders: ['*'],
+    exposedHeaders: ['ETag', 'Content-Length'],
+    maxAgeSeconds: 3600
+};
+
+// 设置CORS规则
+const setOSSCorsRules = async () => {
+    try {
+        await client.putBucketCORS(process.env.OSS_BUCKET, [corsRules]);
+        console.log('OSS CORS规则设置成功');
+    } catch (error) {
+        console.error('设置OSS CORS规则失败:', error);
+    }
+};
+
+// 初始化时设置CORS规则
+setOSSCorsRules();
+
 // 生成唯一的文件名
 const generateUniqueFileName = (fileName, modelName) => {
     const timestamp = Date.now();
