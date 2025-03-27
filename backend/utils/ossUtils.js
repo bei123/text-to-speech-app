@@ -48,18 +48,21 @@ const uploadToOSS = async (fileBuffer, username, fileName, modelName) => {
         // 上传文件
         const result = await client.put(ossPath, fileBuffer);
         
-        // 生成公共访问 URL（不带签名）
-        const publicUrl = `https://${OSS_BUCKET}.oss-${OSS_REGION}.aliyuncs.com/${ossPath}`;
-        
-        // 生成带有签名的 URL（用于私有访问）
-        const signedUrl = client.signatureUrl(ossPath, {
+        // 生成带有 CORS 支持的签名 URL
+        const url = client.signatureUrl(ossPath, {
             expires: 3600,  // URL 有效期 1 小时
-            process: 'video/snapshot,t_7000,f_jpg,w_800,h_600,m_fast'  // 添加处理参数
+            method: 'GET',
+            response: {
+                'Access-Control-Allow-Origin': 'https://tts.2000gallery.art',
+                'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Expose-Headers': 'ETag, Content-Length',
+                'Access-Control-Max-Age': '3600'
+            }
         });
         
-        // 返回公共访问 URL
         return {
-            url: publicUrl,
+            url: url,
             ossPath: ossPath
         };
     } catch (error) {
