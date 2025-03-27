@@ -7,7 +7,8 @@ const client = new OSS({
     accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
     bucket: process.env.OSS_BUCKET,
     region: process.env.OSS_REGION,
-    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
+    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`,
+    secure: true
 });
 
 // 配置OSS CORS规则
@@ -28,6 +29,13 @@ const corsRules = [{
 // 设置CORS规则
 const setOSSCorsRules = async () => {
     try {
+        // 先检查bucket是否存在
+        const exists = await client.checkBucket();
+        if (!exists) {
+            console.error('Bucket不存在，请先在OSS控制台创建Bucket');
+            return;
+        }
+        
         await client.putBucketCORS(corsRules);
         console.log('OSS CORS规则设置成功');
     } catch (error) {
