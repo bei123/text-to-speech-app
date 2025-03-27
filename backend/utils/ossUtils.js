@@ -1,6 +1,5 @@
 const OSS = require('ali-oss');
 const { v4: uuidv4 } = require('uuid');
-const config = require('../config/config');
 
 // 创建 OSS 客户端
 const client = new OSS({
