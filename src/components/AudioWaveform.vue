@@ -48,6 +48,7 @@ export default {
     const duration = ref(0);
     const volume = ref(1);
     const audio = ref(null);
+    const audioSource = ref(null);
 
     const initAudio = () => {
       if (!audio.value) {
@@ -58,16 +59,31 @@ export default {
       if (!audioContext.value) {
         audioContext.value = new (window.AudioContext || window.webkitAudioContext)();
         analyser.value = audioContext.value.createAnalyser();
-        const source = audioContext.value.createMediaElementSource(audio.value);
-        source.connect(analyser.value);
-        analyser.value.connect(audioContext.value.destination);
         
-        analyser.value.fftSize = 256;
-        const bufferLength = analyser.value.frequencyBinCount;
-        dataArray.value = new Uint8Array(bufferLength);
+        fetch(props.audioUrl, {
+          mode: 'cors',
+          credentials: 'omit'
+        })
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+          audioContext.value.decodeAudioData(arrayBuffer, (audioBuffer) => {
+            const source = audioContext.value.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(analyser.value);
+            analyser.value.connect(audioContext.value.destination);
+            
+            analyser.value.fftSize = 256;
+            const bufferLength = analyser.value.frequencyBinCount;
+            dataArray.value = new Uint8Array(bufferLength);
+            
+            audioSource.value = source;
+          });
+        })
+        .catch(error => {
+          console.error('音频加载失败:', error);
+        });
       }
       
-      // 初始化 Canvas 尺寸
       if (waveformCanvas.value) {
         const canvas = waveformCanvas.value;
         const dpr = window.devicePixelRatio || 1;
@@ -108,17 +124,14 @@ export default {
       
       analyser.value.getByteTimeDomainData(dataArray.value);
       
-      // 清除画布
       ctx.fillStyle = '#f8f9fa';
       ctx.fillRect(0, 0, width, height);
       
-      // 设置线条样式
       ctx.lineWidth = 2;
       ctx.strokeStyle = '#42b983';
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
-      // 绘制波形
       ctx.beginPath();
       const sliceWidth = width / dataArray.value.length;
       let x = 0;
@@ -136,7 +149,6 @@ export default {
         x += sliceWidth;
       }
       
-      // 添加渐变效果
       const gradient = ctx.createLinearGradient(0, 0, width, 0);
       gradient.addColorStop(0, '#42b983');
       gradient.addColorStop(1, '#3aa876');
@@ -156,16 +168,21 @@ export default {
       
       if (isPlaying.value) {
         audio.value.pause();
+        if (audioSource.value) {
+          audioSource.value.stop();
+        }
         if (animationFrame.value) {
           cancelAnimationFrame(animationFrame.value);
         }
       } else {
         try {
-          // 确保 AudioContext 处于运行状态
           if (audioContext.value && audioContext.value.state === 'suspended') {
             await audioContext.value.resume();
           }
           await audio.value.play();
+          if (audioSource.value) {
+            audioSource.value.start(0);
+          }
           drawWaveform();
         } catch (error) {
           console.error('播放失败:', error);
