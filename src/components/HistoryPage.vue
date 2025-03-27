@@ -424,7 +424,7 @@ const handleDownload = async (record) => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = filename;
+        link.download = filename; // 使用OSS中的原始文件名
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
