@@ -1,0 +1,2 @@
+ALTER TABLE audio_files ADD COLUMN oss_url VARCHAR(255);
+ALTER TABLE audio_files DROP COLUMN file_path;

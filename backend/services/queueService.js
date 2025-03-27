@@ -1,9 +1,7 @@
-const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 const pool = require('../config/db');
 const speechQueue = require('../config/queue');
-const { AUDIO_DIR } = require('../utils/constants');
+const { uploadToOSS } = require('../utils/ossUtils');
 
 // 初始化队列处理器
 const initQueueProcessor = () => {
@@ -26,25 +24,24 @@ const initQueueProcessor = () => {
                 responseType: 'arraybuffer'
             });
 
-            // 生成文件名和保存路径
-            const fileName = `${username}_${model_name}_${Date.now()}.wav`;
-            const filePath = path.join(AUDIO_DIR, fileName);
+            // 生成文件名
+            const fileName = `${model_name}_${Date.now()}.wav`;
 
-            // 保存音频文件
-            fs.writeFileSync(filePath, response.data);
+            // 上传到阿里云 OSS
+            const ossUrl = await uploadToOSS(response.data, fileName, username);
 
             // 更新任务状态为 completed
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
 
             // 记录音频文件信息
             const insertFileQuery = `
-                INSERT INTO audio_files (request_id, file_name, file_path)
+                INSERT INTO audio_files (request_id, file_name, oss_url)
                 VALUES (?, ?, ?)
             `;
-            await pool.query(insertFileQuery, [requestId, fileName, filePath]);
+            await pool.query(insertFileQuery, [requestId, fileName, ossUrl]);
 
-            // 返回下载链接
-            return `https://backend.2000gallery.art:5000/download/${fileName}`;
+            // 返回 OSS 下载链接
+            return ossUrl;
         } catch (error) {
             console.error('生成语音失败:', error);
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
