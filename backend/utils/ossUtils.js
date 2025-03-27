@@ -10,12 +10,23 @@ const client = new OSS({
     endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
 });
 
+// 调试信息
+console.log('OSS 配置信息:', {
+    bucket: process.env.OSS_BUCKET,
+    region: process.env.OSS_REGION,
+    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
+});
+
 /**
  * 配置 OSS 的 CORS 规则
  * @returns {Promise<void>}
  */
 const configureOSSCORS = async () => {
     try {
+        // 先检查 bucket 是否存在
+        const exists = await client.getBucketInfo();
+        console.log('Bucket 信息:', exists);
+        
         const corsRules = [{
             allowedOrigins: ['https://tts.2000gallery.art'],
             allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE'],
@@ -28,6 +39,11 @@ const configureOSSCORS = async () => {
         console.log('OSS CORS 规则配置成功');
     } catch (error) {
         console.error('配置 OSS CORS 规则失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         throw error;
     }
 };
