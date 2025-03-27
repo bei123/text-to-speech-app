@@ -11,31 +11,23 @@ const client = new OSS({
 });
 
 // 配置OSS CORS规则
-const corsRules = {
-    allowedOrigins: [
+const corsRules = [{
+    allowedOrigin: [
         'https://tts.2000gallery.art',
         'http://tts.2000gallery.art',
         'https://aidudio.2000gallery.art',
         'http://aidudio.2000gallery.art',
         'http://localhost:8080'
     ],
-    allowedMethods: ['GET', 'HEAD', 'POST', 'PUT'],
-    allowedHeaders: ['*'],
-    exposedHeaders: ['ETag', 'Content-Length'],
+    allowedMethod: ['GET', 'HEAD', 'POST', 'PUT'],
+    allowedHeader: ['*'],
+    exposeHeader: ['ETag', 'Content-Length'],
     maxAgeSeconds: 3600
-};
+}];
 
 // 设置CORS规则
 const setOSSCorsRules = async () => {
     try {
-        const corsRules = [{
-            allowedOrigin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
-            allowedMethod: ['GET', 'HEAD'],
-            allowedHeader: ['*'],
-            exposeHeader: ['ETag'],
-            maxAgeSeconds: 3600
-        }];
-
         await client.putBucketCORS(corsRules);
         console.log('OSS CORS规则设置成功');
     } catch (error) {
