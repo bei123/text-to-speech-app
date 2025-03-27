@@ -151,15 +151,14 @@
                 </div>
 
                 <div class="record-actions">
-                    <a 
+                    <button 
                         v-if="record.status === 'completed'" 
-                        :href="record.audioUrl" 
-                        :download="record.text.substring(0, 20) + '.wav'"
+                        @click="downloadAudio(record)"
                         class="download-button"
                     >
                         <i class="fas fa-download"></i>
                         下载音频
-                    </a>
+                    </button>
                     <button 
                         v-else 
                         class="download-button disabled"
@@ -419,6 +418,37 @@ const handleDateChange = (value) => {
         selectedDate.value = value;
         handleFilterChange();
     }
+};
+
+// 在 script setup 部分添加 downloadAudio 函数
+const downloadAudio = async (record) => {
+  try {
+    const response = await fetch(record.audioUrl);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = record.text.substring(0, 20) + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('下载失败:', error);
+    showSnackbar('下载失败，请稍后重试');
+  }
+};
+
+// 添加 showSnackbar 函数
+const showSnackbar = (message) => {
+  const snackbar = document.createElement('div');
+  snackbar.className = 'snackbar';
+  snackbar.textContent = message;
+  document.body.appendChild(snackbar);
+  
+  setTimeout(() => {
+    snackbar.remove();
+  }, 3000);
 };
 </script>
 

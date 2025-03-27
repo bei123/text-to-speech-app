@@ -68,7 +68,10 @@
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
       <audio :src="audioUrl" controls class="audio-player"></audio>
-      <a :href="audioUrl" :download="inputText.substring(0, 20) + '.wav'" class="button button-primary download-button">下载语音</a>
+      <button @click="downloadAudio" class="button button-primary download-button">
+        <i class="fas fa-download"></i>
+        下载语音
+      </button>
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->
@@ -512,6 +515,25 @@ const resetToDefaultPrompt = () => {
   }
 };
 
+// 下载音频
+const downloadAudio = async () => {
+  try {
+    const response = await fetch(audioUrl.value);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = inputText.value.substring(0, 20) + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('下载失败:', error);
+    showSnackbar('下载失败，请稍后重试');
+  }
+};
+
 onMounted(() => {
   fetchModels();
 });
@@ -812,12 +834,19 @@ onMounted(() => {
 }
 
 .loading-spinner {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 音频预览样式优化 */
