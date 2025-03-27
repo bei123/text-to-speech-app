@@ -34,7 +34,7 @@ const initQueueProcessor = () => {
             const fileName = `speech_${requestId}.wav`;
 
             // 上传到阿里云 OSS
-            const ossResult = await uploadToOSS(response.data, fileName, username);
+            const ossResult = await uploadToOSS(response.data, fileName, username, model_name);
 
             // 更新任务状态为 completed
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
