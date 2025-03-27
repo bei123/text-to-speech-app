@@ -107,21 +107,21 @@ const goBack = () => {
 
 // 数据
 const voiceModelProviders = ref([
-  { name: "@白菜工厂1145号员工", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=05cbkovzGmIo5yFijIwGsqKwPRfgCf6MER92kwfyVgYMExGWY513evqYHfr3mtskGY5gdcLV" },
-  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=b0f4cECYwnzg0VEei7yEUhtEnPiOr-41W4oLpLl9NwySNnVZR1T3IGgwMJcxmbo4lWHzQdlo" },
-  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=4c93iYZa1wvtsLJnWvMYUesDx0IdWoZmaBtS2n9sVMKk3HdGfhDZGsbRfy0IOmXYRg5L1BVd" }
+  { name: "@白菜工厂1145号员工", avatar: "https://oss.2000gallery.art/Sponsorimage/baicaigongc1145.webp" },
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp" },
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp" }
 ]);
 
 const gpuSponsors = ref([
-  { name: "@熙式甜点", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=165aTnIcy47SmaDKVNwRNfi7Ik6tCyPRt8UvMUjKYLm6qKcg3OKCSFPDOt9tf2GhP915JIrB" }
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp" }
 ]);
 
 const authors = ref([
-  { name: "@天冬天冬", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=4c93iYZa1wvtsLJnWvMYUesDx0IdWoZmaBtS2n9sVMKk3HdGfhDZGsbRfy0IOmXYRg5L1BVd" }
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp" }
 ]);
 
 const GSVDeveloper = ref([
-  { name: "@花儿不哭", avatar: "http://wp.2000gallery.art:12345/?explorer/share/file&hash=50c82Jpxtw_9aO90Z1wvyWJvTxy5--N3ZUllGwNEcEeB72PJMetdxBez-7wHlwYhrqwaRqRr" }
+  { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp" }
 ]);
 
 const copyGptSoVitsLink = () => {
