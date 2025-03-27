@@ -16,7 +16,7 @@ const ossClient = new OSS({
     accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET, // 从环境变量获取 AccessKey Secret
     bucket: process.env.OSS_BUCKET,                 // 存储空间名称
     region: process.env.OSS_REGION,                 // 存储空间所在地域
-    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`,
+    endpoint: 'https://oss.2000gallery.art',
     secure: true                                    // 使用 HTTPS
 });
 
