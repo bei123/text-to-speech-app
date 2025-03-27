@@ -3,6 +3,9 @@ const pool = require('../config/db');
 const speechQueue = require('../config/queue');
 const { uploadToOSS } = require('../utils/ossUtils');
 
+// 语音生成 API 地址
+const API_URL = 'http://autodl.2000gallery.art:9646';
+
 // 初始化队列处理器
 const initQueueProcessor = () => {
     speechQueue.process(async (job) => {
@@ -12,8 +15,18 @@ const initQueueProcessor = () => {
             // 更新任务状态为 processing
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
+            // 准备请求数据
+            const requestData = {
+                text,
+                text_language,
+                model_name
+            };
+
             // 调用语音生成 API
             const response = await axios.post(API_URL, requestData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 responseType: 'arraybuffer'
             });
 
