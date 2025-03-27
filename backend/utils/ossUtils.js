@@ -1,44 +1,55 @@
 const OSS = require('ali-oss');
-const { v4: uuidv4 } = require('uuid');
+const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION } = require('../config/oss');
 
 // 创建 OSS 客户端
 const client = new OSS({
-    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
-    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
-    bucket: process.env.OSS_BUCKET,
-    region: process.env.OSS_REGION,
-    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
+    accessKeyId: OSS_ACCESS_KEY_ID,
+    accessKeySecret: OSS_ACCESS_KEY_SECRET,
+    bucket: OSS_BUCKET,
+    region: OSS_REGION,
+    endpoint: `https://oss-${OSS_REGION}.aliyuncs.com`,
+    secure: true
 });
 
 // 生成唯一的文件名
 const generateUniqueFileName = (fileName, modelName) => {
     const timestamp = Date.now();
-    const randomString = uuidv4().substring(0, 8);
+    const randomString = Math.random().toString(36).substring(2, 10);
     return `${modelName}_${timestamp}-${randomString}.wav`;
 };
 
 /**
  * 上传文件到 OSS
  * @param {Buffer|Object} file - 文件内容或文件对象
- * @param {string} fileName - 文件名
  * @param {string} username - 用户名
+ * @param {string} fileName - 文件名
  * @param {string} modelName - 模型名称
  * @returns {Promise<Object>} - 返回包含 ossPath 和 url 的对象
  */
-const uploadToOSS = async (file, fileName, username, modelName) => {
+const uploadToOSS = async (fileBuffer, username, fileName, modelName) => {
     try {
         const uniqueFileName = generateUniqueFileName(fileName, modelName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
         // 上传文件
-        const result = await client.put(ossPath, file);
+        const result = await client.put(ossPath, fileBuffer);
         
-        // 生成带有下载参数的 URL（使用自定义域名）
-        const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
+        // 生成带有 CORS 支持的 URL
+        const url = client.signatureUrl(ossPath, {
+            expires: 3600, // URL 有效期 1 小时
+            method: 'GET',
+            response: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Expose-Headers': 'ETag, Content-Length',
+                'Access-Control-Max-Age': '3600'
+            }
+        });
         
         return {
-            ossPath,
-            url: downloadUrl
+            url: url,
+            ossPath: ossPath
         };
     } catch (error) {
         console.error('上传到 OSS 失败:', error);

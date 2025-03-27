@@ -67,7 +67,7 @@
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
-      <audio :src="audioUrl" controls class="audio-player"></audio>
+      <AudioWaveform :audioUrl="audioUrl" />
       <a :href="audioUrl" :download="inputText.substring(0, 20) + '.wav'" class="button button-primary download-button">下载语音</a>
     </div>
 
@@ -104,6 +104,7 @@ import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
 import { API_URLS } from '@/constants/constants';
+import AudioWaveform from './AudioWaveform.vue';
 
 const inputText = ref('');
 const selectedLanguage = ref('all_zh');
@@ -864,123 +865,6 @@ onMounted(() => {
   border-radius: 2px;
 }
 
-.audio-player {
-  width: 100%;
-  margin-bottom: 20px;
-  border-radius: 12px;
-  background-color: #f8f9fa;
-  height: 48px;
-  border: 1px solid rgba(66, 185, 131, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.audio-player::-webkit-media-controls-panel {
-  background-color: #f8f9fa;
-  border-radius: 12px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.audio-player::-webkit-media-controls-current-time-display,
-.audio-player::-webkit-media-controls-time-remaining-display {
-  color: #42b983;
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.audio-player::-webkit-media-controls-play-button {
-  background-color: #42b983;
-  border-radius: 50%;
-  transform: scale(1.2);
-  margin-right: 8px;
-}
-
-.audio-player::-webkit-media-controls-play-button:hover {
-  background-color: #3aa876;
-}
-
-.audio-player::-webkit-media-controls-volume-slider {
-  background-color: #42b983;
-  border-radius: 10px;
-  padding: 0 5px;
-  height: 4px;
-}
-
-.audio-player::-webkit-media-controls-volume-slider::-webkit-slider-thumb {
-  background: #42b983;
-  border-radius: 50%;
-  width: 12px;
-  height: 12px;
-  cursor: pointer;
-}
-
-.audio-player::-webkit-media-controls-volume-slider::-webkit-slider-thumb:hover {
-  background: #3aa876;
-}
-
-/* 移除多余的菜单按钮 */
-.audio-player::-webkit-media-controls-mute-button,
-.audio-player::-webkit-media-controls-volume-slider-container,
-.audio-player::-webkit-media-controls-volume-slider {
-  display: none;
-}
-
-/* 添加波形动画效果 */
-.audio-player::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, 
-    transparent 0%,
-    rgba(66, 185, 131, 0.1) 25%,
-    rgba(66, 185, 131, 0.2) 50%,
-    rgba(66, 185, 131, 0.1) 75%,
-    transparent 100%
-  );
-  animation: wave 2s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes wave {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-/* 播放时显示波形 */
-.audio-player[data-playing="true"]::before {
-  animation: wave 1s linear infinite;
-}
-
-/* 优化播放按钮样式 */
-.audio-player::-webkit-media-controls-play-button {
-  background-color: #42b983;
-  border-radius: 50%;
-  transform: scale(1.2);
-  margin-right: 8px;
-  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
-  transition: all 0.3s ease;
-}
-
-.audio-player::-webkit-media-controls-play-button:hover {
-  background-color: #3aa876;
-  transform: scale(1.3);
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.3);
-}
-
-.audio-player::-webkit-media-controls-play-button:active {
-  transform: scale(1.1);
-}
-
 .download-button {
   display: inline-flex;
   align-items: center;
@@ -996,6 +880,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(66, 185, 131, 0.2);
   border: none;
   cursor: pointer;
+  margin-top: 20px;
 }
 
 .download-button:hover {
