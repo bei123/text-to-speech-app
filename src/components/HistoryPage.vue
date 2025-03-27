@@ -151,15 +151,14 @@
                 </div>
 
                 <div class="record-actions">
-                    <a 
+                    <button 
                         v-if="record.status === 'completed'" 
-                        :href="record.audioUrl" 
-                        :download="record.text.substring(0, 20) + '.wav'"
+                        @click="handleDownload(record.audioUrl, record.text.substring(0, 20) + '.wav')"
                         class="download-button"
                     >
                         <i class="fas fa-download"></i>
                         下载音频
-                    </a>
+                    </button>
                     <button 
                         v-else 
                         class="download-button disabled"
@@ -418,6 +417,37 @@ const handleDateChange = (value) => {
         showDatePicker.value = false;
         selectedDate.value = value;
         handleFilterChange();
+    }
+};
+
+// 下载处理函数
+const handleDownload = async (url, fileName) => {
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+            headers: {
+                'Accept': 'audio/wav'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        console.error('下载失败:', error);
+        alert('下载失败，请稍后重试');
     }
 };
 </script>

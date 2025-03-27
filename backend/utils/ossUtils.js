@@ -32,13 +32,17 @@ const configureOSSCORS = async () => {
 <CORSConfiguration>
     <CORSRule>
         <AllowedOrigin>https://tts.2000gallery.art</AllowedOrigin>
+        <AllowedOrigin>http://tts.2000gallery.art</AllowedOrigin>
         <AllowedMethod>GET</AllowedMethod>
         <AllowedMethod>HEAD</AllowedMethod>
         <AllowedMethod>PUT</AllowedMethod>
         <AllowedMethod>POST</AllowedMethod>
         <AllowedMethod>DELETE</AllowedMethod>
+        <AllowedMethod>OPTIONS</AllowedMethod>
         <AllowedHeader>*</AllowedHeader>
         <ExposeHeader>ETag</ExposeHeader>
+        <ExposeHeader>Content-Length</ExposeHeader>
+        <ExposeHeader>Content-Type</ExposeHeader>
         <MaxAgeSeconds>3600</MaxAgeSeconds>
     </CORSRule>
 </CORSConfiguration>`;
@@ -81,7 +85,7 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
         const result = await client.put(ossPath, file);
         
         // 生成带有下载参数的 URL（使用自定义域名）
-        const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
+        const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}&response-content-type=audio/wav`;
         
         return {
             ossPath,
