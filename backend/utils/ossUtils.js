@@ -1,14 +1,27 @@
 const OSS = require('ali-oss');
 const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION } = require('../config/oss');
 
+// 验证配置
+if (!OSS_ACCESS_KEY_ID || !OSS_ACCESS_KEY_SECRET || !OSS_BUCKET || !OSS_REGION) {
+    throw new Error('OSS 配置不完整，请检查环境变量');
+}
+
 // 创建 OSS 客户端
 const client = new OSS({
     accessKeyId: OSS_ACCESS_KEY_ID,
     accessKeySecret: OSS_ACCESS_KEY_SECRET,
     bucket: OSS_BUCKET,
     region: OSS_REGION,
-    endpoint: `https://oss-${OSS_REGION}.aliyuncs.com`,
+    endpoint: 'https://oss.2000gallery.art',
     secure: true
+});
+
+// 测试 OSS 连接
+client.listBuckets().then(() => {
+    console.log('OSS 连接成功');
+}).catch(err => {
+    console.error('OSS 连接失败:', err);
+    throw err;
 });
 
 // 生成唯一的文件名
