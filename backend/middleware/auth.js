@@ -1,24 +1,25 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 // JWT 验证中间件
-const authenticateToken = (req, res, next) => {
+export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({ message: '未提供 Token' });
+        return res.status(401).json({
+            success: false,
+            message: '未提供认证令牌'
+        });
     }
 
-    jwt.verify(token, 'your_jwt_secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            return res.status(401).json({
-                message: 'Token 无效或已过期',
-                code: 'TOKEN_INVALID_OR_EXPIRED'
+            return res.status(403).json({
+                success: false,
+                message: '无效的认证令牌'
             });
         }
         req.user = user;
         next();
     });
-};
-
-module.exports = { authenticateToken }; 
+}; 
