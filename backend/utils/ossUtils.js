@@ -1,4 +1,4 @@
-const { OSS } = require('ali-oss');
+const OSS = require('ali-oss');
 const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION, OSS_ENDPOINT } = process.env;
 const { v4: uuidv4 } = require('uuid');
 
