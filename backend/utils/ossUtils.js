@@ -19,7 +19,7 @@ const configureOSSCORS = async () => {
         const client = getOSSClient();
         
         // 设置CORS规则
-        const rules = {
+        const corsRule = {
             allowedOrigin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
             allowedMethod: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
             allowedHeader: ['*'],
@@ -27,7 +27,12 @@ const configureOSSCORS = async () => {
             maxAgeSeconds: '3600'
         };
         
-        await client.putBucketCORS(OSS_BUCKET, rules);
+        // 将规则包装在数组中
+        const options = {
+            rules: [corsRule]
+        };
+        
+        await client.putBucketCORS(OSS_BUCKET, options);
         console.log('OSS CORS规则配置成功');
     } catch (error) {
         console.error('配置OSS CORS规则失败:', error);
