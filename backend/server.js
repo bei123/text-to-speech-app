@@ -1,123 +1,53 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-
-// 调试信息
-console.log('环境变量加载状态:', {
-    OSS_ACCESS_KEY_ID: process.env.OSS_ACCESS_KEY_ID ? '已设置' : '未设置',
-    OSS_ACCESS_KEY_SECRET: process.env.OSS_ACCESS_KEY_SECRET ? '已设置' : '未设置',
-    OSS_BUCKET: process.env.OSS_BUCKET ? '已设置' : '未设置',
-    OSS_REGION: process.env.OSS_REGION ? '已设置' : '未设置'
-});
-
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const https = require('https');
 const helmet = require('helmet');
-const { configureOSSCORS } = require('./utils/ossUtils');
+const morgan = require('morgan');
+const path = require('path');
+const { fileURLToPath } = require('url');
+const { dirname } = require('path');
+const dotenv = require('dotenv');
+const { getOSSClient } = require('./utils/ossUtils');
 
-// 导入路由
-const authRoutes = require('./routes/authRoutes');
-const modelRoutes = require('./routes/modelRoutes');
-const speechRoutes = require('./routes/speechRoutes');
-const aiRoutes = require('./routes/aiRoutes');
+// 加载环境变量
+dotenv.config();
 
-// 导入队列服务
-const { initQueueProcessor } = require('./services/queueService');
+// 获取当前文件的目录
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// 创建Express应用
+// 创建 Express 应用
 const app = express();
 
-// SSL证书配置
-const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, '../ssl/private.key')),
-    cert: fs.readFileSync(path.join(__dirname, '../ssl/certificate.crt'))
-};
-
-// 安全中间件设置
+// 中间件配置
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:"],
-      fontSrc: ["'self'", "data:", "https:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "https:", "blob:"],
-      frameSrc: ["'none'"],
-      sandbox: ["allow-forms", "allow-scripts", "allow-same-origin"]
-    }
-  },
-  crossOriginResourcePolicy: { policy: "same-site" },
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin" }
+    crossOriginResourcePolicy: { policy: "same-site" }
 }));
-
 app.use(cors({
     origin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length'],
-    credentials: true,
-    maxAge: 86400 // 24小时
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
-// 添加自定义 CORS 中间件
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:5173') {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-        res.header('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Max-Age', '86400');
-    }
-    
-    // 处理 OPTIONS 请求
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
+// 路由配置
+const speechRoutes = require('./routes/speechRoutes');
+app.use('/api/speech', speechRoutes);
+
+// 错误处理中间件
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        message: '服务器内部错误',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
-app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// 初始化队列处理器
-initQueueProcessor();
-
-// 音频文件保存路径
-const AUDIO_DIR = path.join(__dirname, '../audio_files');
-if (!fs.existsSync(AUDIO_DIR)) {
-    fs.mkdirSync(AUDIO_DIR);
-}
-
-// 路由设置
-app.use('/', authRoutes);
-app.use('/models', modelRoutes);
-app.use('/', speechRoutes);
-app.use('/', aiRoutes);
-
 // 启动服务器
-const PORT = process.env.PORT || 5000;
-const startServer = async () => {
-    try {
-        // 配置OSS CORS规则
-        await configureOSSCORS();
-        console.log('OSS CORS规则配置成功');
-
-        // 启动HTTPS服务器
-        https.createServer(sslOptions, app).listen(PORT, () => {
-            console.log(`服务器运行在端口 ${PORT}`);
-        });
-    } catch (error) {
-        console.error('服务器启动失败:', error);
-        process.exit(1);
-    }
-};
-
-startServer();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`服务器运行在端口 ${PORT}`);
+});
