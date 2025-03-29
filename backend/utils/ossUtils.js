@@ -30,8 +30,12 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
         const uniqueFileName = generateUniqueFileName(fileName, modelName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
-        // 上传文件
-        const result = await client.put(ossPath, file);
+        // 上传文件，添加服务器端加密配置
+        const result = await client.put(ossPath, file, {
+            headers: {
+                'x-oss-server-side-encryption': 'AES256'  // 使用 AES256 加密算法
+            }
+        });
         
         // 生成带有下载参数的 URL（使用自定义域名）
         const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
