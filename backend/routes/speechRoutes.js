@@ -2,7 +2,6 @@ import express from 'express';
 import { getOSSClient } from '../utils/ossUtils.js';
 import speechController from '../controllers/speechController.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { uploadToOSS, deleteFromOSS } from '../utils/ossUtils.js';
 
 const router = express.Router();
 

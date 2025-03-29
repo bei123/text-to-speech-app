@@ -69,7 +69,7 @@ export const getHistory = async (req, res) => {
 };
 
 // 下载音频文件
-const downloadAudio = async (req, res) => {
+export const downloadAudio = async (req, res) => {
     try {
         const { username, filename } = req.params;
         const ossClient = getOSSClient();
@@ -95,10 +95,4 @@ const downloadAudio = async (req, res) => {
         console.error('下载文件失败:', error);
         res.status(500).json({ error: '下载失败' });
     }
-};
-
-module.exports = {
-    generateSpeech,
-    getHistory,
-    downloadAudio
 }; 
