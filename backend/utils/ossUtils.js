@@ -23,13 +23,13 @@ const configureOSSCORS = async () => {
             // 指定允许跨域请求的来源
             allowedOrigin: '*',
             // 指定允许的跨域请求方法
-            allowedMethod: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+            allowedMethod: 'GET',
             // 指定允许跨域请求的响应头
-            allowedHeader: ['*'],
+            allowedHeader: '*',
             // 指定允许用户从应用程序中访问的响应头
-            exposeHeader: ['ETag', 'x-oss-request-id'],
+            exposeHeader: 'ETag',
             // 指定浏览器对特定资源的预取（OPTIONS）请求返回结果的缓存时间
-            maxAgeSeconds: 30
+            maxAgeSeconds: '30'
         }];
         
         // 传入 bucket 名称和规则
