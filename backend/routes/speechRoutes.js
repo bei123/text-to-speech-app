@@ -1,46 +1,16 @@
-import express from 'express';
-import { getOSSClient } from '../utils/ossUtils.js';
-import { generateSpeech, getHistory, downloadAudio } from '../controllers/speechController.js';
-import { authenticateToken } from '../middleware/auth.js';
-
+const express = require('express');
 const router = express.Router();
-
-// 获取OSS客户端实例
-const client = getOSSClient();
+const speechController = require('../controllers/speechController');
+const { authenticateToken } = require('../middleware/auth');
+const { uploadToOSS, deleteFromOSS } = require('../utils/ossUtils');
 
 // 生成语音
-router.post('/generate-speech', authenticateToken, generateSpeech);
+router.post('/generate-speech', authenticateToken, speechController.generateSpeech);
 
 // 获取用户历史记录
-router.get('/history', authenticateToken, getHistory);
+router.get('/history', authenticateToken, speechController.getHistory);
 
-// 获取文件下载URL
-router.get('/download/:fileName', async (req, res) => {
-    try {
-        const { fileName } = req.params;
-        const { username } = req.query;
-        
-        // 构建OSS路径
-        const ossPath = `audio/${username}/${fileName}`;
-        
-        // 生成签名URL
-        const url = client.signatureUrl(ossPath, {
-            expires: 3600, // URL有效期1小时
-            method: 'GET'
-        });
-        
-        res.json({
-            success: true,
-            url
-        });
-    } catch (error) {
-        console.error('获取下载URL失败:', error);
-        res.status(500).json({
-            success: false,
-            message: '获取下载URL失败',
-            error: error.message
-        });
-    }
-});
+// 下载音频文件
+router.get('/download/:username/:filename', authenticateToken, speechController.downloadAudio);
 
-export default router;
+module.exports = router;

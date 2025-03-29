@@ -47,7 +47,9 @@ app.use((err, req, res, next) => {
 });
 
 // 启动服务器
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`服务器运行在端口 ${PORT}`);
+const HOST = '0.0.0.0';  // 监听所有网络接口
+const PORT = 5000;       // 固定端口为5000
+
+app.listen(PORT, HOST, () => {
+    console.log(`服务器运行在 https://backend.2000gallery.art:${PORT}`);
 });
