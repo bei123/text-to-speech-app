@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -123,6 +123,27 @@ const authors = ref([
 const GSVDeveloper = ref([
   { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp" }
 ]);
+
+// 预加载所有图片
+const preloadImages = () => {
+  const allImages = [
+    ...voiceModelProviders.value,
+    ...gpuSponsors.value,
+    ...authors.value,
+    ...GSVDeveloper.value
+  ];
+  
+  const uniqueUrls = new Set(allImages.map(item => item.avatar));
+  uniqueUrls.forEach(url => {
+    const img = new Image();
+    img.src = url;
+  });
+};
+
+// 组件挂载时预加载图片
+onMounted(() => {
+  preloadImages();
+});
 
 const copyGptSoVitsLink = () => {
   const link = "https://github.com/RVC-Boss/GPT-SoVITS";

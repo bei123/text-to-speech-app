@@ -6,7 +6,7 @@ const routes = [
   {
     path: '/',
     name: 'TextToSpeech',
-    component: () => import('@/components/TextToSpeech.vue'),
+    component: () => import(/* webpackPreload: true */ '@/components/TextToSpeech.vue'),
     meta: {
       requiresAuth: true,
       title: '首页 - Ai语音生命',
@@ -16,7 +16,7 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/components/Login.vue'),
+    component: () => import(/* webpackPreload: true */ '@/components/Login.vue'),
     meta: {
       title: '登入',
       guest: true,
@@ -25,7 +25,7 @@ const routes = [
   {
     path: '/sponsors',
     name: 'Sponsors',
-    component: () => import('@/components/SponsorsPage.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/components/SponsorsPage.vue'),
     meta: {
       requiresAuth: true,
       title: '为爱发电的人们',
@@ -34,7 +34,7 @@ const routes = [
   {
     path: '/register',
     name: 'UserRegister',
-    component: () => import('@/components/UserRegister.vue'),
+    component: () => import(/* webpackPrefetch: true */ '@/components/UserRegister.vue'),
     meta: {
       title: '注册',
       guest: true,
@@ -43,7 +43,7 @@ const routes = [
   {
     path: '/history',
     name: 'HistoryPage',
-    component: () => import('@/components/HistoryPage.vue'),
+    component: () => import(/* webpackPreload: true */ '@/components/HistoryPage.vue'),
     meta: {
       requiresAuth: true,
       title: '历史查询',
