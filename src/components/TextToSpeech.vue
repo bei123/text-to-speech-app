@@ -67,7 +67,17 @@
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
       <h2 class="preview-title">预览</h2>
-      <audio :src="proxyAudioUrl" controls class="audio-player"></audio>
+      <div class="waveform-container">
+        <div ref="waveformRef" class="waveform"></div>
+        <div class="waveform-controls">
+          <button @click="togglePlay" class="play-button">
+            <i :class="['fas', isPlaying ? 'fa-pause' : 'fa-play']"></i>
+          </button>
+          <div class="time-display">
+            <span>{{ currentTime }}</span> / <span>{{ duration }}</span>
+          </div>
+        </div>
+      </div>
       <button @click="handleDownload" class="button button-primary download-button">下载语音</button>
     </div>
 
@@ -95,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -104,6 +114,7 @@ import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
 import { API_URLS } from '@/constants/constants';
+import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
 const selectedLanguage = ref('all_zh');
@@ -120,6 +131,13 @@ const isUsingDefaultPrompt = ref(true); // 标记是否使用默认提示词
 const showModelModal = ref(false);
 const snackbar = ref(false);
 const snackbarMessage = ref('');
+
+// 音频播放器相关
+const waveformRef = ref(null);
+const wavesurfer = ref(null);
+const isPlaying = ref(false);
+const currentTime = ref('0:00');
+const duration = ref('0:00');
 
 const languages = [
   { value: 'en', label: '英语' },
@@ -267,12 +285,6 @@ const selectModel = async (model) => {
 const selectedModelAvatar = computed(() => {
   const model = models.value.find(m => m.value === selectedModel.value);
   return model ? model.avatar_url : '';
-});
-
-// 计算代理后的音频URL
-const proxyAudioUrl = computed(() => {
-    if (!audioUrl.value) return '';
-    return audioUrl.value;
 });
 
 // 显示提示信息
@@ -540,6 +552,76 @@ const handleDownload = async () => {
         showSnackbar('下载失败，请稍后重试');
     }
 };
+
+// 格式化时间
+const formatTime = (seconds) => {
+  seconds = Math.floor(seconds);
+  const minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+// 初始化波形图
+const initWaveform = () => {
+  if (wavesurfer.value) {
+    wavesurfer.value.destroy();
+  }
+
+  wavesurfer.value = WaveSurfer.create({
+    container: waveformRef.value,
+    waveColor: '#42b983',
+    progressColor: '#2c8d63',
+    cursorColor: '#333',
+    barWidth: 2,
+    barRadius: 3,
+    cursorWidth: 1,
+    height: 80,
+    barGap: 3,
+    responsive: true,
+    normalize: true,
+    partialRender: true,
+  });
+
+  // 加载音频
+  wavesurfer.value.load(audioUrl.value);
+
+  // 事件监听
+  wavesurfer.value.on('ready', () => {
+    duration.value = formatTime(wavesurfer.value.getDuration());
+  });
+
+  wavesurfer.value.on('audioprocess', () => {
+    currentTime.value = formatTime(wavesurfer.value.getCurrentTime());
+  });
+
+  wavesurfer.value.on('finish', () => {
+    isPlaying.value = false;
+  });
+};
+
+// 播放/暂停
+const togglePlay = () => {
+  if (wavesurfer.value) {
+    wavesurfer.value.playPause();
+    isPlaying.value = wavesurfer.value.isPlaying();
+  }
+};
+
+// 监听音频URL变化
+watch(audioUrl, (newUrl) => {
+  if (newUrl) {
+    nextTick(() => {
+      initWaveform();
+    });
+  }
+});
+
+// 组件销毁时清理
+onBeforeUnmount(() => {
+  if (wavesurfer.value) {
+    wavesurfer.value.destroy();
+  }
+});
 
 onMounted(() => {
   fetchModels();
@@ -861,65 +943,129 @@ onMounted(() => {
 .audio-preview {
   margin-top: 32px;
   padding: 24px;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eee;
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(66, 185, 131, 0.1);
+  border: 1px solid rgba(66, 185, 131, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.audio-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(66, 185, 131, 0.15);
 }
 
 .preview-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
 }
 
 .preview-title::before {
   content: '';
-  width: 3px;
-  height: 16px;
-  background-color: #42b983;
-  border-radius: 2px;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(to bottom, #42b983, #3aa876);
+  border-radius: 4px;
 }
 
-.audio-player {
+.waveform-container {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+  border: 1px solid rgba(66, 185, 131, 0.1);
+}
+
+.waveform {
   width: 100%;
-  margin-bottom: 16px;
-  border-radius: 8px;
-  background-color: #f8f9fa;
+  background: rgba(66, 185, 131, 0.03);
+  border-radius: 12px;
+  padding: 15px;
+  transition: all 0.3s ease;
 }
 
-.audio-player::-webkit-media-controls-panel {
-  background-color: #f8f9fa;
-  border-radius: 8px;
+.waveform:hover {
+  background: rgba(66, 185, 131, 0.05);
 }
 
-.audio-player::-webkit-media-controls-current-time-display,
-.audio-player::-webkit-media-controls-time-remaining-display {
-  color: #666;
+.waveform-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 0 10px;
+}
+
+.play-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(145deg, #42b983, #3aa876);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(66, 185, 131, 0.2);
+}
+
+.play-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(66, 185, 131, 0.3);
+}
+
+.play-button:active {
+  transform: scale(0.98);
+}
+
+.play-button i {
+  font-size: 18px;
+  margin-left: 2px;
+}
+
+.time-display {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 15px;
+  color: #42b983;
+  background: rgba(66, 185, 131, 0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
 }
 
 .download-button {
+  width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #42b983, #3aa876);
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: linear-gradient(145deg, #42b983, #3aa876);
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
+  box-shadow: 0 4px 15px rgba(66, 185, 131, 0.2);
+  border: none;
+  cursor: pointer;
 }
 
 .download-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 185, 131, 0.3);
 }
 
 .download-button:active {
@@ -930,7 +1076,52 @@ onMounted(() => {
   content: '\f019';
   font-family: 'Font Awesome 5 Free';
   font-weight: 900;
-  font-size: 14px;
+  font-size: 16px;
+}
+
+/* 波形图自定义样式 */
+:deep(.wavesurfer-region) {
+  background-color: rgba(66, 185, 131, 0.1) !important;
+}
+
+:deep(.wavesurfer-handle) {
+  background-color: #42b983 !important;
+  width: 2px !important;
+}
+
+:deep(.wavesurfer-playhead) {
+  background-color: #42b983 !important;
+  width: 2px !important;
+}
+
+:deep(.wavesurfer-cursor) {
+  border-right-color: #42b983 !important;
+  width: 2px !important;
+}
+
+@media (max-width: 768px) {
+  .audio-preview {
+    padding: 16px;
+  }
+
+  .waveform-container {
+    padding: 16px;
+  }
+
+  .play-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .time-display {
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+
+  .download-button {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
 }
 
 /* 退出登录按钮样式 */
