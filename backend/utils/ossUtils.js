@@ -1,14 +1,65 @@
 const OSS = require('ali-oss');
 const { v4: uuidv4 } = require('uuid');
+const http = require('http');
+
+/**
+ * 检查是否在阿里云 ECS 环境中
+ * @returns {Promise<boolean>}
+ */
+const checkIsInAliyunECS = async () => {
+    return new Promise((resolve) => {
+        // 尝试访问阿里云 ECS 元数据服务
+        const req = http.get('http://100.100.100.200/latest/meta-data/', {
+            timeout: 2000
+        }, (res) => {
+            resolve(res.statusCode === 200);
+        });
+
+        req.on('error', () => {
+            resolve(false);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            resolve(false);
+        });
+    });
+};
+
+/**
+ * 获取合适的 OSS endpoint
+ * @returns {Promise<string>}
+ */
+const getOSSEndpoint = async () => {
+    const isInECS = await checkIsInAliyunECS();
+    const region = process.env.OSS_REGION;
+    
+    if (isInECS) {
+        console.log('检测到阿里云 ECS 环境，使用内网 endpoint');
+        return `https://oss-${region}-internal.aliyuncs.com`;
+    } else {
+        console.log('未检测到阿里云 ECS 环境，使用公网 endpoint');
+        return `https://oss-${region}.aliyuncs.com`;
+    }
+};
 
 // 创建 OSS 客户端
-const client = new OSS({
-    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
-    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
-    bucket: process.env.OSS_BUCKET,
-    region: process.env.OSS_REGION,
-    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
-});
+let client = null;
+
+/**
+ * 初始化 OSS 客户端
+ */
+const initOSSClient = async () => {
+    const endpoint = await getOSSEndpoint();
+    client = new OSS({
+        accessKeyId: process.env.OSS_ACCESS_KEY_ID,
+        accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
+        bucket: process.env.OSS_BUCKET,
+        region: process.env.OSS_REGION,
+        endpoint: endpoint
+    });
+    console.log('OSS 客户端初始化完成，使用 endpoint:', endpoint);
+};
 
 // 生成唯一的文件名
 const generateUniqueFileName = (fileName, modelName) => {
@@ -27,6 +78,11 @@ const generateUniqueFileName = (fileName, modelName) => {
  */
 const uploadToOSS = async (file, fileName, username, modelName) => {
     try {
+        // 确保 client 已初始化
+        if (!client) {
+            await initOSSClient();
+        }
+
         const uniqueFileName = generateUniqueFileName(fileName, modelName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
@@ -58,6 +114,11 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
  */
 async function deleteFromOSS(fileName, username) {
     try {
+        // 确保 client 已初始化
+        if (!client) {
+            await initOSSClient();
+        }
+
         // 构建 OSS 路径：audio/用户名/文件名
         const ossPath = `audio/${username}/${fileName}`;
         await client.delete(ossPath);
@@ -66,6 +127,9 @@ async function deleteFromOSS(fileName, username) {
         throw error;
     }
 }
+
+// 初始化时立即检查环境并创建客户端
+initOSSClient().catch(console.error);
 
 module.exports = {
     uploadToOSS,
