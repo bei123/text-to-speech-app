@@ -19,15 +19,18 @@ const configureOSSCORS = async () => {
         const client = getOSSClient();
         
         // 设置CORS规则
-        const rules = {
-            CORSRule: [{
-                AllowedOrigin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
-                AllowedMethod: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
-                AllowedHeader: ['*'],
-                ExposeHeader: ['ETag', 'x-oss-request-id'],
-                MaxAgeSeconds: 3600
-            }]
-        };
+        const rules = [{
+            // 指定允许跨域请求的来源
+            allowedOrigin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
+            // 指定允许的跨域请求方法
+            allowedMethod: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+            // 指定允许跨域请求的响应头
+            allowedHeader: ['*'],
+            // 指定允许用户从应用程序中访问的响应头
+            exposeHeader: ['ETag', 'x-oss-request-id'],
+            // 指定浏览器对特定资源的预取（OPTIONS）请求返回结果的缓存时间
+            maxAgeSeconds: '30'
+        }];
         
         // 传入 bucket 名称和规则
         await client.putBucketCORS(OSS_BUCKET, rules);
