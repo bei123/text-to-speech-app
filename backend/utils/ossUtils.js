@@ -9,7 +9,7 @@ const getOSSClient = () => {
         accessKeySecret: OSS_ACCESS_KEY_SECRET,
         bucket: OSS_BUCKET,
         region: OSS_REGION,
-        endpoint: OSS_ENDPOINT
+        endpoint: `https://oss-${OSS_REGION}.aliyuncs.com`
     });
 };
 
