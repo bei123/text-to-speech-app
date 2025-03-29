@@ -383,37 +383,22 @@ const toggleExpand = (record) => {
 
 // 获取代理后的音频URL
 const getProxyAudioUrl = (audioUrl) => {
-    try {
-        const url = new URL(audioUrl);
-        const pathParts = url.pathname.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const username = pathParts[pathParts.length - 2];
-        return `https://backend.2000gallery.art:5000/download/${username}/${filename}`;
-    } catch (error) {
-        console.error('解析音频URL失败:', error);
-        return audioUrl;
-    }
+    return audioUrl;
 };
 
 // 下载处理函数
 const handleDownload = async (record) => {
     try {
-        // 从 URL 中提取文件名和用户名
-        const url = new URL(record.audioUrl);
-        const pathParts = url.pathname.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const username = pathParts[pathParts.length - 2];
+        if (!record.audioUrl) {
+            throw new Error('没有可下载的音频文件');
+        }
         
-        // 使用后端代理下载
-        const response = await fetch(`https://backend.2000gallery.art:5000/download/${username}/${filename}`, {
+        // 直接从OSS下载
+        const response = await fetch(record.audioUrl, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${store.getters['auth/accessToken']}`,
-                'Accept': 'audio/wav',
-                'Origin': window.location.origin
-            },
-            credentials: 'include',
-            mode: 'cors'
+                'Accept': 'audio/wav'
+            }
         });
         
         if (!response.ok) {
@@ -424,7 +409,7 @@ const handleDownload = async (record) => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = filename; // 使用OSS中的原始文件名
+        link.download = 'speech.wav'; // 使用默认文件名
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
