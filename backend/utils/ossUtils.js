@@ -23,12 +23,7 @@ const configureOSSCORS = async () => {
             // 指定允许跨域请求的来源
             allowedOrigin: '*',
             // 指定允许的跨域请求方法
-            allowedMethod: 'GET',
-            allowedMethod: 'HEAD',
-            allowedMethod: 'PUT',
-            allowedMethod: 'POST',
-            allowedMethod: 'DELETE',
-            allowedMethod: 'OPTIONS',
+            allowedMethod: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
             // 指定允许跨域请求的响应头
             allowedHeader: '*',
             // 指定允许用户从应用程序中访问的响应头
