@@ -1,6 +1,6 @@
 import express from 'express';
 import { getOSSClient } from '../utils/ossUtils.js';
-import speechController from '../controllers/speechController.js';
+import { generateSpeech, getHistory, downloadAudio } from '../controllers/speechController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,10 +9,10 @@ const router = express.Router();
 const client = getOSSClient();
 
 // 生成语音
-router.post('/generate-speech', authenticateToken, speechController.generateSpeech);
+router.post('/generate-speech', authenticateToken, generateSpeech);
 
 // 获取用户历史记录
-router.get('/history', authenticateToken, speechController.getHistory);
+router.get('/history', authenticateToken, getHistory);
 
 // 获取文件下载URL
 router.get('/download/:fileName', async (req, res) => {
