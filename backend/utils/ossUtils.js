@@ -33,8 +33,8 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
         // 上传文件
         const result = await client.put(ossPath, file);
         
-        // 生成带有下载参数的 URL（使用自定义域名）
-        const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
+        // 生成直接的OSS下载链接
+        const downloadUrl = `https://${process.env.OSS_BUCKET}.oss-${process.env.OSS_REGION}.aliyuncs.com/${ossPath}`;
         
         return {
             ossPath,

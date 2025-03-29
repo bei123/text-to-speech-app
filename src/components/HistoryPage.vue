@@ -151,14 +151,10 @@
                 </div>
 
                 <div class="record-actions">
-                    <button 
-                        v-if="record.status === 'completed'" 
-                        @click="handleDownload(record)"
-                        class="download-button"
-                    >
-                        <i class="fas fa-download"></i>
-                        下载音频
-                    </button>
+                    <div v-if="record.audioUrl" class="audio-preview">
+                        <audio :src="record.audioUrl" controls class="audio-player"></audio>
+                        <button @click="handleDownload(record)" class="button button-primary download-button">下载语音</button>
+                    </div>
                     <button 
                         v-else 
                         class="download-button disabled"
@@ -398,22 +394,11 @@ const getProxyAudioUrl = (audioUrl) => {
 // 下载处理函数
 const handleDownload = async (record) => {
     try {
-        // 从 URL 中提取文件名和用户名
-        const url = new URL(record.audioUrl);
-        const pathParts = url.pathname.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const username = pathParts[pathParts.length - 2];
-        
-        // 使用后端代理下载
-        const response = await fetch(`https://backend.2000gallery.art:5000/download/${username}/${filename}`, {
+        const response = await fetch(record.audioUrl, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${store.getters['auth/accessToken']}`,
-                'Accept': 'audio/wav',
-                'Origin': window.location.origin
-            },
-            credentials: 'include',
-            mode: 'cors'
+                'Accept': 'audio/wav'
+            }
         });
         
         if (!response.ok) {
@@ -424,14 +409,14 @@ const handleDownload = async (record) => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = filename; // 使用OSS中的原始文件名
+        link.download = record.file_name; // 使用数据库中的文件名
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
         console.error('下载失败:', error);
-        alert('下载失败，请稍后重试');
+        showSnackbar('下载失败，请稍后重试');
     }
 };
 

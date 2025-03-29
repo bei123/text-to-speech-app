@@ -66,9 +66,9 @@
 
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
-      <h2 class="preview-title">预览</h2>
-      <audio :src="proxyAudioUrl" controls class="audio-player"></audio>
-      <button @click="handleDownload" class="button button-primary download-button">下载语音</button>
+      <div class="audio-controls">
+        <audio :src="audioUrl" controls class="audio-player"></audio>
+      </div>
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->
@@ -267,21 +267,6 @@ const selectModel = async (model) => {
 const selectedModelAvatar = computed(() => {
   const model = models.value.find(m => m.value === selectedModel.value);
   return model ? model.avatar_url : '';
-});
-
-// 计算代理后的音频URL
-const proxyAudioUrl = computed(() => {
-    if (!audioUrl.value) return '';
-    try {
-        const url = new URL(audioUrl.value);
-        const pathParts = url.pathname.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const username = pathParts[pathParts.length - 2];
-        return `https://backend.2000gallery.art:5000/download/${username}/${filename}`;
-    } catch (error) {
-        console.error('解析音频URL失败:', error);
-        return audioUrl.value;
-    }
 });
 
 // 显示提示信息
@@ -509,46 +494,6 @@ const resetToDefaultPrompt = () => {
   } else {
     showSnackbar('无法获取默认提示词');
   }
-};
-
-// 下载处理函数
-const handleDownload = async () => {
-    try {
-        // 从 URL 中提取文件名和用户名
-        const url = new URL(audioUrl.value);
-        const pathParts = url.pathname.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const username = pathParts[pathParts.length - 2];
-        
-        // 使用后端代理下载
-        const response = await fetch(`https://backend.2000gallery.art:5000/download/${username}/${filename}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${store.getters['auth/accessToken']}`,
-                'Accept': 'audio/wav',
-                'Origin': window.location.origin
-            },
-            credentials: 'include',
-            mode: 'cors'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename; // 使用OSS中的原始文件名
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-        console.error('下载失败:', error);
-        showSnackbar('下载失败，请稍后重试');
-    }
 };
 
 onMounted(() => {
