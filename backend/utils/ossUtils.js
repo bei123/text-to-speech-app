@@ -1,14 +1,39 @@
-const OSS = require('ali-oss');
+const { OSS } = require('ali-oss');
+const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION, OSS_ENDPOINT } = process.env;
 const { v4: uuidv4 } = require('uuid');
 
-// 创建 OSS 客户端
-const client = new OSS({
-    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
-    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
-    bucket: process.env.OSS_BUCKET,
-    region: process.env.OSS_REGION,
-    endpoint: `https://oss-${process.env.OSS_REGION}.aliyuncs.com`
-});
+// 获取OSS客户端实例
+const getOSSClient = () => {
+    return new OSS({
+        accessKeyId: OSS_ACCESS_KEY_ID,
+        accessKeySecret: OSS_ACCESS_KEY_SECRET,
+        bucket: OSS_BUCKET,
+        region: OSS_REGION,
+        endpoint: OSS_ENDPOINT
+    });
+};
+
+// 配置OSS CORS规则
+const configureOSSCORS = async () => {
+    try {
+        const client = getOSSClient();
+        
+        // 设置CORS规则
+        const corsRules = [{
+            allowedOrigins: ['https://tts.2000gallery.art', 'http://localhost:5173'],
+            allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['*'],
+            exposeHeaders: ['ETag', 'x-oss-request-id'],
+            maxAgeSeconds: 3600
+        }];
+        
+        await client.putBucketCORS(OSS_BUCKET, corsRules);
+        console.log('OSS CORS规则配置成功');
+    } catch (error) {
+        console.error('配置OSS CORS规则失败:', error);
+        throw error;
+    }
+};
 
 // 生成唯一的文件名
 const generateUniqueFileName = (fileName, modelName) => {
@@ -31,6 +56,7 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
         const ossPath = `audio/${username}/${uniqueFileName}`;
         
         // 上传文件
+        const client = getOSSClient();
         const result = await client.put(ossPath, file);
         
         // 生成直接的OSS下载链接
@@ -52,19 +78,22 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
  * @param {string} username - 用户名
  * @returns {Promise<void>}
  */
-async function deleteFromOSS(fileName, username) {
+const deleteFromOSS = async (fileName, username) => {
     try {
         // 构建 OSS 路径：audio/用户名/文件名
         const ossPath = `audio/${username}/${fileName}`;
+        const client = getOSSClient();
         await client.delete(ossPath);
     } catch (error) {
         console.error('从 OSS 删除文件失败:', error);
         throw error;
     }
-}
+};
 
 module.exports = {
+    getOSSClient,
     uploadToOSS,
     deleteFromOSS,
+    configureOSSCORS,
     generateUniqueFileName
 }; 

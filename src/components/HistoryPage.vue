@@ -204,6 +204,49 @@ import { useStore } from 'vuex';
 import { debounce } from 'lodash';
 import CryptoJS from 'crypto-js';
 
+// 添加 showSnackbar 函数
+const showSnackbar = (message) => {
+    // 创建一个临时的提示元素
+    const snackbar = document.createElement('div');
+    snackbar.className = 'snackbar';
+    snackbar.textContent = message;
+    
+    // 添加样式
+    snackbar.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        z-index: 1000;
+        animation: fadeInOut 3s ease-in-out;
+    `;
+    
+    // 添加动画样式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            15% { opacity: 1; transform: translate(-50%, 0); }
+            85% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // 添加到页面
+    document.body.appendChild(snackbar);
+    
+    // 3秒后移除
+    setTimeout(() => {
+        document.body.removeChild(snackbar);
+        document.head.removeChild(style);
+    }, 3000);
+};
+
 const store = useStore();
 const isLoading = ref(false);
 const maxTextLength = 100;
@@ -398,7 +441,8 @@ const handleDownload = async (record) => {
             method: 'GET',
             headers: {
                 'Accept': 'audio/wav'
-            }
+            },
+            mode: 'cors'  // 启用CORS
         });
         
         if (!response.ok) {
@@ -409,7 +453,12 @@ const handleDownload = async (record) => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = record.file_name; // 使用数据库中的文件名
+        
+        // 从URL中提取文件名
+        const url = new URL(record.audioUrl);
+        const filename = url.pathname.split('/').pop();
+        link.download = filename;
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

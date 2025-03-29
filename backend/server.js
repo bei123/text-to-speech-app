@@ -15,6 +15,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const https = require('https');
 const helmet = require('helmet');
+const { configureOSSCORS } = require('./utils/ossUtils');
 
 // 导入路由
 const authRoutes = require('./routes/authRoutes');
@@ -101,8 +102,22 @@ app.use('/models', modelRoutes);
 app.use('/', speechRoutes);
 app.use('/', aiRoutes);
 
-// 启动HTTPS服务器
+// 启动服务器
 const PORT = process.env.PORT || 5000;
-https.createServer(sslOptions, app).listen(PORT, () => {
-    console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
-});
+const startServer = async () => {
+    try {
+        // 配置OSS CORS规则
+        await configureOSSCORS();
+        console.log('OSS CORS规则配置成功');
+
+        // 启动HTTPS服务器
+        https.createServer(sslOptions, app).listen(PORT, () => {
+            console.log(`服务器运行在端口 ${PORT}`);
+        });
+    } catch (error) {
+        console.error('服务器启动失败:', error);
+        process.exit(1);
+    }
+};
+
+startServer();

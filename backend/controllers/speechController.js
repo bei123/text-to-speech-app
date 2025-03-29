@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const redisClient = require('../config/redis');
 const speechQueue = require('../config/queue');
 const { AUDIO_DIR } = require('../utils/constants');
+const { getOSSClient } = require('../config/oss');
 
 // 生成语音
 const generateSpeech = async (req, res) => {
@@ -233,7 +234,37 @@ const getHistory = async (req, res) => {
     }
 };
 
+// 下载音频文件
+const downloadAudio = async (req, res) => {
+    try {
+        const { username, filename } = req.params;
+        const ossClient = getOSSClient();
+        
+        // 设置文件路径
+        const objectKey = `audio/${username}/${filename}`;
+        
+        try {
+            // 获取文件
+            const result = await ossClient.get(objectKey);
+            
+            // 设置响应头
+            res.setHeader('Content-Type', 'audio/wav');
+            res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+            
+            // 发送文件内容
+            res.send(result.content);
+        } catch (error) {
+            console.error('获取OSS文件失败:', error);
+            res.status(404).json({ error: '文件不存在' });
+        }
+    } catch (error) {
+        console.error('下载文件失败:', error);
+        res.status(500).json({ error: '下载失败' });
+    }
+};
+
 module.exports = {
     generateSpeech,
-    getHistory
+    getHistory,
+    downloadAudio
 }; 

@@ -10,4 +10,7 @@ router.post('/generate-speech', authenticateToken, speechController.generateSpee
 // 获取用户历史记录
 router.get('/history', authenticateToken, speechController.getHistory);
 
+// 下载音频文件
+router.get('/download/:username/:filename', authenticateToken, speechController.downloadAudio);
+
 module.exports = router;
