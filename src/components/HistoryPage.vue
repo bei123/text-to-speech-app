@@ -393,6 +393,11 @@ const handleDownload = async (record) => {
             throw new Error('没有可下载的音频文件');
         }
         
+        // 从URL中获取原始文件名
+        const url = new URL(record.audioUrl);
+        const pathParts = url.pathname.split('/');
+        const originalFileName = pathParts[pathParts.length - 1];
+        
         // 直接从OSS下载
         const response = await fetch(record.audioUrl, {
             method: 'GET',
@@ -409,7 +414,7 @@ const handleDownload = async (record) => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = 'speech.wav'; // 使用默认文件名
+        link.download = originalFileName; // 使用OSS中的原始文件名
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
