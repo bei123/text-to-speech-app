@@ -1,12 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const path = require('path');
-const { fileURLToPath } = require('url');
-const { dirname } = require('path');
-const dotenv = require('dotenv');
-const { getOSSClient } = require('./utils/ossUtils');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import dotenv from 'dotenv';
+import { getOSSClient } from './utils/ossUtils.js';
+import speechRoutes from './routes/speechRoutes.js';
 
 // 加载环境变量
 dotenv.config();
@@ -33,7 +34,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // 路由配置
-const speechRoutes = require('./routes/speechRoutes');
 app.use('/api/speech', speechRoutes);
 
 // 错误处理中间件

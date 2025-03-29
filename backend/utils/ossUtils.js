@@ -1,5 +1,6 @@
-const OSS = require('ali-oss');
-require('dotenv').config();
+import OSS from 'ali-oss';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const {
     OSS_ACCESS_KEY_ID,
@@ -9,7 +10,7 @@ const {
 } = process.env;
 
 // 获取OSS客户端实例
-const getOSSClient = () => {
+export const getOSSClient = () => {
     return new OSS({
         accessKeyId: OSS_ACCESS_KEY_ID,
         accessKeySecret: OSS_ACCESS_KEY_SECRET,
@@ -17,8 +18,4 @@ const getOSSClient = () => {
         region: OSS_REGION,
         endpoint: `https://oss-${OSS_REGION}.aliyuncs.com`
     });
-};
-
-module.exports = {
-    getOSSClient
 }; 
