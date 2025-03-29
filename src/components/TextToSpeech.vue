@@ -165,6 +165,14 @@ const fetchModels = async () => {
       selectedModel.value = models.value[0].value;
       selectedModelLabel.value = models.value[0].label;
       
+      // 预加载所有模型头像
+      models.value.forEach(model => {
+        if (model.avatar_url) {
+          const img = new Image();
+          img.src = model.avatar_url;
+        }
+      });
+      
       // 如果模型数据中直接包含system_prompt字段，则直接使用
       const selectedModelData = models.value.find(model => model.value === selectedModel.value);
       if (selectedModelData && selectedModelData.system_prompt) {
