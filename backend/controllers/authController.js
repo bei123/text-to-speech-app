@@ -85,8 +85,8 @@ const login = async (req, res) => {
         }
 
         // 查找用户
-        const findUserQuery = 'SELECT * FROM users WHERE username = ?';
-        const [results] = await pool.query(findUserQuery, [username]);
+        const findUserQuery = 'SELECT * FROM users WHERE username = ? OR email = ?';
+        const [results] = await pool.query(findUserQuery, [username, username]);
 
         if (results.length === 0) {
             return res.status(400).json({ message: '用户名或密码错误' });

@@ -3,8 +3,8 @@
         <h1>登录</h1>
         <form @submit.prevent="submitLogin">
             <div class="form-group">
-                <label for="username">用户名</label>
-                <input type="text" id="username" v-model="username" required />
+                <label for="username">用户名或邮箱</label>
+                <input type="text" id="username" v-model="username" required placeholder="请输入用户名或邮箱" />
             </div>
             <div class="form-group">
                 <label for="password">密码</label>
