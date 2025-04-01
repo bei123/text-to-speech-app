@@ -149,9 +149,27 @@ export default {
                 }
             } catch (err) {
                 console.error('登录失败:', err);
-                error.value = err.response?.data?.message || '登录失败，请重试';
+                let errorMessage = '登录失败，请重试';
+                
+                if (err.response?.data?.code) {
+                    switch (err.response.data.code) {
+                        case 'ACCOUNT_NOT_FOUND':
+                            errorMessage = '账号不存在，请检查用户名或邮箱是否正确';
+                            break;
+                        case 'WRONG_PASSWORD':
+                            errorMessage = '密码错误，请重新输入';
+                            break;
+                        case 'INVALID_PASSWORD_FORMAT':
+                            errorMessage = '密码格式错误，请重新输入';
+                            break;
+                        default:
+                            errorMessage = err.response?.data?.message || errorMessage;
+                    }
+                }
+                
+                error.value = errorMessage;
                 // 使用自定义Toast显示错误
-                showToast(error.value, 'error');
+                showToast(errorMessage, 'error');
             } finally {
                 loading.value = false;
             }
