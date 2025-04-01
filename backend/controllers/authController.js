@@ -15,7 +15,58 @@ const register = async (req, res) => {
         const [results] = await pool.query(checkUserQuery, [username, email]);
 
         if (results.length > 0) {
-            return res.status(400).json({ message: '用户名或邮箱已存在' });
+            // 分别检查用户名和邮箱
+            const [existingUser] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+            const [existingEmail] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+            
+            if (existingUser.length > 0 && existingEmail.length > 0) {
+                return res.status(400).json({ 
+                    message: '用户名和邮箱都已被注册',
+                    code: 'BOTH_EXIST'
+                });
+            } else if (existingUser.length > 0) {
+                return res.status(400).json({ 
+                    message: '该用户名已被使用',
+                    code: 'USERNAME_EXISTS'
+                });
+            } else {
+                return res.status(400).json({ 
+                    message: '该邮箱已被注册',
+                    code: 'EMAIL_EXISTS'
+                });
+            }
+        }
+
+        // 验证密码强度
+        if (password.length < 6) {
+            return res.status(400).json({
+                message: '密码长度至少为6个字符',
+                code: 'PASSWORD_TOO_SHORT'
+            });
+        }
+        if (!/[A-Z]/.test(password)) {
+            return res.status(400).json({
+                message: '密码必须包含至少一个大写字母',
+                code: 'PASSWORD_NO_UPPERCASE'
+            });
+        }
+        if (!/[a-z]/.test(password)) {
+            return res.status(400).json({
+                message: '密码必须包含至少一个小写字母',
+                code: 'PASSWORD_NO_LOWERCASE'
+            });
+        }
+        if (!/[0-9]/.test(password)) {
+            return res.status(400).json({
+                message: '密码必须包含至少一个数字',
+                code: 'PASSWORD_NO_NUMBER'
+            });
+        }
+        if (!/[!@#$%^&*]/.test(password)) {
+            return res.status(400).json({
+                message: '密码必须包含至少一个特殊字符 (!@#$%^&*)',
+                code: 'PASSWORD_NO_SPECIAL'
+            });
         }
 
         const salt = await bcrypt.genSalt(10);

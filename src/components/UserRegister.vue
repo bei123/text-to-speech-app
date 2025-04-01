@@ -189,14 +189,34 @@ const register = async () => {
   } catch (error) {
     let errorMessage = '注册失败，请稍后重试';
     
-    if (error.response?.data?.message) {
-      const message = error.response.data.message;
-      if (message.includes('email')) {
-        errorMessage = '该邮箱已被注册，请使用其他邮箱';
-      } else if (message.includes('username')) {
-        errorMessage = '该用户名已被使用，请选择其他用户名';
-      } else {
-        errorMessage = message;
+    if (error.response?.data?.code) {
+      switch (error.response.data.code) {
+        case 'BOTH_EXIST':
+          errorMessage = '用户名和邮箱都已被注册，请更换其他用户名和邮箱';
+          break;
+        case 'USERNAME_EXISTS':
+          errorMessage = '该用户名已被使用，请选择其他用户名';
+          break;
+        case 'EMAIL_EXISTS':
+          errorMessage = '该邮箱已被注册，请使用其他邮箱';
+          break;
+        case 'PASSWORD_TOO_SHORT':
+          errorMessage = '密码长度至少为6个字符';
+          break;
+        case 'PASSWORD_NO_UPPERCASE':
+          errorMessage = '密码必须包含至少一个大写字母';
+          break;
+        case 'PASSWORD_NO_LOWERCASE':
+          errorMessage = '密码必须包含至少一个小写字母';
+          break;
+        case 'PASSWORD_NO_NUMBER':
+          errorMessage = '密码必须包含至少一个数字';
+          break;
+        case 'PASSWORD_NO_SPECIAL':
+          errorMessage = '密码必须包含至少一个特殊字符 (!@#$%^&*)';
+          break;
+        default:
+          errorMessage = error.response?.data?.message || errorMessage;
       }
     }
     
