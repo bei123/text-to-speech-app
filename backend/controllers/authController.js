@@ -89,7 +89,10 @@ const login = async (req, res) => {
         const [results] = await pool.query(findUserQuery, [username, username]);
 
         if (results.length === 0) {
-            return res.status(400).json({ message: '用户名或密码错误' });
+            return res.status(400).json({ 
+                message: '账号不存在',
+                code: 'ACCOUNT_NOT_FOUND'
+            });
         }
 
         const user = results[0];
@@ -99,13 +102,19 @@ const login = async (req, res) => {
         const password = passwordBytes.toString(CryptoJS.enc.Utf8);
         
         if (!password) {
-            return res.status(400).json({ message: '解密密码失败' });
+            return res.status(400).json({ 
+                message: '密码格式错误',
+                code: 'INVALID_PASSWORD_FORMAT'
+            });
         }
 
         // 验证密码
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            return res.status(400).json({ message: '用户名或密码错误' });
+            return res.status(400).json({ 
+                message: '密码错误',
+                code: 'WRONG_PASSWORD'
+            });
         }
 
         // 生成 Access Token
