@@ -51,7 +51,7 @@
     <div class="newView">
       <label>
         <input type="checkbox" v-model="isOpenAIGPT" class="checkbox1" />
-        开启AI聊天功能(测试版)
+        开启AI聊天功能
       </label>
       <div v-if="isOpenAIGPT" class="chatSdButton-container">
         <button @click="openSystemModal" class="button button-primary">设置聊天模型人设</button>
