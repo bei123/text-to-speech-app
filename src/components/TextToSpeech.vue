@@ -375,7 +375,10 @@ const generateSpeech = async () => {
     return;
   }
 
+  // 开始生成新语音时，先隐藏之前的预览界面
+  audioUrl.value = '';
   isLoading.value = true;
+  
   try {
     let textToGenerate = inputText.value;
 
