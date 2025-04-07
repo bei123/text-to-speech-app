@@ -12,7 +12,7 @@ console.log('环境变量加载状态:', {
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+const fs = require('fs'); 3
 const https = require('https');
 const helmet = require('helmet');
 
@@ -36,23 +36,23 @@ const sslOptions = {
 
 // 安全中间件设置
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:"],
-      fontSrc: ["'self'", "data:", "https:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "https:", "blob:"],
-      frameSrc: ["'none'"],
-      sandbox: ["allow-forms", "allow-scripts", "allow-same-origin"]
-    }
-  },
-  crossOriginResourcePolicy: { policy: "same-site" },
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin" }
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "https:", "wss:", "ws:"],
+            fontSrc: ["'self'", "data:", "https:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'", "https:", "blob:"],
+            frameSrc: ["'none'"],
+            sandbox: ["allow-forms", "allow-scripts", "allow-same-origin"]
+        }
+    },
+    crossOriginResourcePolicy: { policy: "same-site" },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin" }
 }));
 
 app.use(cors({
@@ -75,7 +75,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400');
     }
-    
+
     // 处理 OPTIONS 请求
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);

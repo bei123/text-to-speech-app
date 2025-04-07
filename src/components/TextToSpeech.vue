@@ -82,20 +82,14 @@
     </div>
 
     <!-- 设置 SYSTEM 的模态框 -->
-    <SystemModal 
-      v-if="showSystemModal" 
-      v-model="systemPrompt" 
-      :defaultValue="defaultSystemPrompt"
-      @save="saveSystemPrompt" 
-      @close="closeSystemModal"
-      @reset="resetToDefaultPrompt" 
-    />
+    <SystemModal v-if="showSystemModal" v-model="systemPrompt" :defaultValue="defaultSystemPrompt"
+      @save="saveSystemPrompt" @close="closeSystemModal" @reset="resetToDefaultPrompt" />
 
     <!-- 提示信息 -->
     <Snackbar v-if="snackbar" :message="snackbarMessage" @close="snackbar = false" />
 
     <!-- 底部图标 -->
-    
+
   </div>
   <footer>
     <!-- 页脚内容 -->
@@ -154,17 +148,17 @@ const store = useStore();
 const fetchModels = async () => {
   try {
     const response = await axios.get(API_URLS.MODELS);
-    
+
     // 解密响应数据
     const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
     const parsedData = JSON.parse(decryptedData.toString(CryptoJS.enc.Utf8));
-    
+
     models.value = parsedData;
     if (models.value.length > 0) {
       // 设置第一个模型为默认选择的模型
       selectedModel.value = models.value[0].value;
       selectedModelLabel.value = models.value[0].label;
-      
+
       // 预加载所有模型头像
       models.value.forEach(model => {
         if (model.avatar_url) {
@@ -172,7 +166,7 @@ const fetchModels = async () => {
           img.src = model.avatar_url;
         }
       });
-      
+
       // 如果模型数据中直接包含system_prompt字段，则直接使用
       const selectedModelData = models.value.find(model => model.value === selectedModel.value);
       if (selectedModelData && selectedModelData.system_prompt) {
@@ -203,7 +197,7 @@ const fetchModelPrompt = async (modelValue) => {
     // 获取加密密钥
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
-    
+
     const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
@@ -238,14 +232,14 @@ const fetchModelPrompt = async (modelValue) => {
     // 解析返回的提示词 - 解密服务器返回的数据
     if (promptResponse.data && promptResponse.data.encryptedData) {
       const decryptedBytes = CryptoJS.AES.decrypt(
-        promptResponse.data.encryptedData, 
+        promptResponse.data.encryptedData,
         promptResponse.data.key
       );
       const decryptedData = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
-      
+
       if (decryptedData && decryptedData.prompt) {
         defaultSystemPrompt.value = decryptedData.prompt;
-        
+
         // 如果用户未自定义提示词或正在使用默认提示词，则更新当前提示词
         if (isUsingDefaultPrompt.value || !systemPrompt.value.trim()) {
           systemPrompt.value = defaultSystemPrompt.value;
@@ -274,7 +268,7 @@ const selectModel = async (model) => {
   selectedModel.value = model.value;
   selectedModelLabel.value = model.label;
   closeModelModal();
-  
+
   // 如果模型数据中直接包含system_prompt字段，则直接使用
   const selectedModelData = models.value.find(m => m.value === model.value);
   if (selectedModelData && selectedModelData.system_prompt) {
@@ -307,7 +301,7 @@ const showSnackbar = (message) => {
   const toast = document.createElement('div');
   toast.id = 'custom-toast';
   toast.innerText = message;
-  
+
   // 设置toast样式
   toast.style.position = 'fixed';
   toast.style.top = '80px';
@@ -327,16 +321,16 @@ const showSnackbar = (message) => {
   toast.style.transition = 'all 0.3s ease-in-out';
   toast.style.backdropFilter = 'blur(4px)';
   toast.style.border = '1px solid rgba(255, 255, 255, 0.1)';
-  
+
   // 添加到body
   document.body.appendChild(toast);
-  
+
   // 显示toast (使用setTimeout确保CSS过渡效果生效)
   setTimeout(() => {
     toast.style.opacity = '1';
     toast.style.transform = 'translateX(-50%) translateY(0)';
   }, 10);
-  
+
   // 3秒后隐藏
   setTimeout(() => {
     toast.style.opacity = '0';
@@ -348,7 +342,7 @@ const showSnackbar = (message) => {
       }
     }, 300);
   }, 3000);
-  
+
   // 不再使用原来的snackbar
   snackbarMessage.value = message;
   snackbar.value = false;
@@ -378,7 +372,7 @@ const generateSpeech = async () => {
   // 开始生成新语音时，先隐藏之前的预览界面
   audioUrl.value = '';
   isLoading.value = true;
-  
+
   try {
     let textToGenerate = inputText.value;
 
@@ -387,7 +381,7 @@ const generateSpeech = async () => {
         // 获取加密密钥
         const initialKey = 'text-to-speech-initial-key';
         const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
-        
+
         const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
           params: { encryptedUsername: encryptedUsernameForKey }
         });
@@ -413,7 +407,7 @@ const generateSpeech = async () => {
             key: aiSecretKey
           }
         );
-        
+
         // 解密响应数据
         if (response.data.encryptedData) {
           const decryptedBytes = CryptoJS.AES.decrypt(response.data.encryptedData, aiSecretKey);
@@ -431,7 +425,7 @@ const generateSpeech = async () => {
     // 获取加密密钥
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
-    
+
     const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
@@ -468,7 +462,7 @@ const generateSpeech = async () => {
     audioUrl.value = speechResponse.data.downloadLink;
   } catch (error) {
     console.error('生成语音失败:', error);
-    
+
     // 处理401错误
     if (error.response?.status === 401) {
       try {
@@ -486,7 +480,7 @@ const generateSpeech = async () => {
         return;
       }
     }
-    
+
     showSnackbar('生成语音失败，请稍后重试');
   } finally {
     isLoading.value = false;
@@ -527,41 +521,41 @@ const resetToDefaultPrompt = () => {
 
 // 下载处理函数
 const handleDownload = async () => {
-    try {
-        if (!audioUrl.value) {
-            throw new Error('没有可下载的音频文件');
-        }
-        
-        // 从URL中获取原始文件名
-        const url = new URL(audioUrl.value);
-        const pathParts = url.pathname.split('/');
-        const originalFileName = pathParts[pathParts.length - 1];
-        
-        // 直接从OSS下载
-        const response = await fetch(audioUrl.value, {
-            method: 'GET',
-            headers: {
-                'Accept': 'audio/wav'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = originalFileName; // 使用OSS中的原始文件名
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-        console.error('下载失败:', error);
-        showSnackbar('下载失败，请稍后重试');
+  try {
+    if (!audioUrl.value) {
+      throw new Error('没有可下载的音频文件');
     }
+
+    // 从URL中获取原始文件名
+    const url = new URL(audioUrl.value);
+    const pathParts = url.pathname.split('/');
+    const originalFileName = pathParts[pathParts.length - 1];
+
+    // 直接从OSS下载
+    const response = await fetch(audioUrl.value, {
+      method: 'GET',
+      headers: {
+        'Accept': 'audio/wav'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = originalFileName; // 使用OSS中的原始文件名
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('下载失败:', error);
+    showSnackbar('下载失败，请稍后重试');
+  }
 };
 
 // 格式化时间
@@ -792,7 +786,7 @@ onMounted(() => {
   transition: transform 0.3s ease;
 }
 
-.select-field:focus + .dropdown-icon {
+.select-field:focus+.dropdown-icon {
   transform: translateY(-50%) rotate(180deg);
 }
 
@@ -1192,6 +1186,7 @@ onMounted(() => {
     transform: translate(-50%, -100%);
     opacity: 0;
   }
+
   to {
     transform: translate(-50%, 0);
     opacity: 1;
@@ -1203,10 +1198,12 @@ onMounted(() => {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.2);
     opacity: 0.7;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -1283,7 +1280,7 @@ onMounted(() => {
   transition: transform 0.3s ease;
 }
 
-.select-field:focus + .dropdown-icon {
+.select-field:focus+.dropdown-icon {
   transform: translateY(-50%) rotate(180deg);
 }
 

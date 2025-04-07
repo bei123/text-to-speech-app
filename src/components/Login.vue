@@ -47,7 +47,7 @@ export default {
             const toast = document.createElement('div');
             toast.id = 'custom-toast';
             toast.innerText = message;
-            
+
             // 根据类型设置背景颜色
             let bgColor = '#42b983'; // 默认成功绿色
             if (type === 'error') {
@@ -55,7 +55,7 @@ export default {
             } else if (type === 'warning') {
                 bgColor = '#e6a23c'; // 警告黄色
             }
-            
+
             // 设置toast样式
             toast.style.position = 'fixed';
             toast.style.bottom = '20px';
@@ -75,16 +75,16 @@ export default {
             toast.style.transition = 'all 0.3s ease-in-out';
             toast.style.backdropFilter = 'blur(4px)';
             toast.style.border = '1px solid rgba(255, 255, 255, 0.1)';
-            
+
             // 添加到body
             document.body.appendChild(toast);
-            
+
             // 显示toast (使用setTimeout确保CSS过渡效果生效)
             setTimeout(() => {
                 toast.style.opacity = '1';
                 toast.style.transform = 'translateX(-50%) translateY(0)';
             }, 10);
-            
+
             // 3秒后隐藏
             setTimeout(() => {
                 toast.style.opacity = '0';
@@ -107,7 +107,7 @@ export default {
                 // 使用固定的初始密钥对用户名进行加密
                 const initialKey = 'text-to-speech-initial-key';
                 const encryptedUsernameForKey = CryptoJS.AES.encrypt(username.value, initialKey).toString();
-                
+
                 const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
                     params: { encryptedUsername: encryptedUsernameForKey }
                 });
@@ -150,7 +150,7 @@ export default {
             } catch (err) {
                 console.error('登录失败:', err);
                 let errorMessage = '登录失败，请重试';
-                
+
                 if (err.response?.data?.code) {
                     switch (err.response.data.code) {
                         case 'ACCOUNT_NOT_FOUND':
@@ -166,7 +166,7 @@ export default {
                             errorMessage = err.response?.data?.message || errorMessage;
                     }
                 }
-                
+
                 error.value = errorMessage;
                 // 使用自定义Toast显示错误
                 showToast(errorMessage, 'error');

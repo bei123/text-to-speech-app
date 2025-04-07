@@ -7,18 +7,12 @@
           <span class="close-icon">×</span>
         </button>
       </div>
-      
+
       <div class="modal-body">
         <div class="input-wrapper">
           <label for="system-prompt" class="input-label">系统提示词</label>
-          <textarea
-            id="system-prompt"
-            v-model="localValue"
-            placeholder="请输入 SYSTEM 提示词（例如：你是一个助手）"
-            class="input-field"
-            :class="{ 'input-error': error }"
-            @input="handleInput"
-          ></textarea>
+          <textarea id="system-prompt" v-model="localValue" placeholder="请输入 SYSTEM 提示词（例如：你是一个助手）" class="input-field"
+            :class="{ 'input-error': error }" @input="handleInput"></textarea>
           <div v-if="error" class="error-message">{{ error }}</div>
           <div class="hint-text">您可以使用自定义提示词，或使用模型默认提示词</div>
         </div>
@@ -27,11 +21,7 @@
       <div class="modal-footer">
         <button @click="close" class="button button-cancel">取消</button>
         <button @click="resetToDefault" class="button button-secondary">重置为默认</button>
-        <button 
-          @click="handleSave" 
-          class="button button-primary"
-          :disabled="!isValid"
-        >
+        <button @click="handleSave" class="button button-primary" :disabled="!isValid">
           保存
         </button>
       </div>
@@ -321,8 +311,13 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -330,6 +325,7 @@ onMounted(() => {
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -341,19 +337,19 @@ onMounted(() => {
     width: 95%;
     margin: 10px;
   }
-  
+
   .modal-header {
     padding: 16px;
   }
-  
+
   .modal-body {
     padding: 16px;
   }
-  
+
   .modal-footer {
     padding: 16px;
   }
-  
+
   .button {
     padding: 10px 20px;
     font-size: 13px;

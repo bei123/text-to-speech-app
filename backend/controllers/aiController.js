@@ -6,14 +6,14 @@ const { DEEPSEEK_API_KEY, DEEPSEEK_API_URL } = require('../utils/constants');
 const callDeepseek = async (req, res) => {
     try {
         let prompt, system = '';
-        
+
         // 检查是否有加密数据
         if (req.body.encryptedData && req.body.key) {
             try {
                 // 解密数据
                 const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
                 const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-                
+
                 // 从解密后的数据中提取参数
                 prompt = decryptedData.prompt;
                 system = decryptedData.system || '';
@@ -26,7 +26,7 @@ const callDeepseek = async (req, res) => {
             prompt = req.body.prompt;
             system = req.body.system || '';
         }
-        
+
         // 验证必要参数
         if (!prompt) {
             return res.status(400).json({ message: '缺少必要参数' });

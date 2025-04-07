@@ -59,7 +59,7 @@ export default {
       try {
         commit('setSubmitting', true);
         const refreshToken = state.refreshToken;
-        
+
         if (!refreshToken) {
           throw new Error('未找到 Refresh Token');
         }
@@ -72,7 +72,7 @@ export default {
           accessToken: response.data.accessToken,
           refreshToken: response.data.refreshToken
         });
-        
+
         return response.data.accessToken;
       } catch (error) {
         if (error.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {

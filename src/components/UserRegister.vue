@@ -12,14 +12,8 @@
       </div>
       <div class="form-group">
         <label for="password">密码</label>
-        <input 
-          type="password" 
-          id="password" 
-          v-model="form.password" 
-          required 
-          @focus="showPasswordTips = true"
-          @blur="handlePasswordBlur"
-        />
+        <input type="password" id="password" v-model="form.password" required @focus="showPasswordTips = true"
+          @blur="handlePasswordBlur" />
         <div class="password-tips" v-show="showPasswordTips">
           <div class="tips-content">
             <div class="tips-title">密码要求：</div>
@@ -48,7 +42,8 @@
           </div>
           <div class="password-strength" v-if="form.password">
             <div class="strength-bar">
-              <div class="strength-progress" :style="{ width: passwordStrength + '%', backgroundColor: strengthColor }"></div>
+              <div class="strength-progress" :style="{ width: passwordStrength + '%', backgroundColor: strengthColor }">
+              </div>
             </div>
             <span class="strength-text">{{ strengthText }}</span>
           </div>
@@ -56,12 +51,7 @@
       </div>
       <div class="form-group">
         <label for="confirmPassword">确认密码</label>
-        <input 
-          type="password" 
-          id="confirmPassword" 
-          v-model="form.confirmPassword" 
-          required 
-        />
+        <input type="password" id="confirmPassword" v-model="form.confirmPassword" required />
         <div class="password-match" v-if="form.confirmPassword">
           <span class="match-icon" :class="{ 'met': form.password === form.confirmPassword }">
             {{ form.password === form.confirmPassword ? '✓' : '×' }}
@@ -103,13 +93,13 @@ const isFormValid = computed(() => {
   const { username, email, password, confirmPassword } = form.value;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{6,}$/;
-  return username && 
-         email && 
-         password && 
-         confirmPassword &&
-         emailRegex.test(email) && 
-         passwordRegex.test(password) &&
-         password === confirmPassword;
+  return username &&
+    email &&
+    password &&
+    confirmPassword &&
+    emailRegex.test(email) &&
+    passwordRegex.test(password) &&
+    password === confirmPassword;
 });
 
 // 显示提示信息
@@ -127,13 +117,13 @@ const showSnackbar = (message, type, duration = 3000) => {
 const passwordStrength = computed(() => {
   let strength = 0;
   const password = form.value.password;
-  
+
   if (password.length >= 6) strength += 20;
   if (/[A-Z]/.test(password)) strength += 20;
   if (/[a-z]/.test(password)) strength += 20;
   if (/[0-9]/.test(password)) strength += 20;
   if (/[!@#$%^&*]/.test(password)) strength += 20;
-  
+
   return strength;
 });
 
@@ -188,7 +178,7 @@ const register = async () => {
     }, 2000);
   } catch (error) {
     let errorMessage = '注册失败，请稍后重试';
-    
+
     if (error.response?.data?.code) {
       switch (error.response.data.code) {
         case 'BOTH_EXIST':
@@ -219,7 +209,7 @@ const register = async () => {
           errorMessage = error.response?.data?.message || errorMessage;
       }
     }
-    
+
     showSnackbar(errorMessage, 'error');
   } finally {
     isSubmitting.value = false;

@@ -94,19 +94,19 @@ export default {
         });
 
         const response = await axios.get('https://backend.2000gallery.art:5000/history', requestConfig);
-        
+
         // 解密响应数据
         const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
         const parsedData = JSON.parse(decryptedData.toString(CryptoJS.enc.Utf8));
-        
+
         commit('SET_HISTORY_LIST', parsedData.data);
         commit('SET_TOTAL_ITEMS', parsedData.total);
         commit('SET_CURRENT_PAGE', parsedData.page);
-        
+
         return parsedData;
       } catch (error) {
         console.error('获取历史记录失败:', error);
-        
+
         if (error.response?.status === 401) {
           console.log('Token 已过期，尝试刷新');
           try {
