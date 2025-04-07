@@ -8,10 +8,10 @@ const getModels = async (req, res) => {
     try {
         const query = 'SELECT value, label, avatar_url FROM models';
         const [results] = await pool.query(query);
-        
+
         // 生成加密密钥
         const secretKey = crypto.randomBytes(32).toString('hex');
-        
+
         // 加密响应数据
         const encryptedData = encryptResponse(results, secretKey);
 
@@ -56,7 +56,7 @@ const getModelPrompt = async (req, res) => {
         let promptData;
         if (results.length === 0) {
             // 如果没有找到对应的提示词，返回默认提示词
-            promptData = { 
+            promptData = {
                 prompt: '你是一个有用的AI助手，请根据用户的指令提供帮助。',
                 modelName: model_name
             };

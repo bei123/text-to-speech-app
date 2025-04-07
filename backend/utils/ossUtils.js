@@ -33,7 +33,7 @@ const checkIsInAliyunECS = async () => {
 const getOSSEndpoint = async () => {
     const isInECS = await checkIsInAliyunECS();
     const region = process.env.OSS_REGION;
-    
+
     if (isInECS) {
         console.log('检测到阿里云 ECS 环境，使用内网 endpoint');
         return `https://oss-${region}-internal.aliyuncs.com`;
@@ -85,17 +85,17 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
 
         const uniqueFileName = generateUniqueFileName(fileName, modelName);
         const ossPath = `audio/${username}/${uniqueFileName}`;
-        
+
         // 上传文件，添加服务器端加密配置
         const result = await client.put(ossPath, file, {
             headers: {
                 'x-oss-server-side-encryption': 'AES256'  // 使用 AES256 加密算法
             }
         });
-        
+
         // 生成带有下载参数的 URL（使用自定义域名）
         const downloadUrl = `https://oss.2000gallery.art/${ossPath}?response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(uniqueFileName)}`;
-        
+
         return {
             ossPath,
             url: downloadUrl

@@ -22,6 +22,6 @@ app.config.globalProperties.$api = api;
 
 // 使用插件
 app.use(vuetify)
-   .use(router)
-   .use(store)
-   .mount('#app');
+  .use(router)
+  .use(store)
+  .mount('#app');

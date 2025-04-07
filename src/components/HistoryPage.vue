@@ -14,13 +14,8 @@
             <h1 class="history-title">历史语音记录</h1>
             <div class="header-actions">
                 <div class="search-container">
-                    <input 
-                        v-model="searchKeyword" 
-                        type="text" 
-                        placeholder="输入关键词搜索" 
-                        class="search-input"
-                        @input="handleSearch"
-                    />
+                    <input v-model="searchKeyword" type="text" placeholder="输入关键词搜索" class="search-input"
+                        @input="handleSearch" />
                     <button @click="handleSearch" class="search-button">
                         <i class="fas fa-search"></i>
                     </button>
@@ -30,57 +25,32 @@
                     刷新记录
                 </button>
             </div>
-            
+
             <!-- 筛选条件 -->
             <div class="filter-container">
                 <div class="filter-group">
                     <label>日期：</label>
-                    <v-text-field
-                        v-model="dateRangeText"
-                        readonly
-                        placeholder="选择日期"
-                        @click="showDatePicker = true"
-                        class="date-input"
-                        prepend-inner-icon="mdi-calendar"
-                        variant="outlined"
-                        density="compact"
-                        hide-details
-                    >
+                    <v-text-field v-model="dateRangeText" readonly placeholder="选择日期" @click="showDatePicker = true"
+                        class="date-input" prepend-inner-icon="mdi-calendar" variant="outlined" density="compact"
+                        hide-details>
                         <template v-slot:append>
-                            <v-icon
-                                color="primary"
-                                @click="showDatePicker = true"
-                            >
+                            <v-icon color="primary" @click="showDatePicker = true">
                                 mdi-calendar
                             </v-icon>
                         </template>
                     </v-text-field>
-                    <v-dialog
-                        v-model="showDatePicker"
-                        max-width="400"
-                        transition="dialog-bottom-transition"
-                    >
+                    <v-dialog v-model="showDatePicker" max-width="400" transition="dialog-bottom-transition">
                         <v-card class="date-picker-dialog">
                             <v-card-title class="text-h6">
                                 选择日期
                             </v-card-title>
                             <v-card-text>
-                                <v-date-picker
-                                    v-model="selectedDate"
-                                    @update:model-value="handleDateChange"
-                                    :max="new Date()"
-                                    class="date-picker"
-                                    color="primary"
-                                    elevation="0"
-                                />
+                                <v-date-picker v-model="selectedDate" @update:model-value="handleDateChange"
+                                    :max="new Date()" class="date-picker" color="primary" elevation="0" />
                             </v-card-text>
                             <v-card-actions>
                                 <v-spacer></v-spacer>
-                                <v-btn
-                                    color="primary"
-                                    variant="text"
-                                    @click="showDatePicker = false"
-                                >
+                                <v-btn color="primary" variant="text" @click="showDatePicker = false">
                                     确定
                                 </v-btn>
                             </v-card-actions>
@@ -89,31 +59,15 @@
                 </div>
                 <div class="filter-group">
                     <label>模型：</label>
-                    <v-select
-                        v-model="selectedModel"
-                        :items="modelOptions"
-                        item-title="label"
-                        item-value="value"
-                        placeholder="选择模型"
-                        @update:model-value="handleFilterChange"
-                        class="model-select"
-                        variant="outlined"
-                        density="compact"
-                    />
+                    <v-select v-model="selectedModel" :items="modelOptions" item-title="label" item-value="value"
+                        placeholder="选择模型" @update:model-value="handleFilterChange" class="model-select"
+                        variant="outlined" density="compact" />
                 </div>
                 <div class="filter-group">
                     <label>状态：</label>
-                    <v-select
-                        v-model="selectedStatus"
-                        :items="statusOptions"
-                        item-title="label"
-                        item-value="value"
-                        placeholder="选择状态"
-                        @update:model-value="handleFilterChange"
-                        class="status-select"
-                        variant="outlined"
-                        density="compact"
-                    />
+                    <v-select v-model="selectedStatus" :items="statusOptions" item-title="label" item-value="value"
+                        placeholder="选择状态" @update:model-value="handleFilterChange" class="status-select"
+                        variant="outlined" density="compact" />
                 </div>
             </div>
         </div>
@@ -134,15 +88,14 @@
                             {{ mapStatusToChinese(record.status) }}
                         </span>
                     </div>
-                    
+
                     <div class="record-content">
                         <p class="record-text">
-                            {{ record.isExpanded ? record.text : record.text.slice(0, maxTextLength) + (record.text.length > maxTextLength ? '...' : '') }}
-                            <button 
-                                v-if="record.text.length > maxTextLength" 
-                                @click="toggleExpand(record)"
-                                class="expand-button"
-                            >
+                            {{ record.isExpanded ? record.text : record.text.slice(0, maxTextLength) +
+                                (record.text.length >
+                            maxTextLength ? '...' : '') }}
+                            <button v-if="record.text.length > maxTextLength" @click="toggleExpand(record)"
+                                class="expand-button">
                                 {{ record.isExpanded ? '收起' : '展开' }}
                             </button>
                         </p>
@@ -151,19 +104,12 @@
                 </div>
 
                 <div class="record-actions">
-                    <button 
-                        v-if="record.status === 'completed'" 
-                        @click="handleDownload(record)"
-                        class="download-button"
-                    >
+                    <button v-if="record.status === 'completed'" @click="handleDownload(record)"
+                        class="download-button">
                         <i class="fas fa-download"></i>
                         下载音频
                     </button>
-                    <button 
-                        v-else 
-                        class="download-button disabled"
-                        disabled
-                    >
+                    <button v-else class="download-button disabled" disabled>
                         <i class="fas fa-clock"></i>
                         等待中
                     </button>
@@ -179,19 +125,11 @@
 
         <!-- 分页控件 -->
         <div class="pagination">
-            <button 
-                @click="prevPage" 
-                :disabled="currentPage === 1 || isLoading"
-                class="page-button"
-            >
+            <button @click="prevPage" :disabled="currentPage === 1 || isLoading" class="page-button">
                 <i class="fas fa-chevron-left"></i>
             </button>
             <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
-            <button 
-                @click="nextPage" 
-                :disabled="currentPage === totalPages || isLoading"
-                class="page-button"
-            >
+            <button @click="nextPage" :disabled="currentPage === totalPages || isLoading" class="page-button">
                 <i class="fas fa-chevron-right"></i>
             </button>
         </div>
@@ -284,11 +222,11 @@ const fetchModels = async () => {
     try {
         const response = await fetch('https://backend.2000gallery.art:5000/models');
         const data = await response.json();
-        
+
         // 解密响应数据
         const decryptedData = CryptoJS.AES.decrypt(data.encryptedData, data.key);
         const models = JSON.parse(decryptedData.toString(CryptoJS.enc.Utf8));
-        
+
         modelOptions.value = [
             { label: '全部', value: '' },
             ...models.map(model => ({
@@ -392,12 +330,12 @@ const handleDownload = async (record) => {
         if (!record.audioUrl) {
             throw new Error('没有可下载的音频文件');
         }
-        
+
         // 从URL中获取原始文件名
         const url = new URL(record.audioUrl);
         const pathParts = url.pathname.split('/');
         const originalFileName = pathParts[pathParts.length - 1];
-        
+
         // 直接从OSS下载
         const response = await fetch(record.audioUrl, {
             method: 'GET',
@@ -405,11 +343,11 @@ const handleDownload = async (record) => {
                 'Accept': 'audio/wav'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -515,7 +453,8 @@ const handleDateChange = (value) => {
     outline: none;
 }
 
-.search-button, .refresh-button {
+.search-button,
+.refresh-button {
     padding: 12px 20px;
     border: none;
     border-radius: 8px;
@@ -747,7 +686,9 @@ const handleDateChange = (value) => {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (max-width: 768px) {

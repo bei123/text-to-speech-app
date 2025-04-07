@@ -47,19 +47,19 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
-                
+
                 // 如果是 refresh token 过期，清除用户状态并跳转到登录页
                 if (refreshError.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {
                     await store.dispatch('logout');
                     router.push({
                         path: '/login',
-                        query: { 
+                        query: {
                             redirect: router.currentRoute.value.fullPath,
                             message: '登录已过期，请重新登录'
                         }
                     });
                 }
-                
+
                 return Promise.reject(refreshError);
             }
         }

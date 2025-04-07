@@ -29,4 +29,4 @@
   color: var(--primary-color);
   font-weight: bold;
 }
-</style> 
+</style>

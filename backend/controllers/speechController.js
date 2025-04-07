@@ -18,7 +18,7 @@ const generateSpeech = async (req, res) => {
                 // 解密数据
                 const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
                 const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-                
+
                 // 从解密后的数据中提取参数
                 text = decryptedData.text;
                 text_language = decryptedData.text_language;
@@ -53,7 +53,7 @@ const generateSpeech = async (req, res) => {
         const getUserQuery = 'SELECT username, email FROM users WHERE id = ?';
         const [userResults] = await pool.query(getUserQuery, [userId]);
         const userInfo = userResults[0];
-        
+
         // 如果请求中没有提供用户名，使用数据库中的用户名
         if (!username) {
             username = userInfo.username;
@@ -65,11 +65,11 @@ const generateSpeech = async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?)
         `;
         const [requestResult] = await pool.query(insertRequestQuery, [
-            userId, 
-            userInfo.email, 
-            text, 
-            model_name, 
-            text_language, 
+            userId,
+            userInfo.email,
+            text,
+            model_name,
+            text_language,
             'pending'
         ]);
 
@@ -104,9 +104,9 @@ const generateSpeech = async (req, res) => {
 // 获取用户历史语音记录
 const getHistory = async (req, res) => {
     const userId = req.user.id;
-    const { 
-        keyword, 
-        page = 1, 
+    const {
+        keyword,
+        page = 1,
         itemsPerPage = 10,
         startDate,
         endDate,
@@ -214,7 +214,7 @@ const getHistory = async (req, res) => {
         // 生成加密密钥
         const crypto = require('crypto');
         const secretKey = crypto.randomBytes(32).toString('hex');
-        
+
         // 加密响应数据
         const { encryptResponse } = require('../utils/encryption');
         const encryptedData = encryptResponse(responseData, secretKey);

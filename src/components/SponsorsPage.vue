@@ -132,7 +132,7 @@ const preloadImages = () => {
     ...authors.value,
     ...GSVDeveloper.value
   ];
-  
+
   const uniqueUrls = new Set(allImages.map(item => item.avatar));
   uniqueUrls.forEach(url => {
     const img = new Image();
@@ -171,7 +171,7 @@ const copyOrOpenLink = (link, isQQGroup = false) => {
     document.body.appendChild(tempInput);
     tempInput.select();
     tempInput.setSelectionRange(0, 99999); // 适用于iOS
-    
+
     try {
       // 尝试使用document.execCommand进行复制（更广泛支持）
       const successful = document.execCommand('copy');
@@ -220,7 +220,7 @@ const showToast = (message, success = true) => {
   const toast = document.createElement('div');
   toast.id = 'custom-toast';
   toast.innerText = message;
-  
+
   // 设置toast样式
   toast.style.position = 'fixed';
   toast.style.bottom = '30px';
@@ -238,15 +238,15 @@ const showToast = (message, success = true) => {
   toast.style.minWidth = '200px';
   toast.style.opacity = '0';
   toast.style.transition = 'opacity 0.3s ease-in-out';
-  
+
   // 添加到body
   document.body.appendChild(toast);
-  
+
   // 显示toast (使用setTimeout来确保CSS过渡效果生效)
   setTimeout(() => {
     toast.style.opacity = '1';
   }, 10);
-  
+
   // 3秒后隐藏
   setTimeout(() => {
     toast.style.opacity = '0';
@@ -440,12 +440,12 @@ const handleImageError = (event) => {
     margin: 10px;
     padding: 16px;
   }
-  
+
   .cardContainer {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px;
   }
-  
+
   .cardImage {
     width: 60px;
     height: 60px;

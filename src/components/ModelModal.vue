@@ -1,39 +1,39 @@
 <template>
     <div class="modal-overlay">
-      <div class="modal-content">
-        <h2>选择模型</h2>
-        <div class="model-list">
-          <div v-for="model in models" :key="model.value" class="model-item" @click="selectModel(model)">
-            {{ model.label }}
-          </div>
+        <div class="modal-content">
+            <h2>选择模型</h2>
+            <div class="model-list">
+                <div v-for="model in models" :key="model.value" class="model-item" @click="selectModel(model)">
+                    {{ model.label }}
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button @click="close" class="button button-cancel">关闭</button>
+            </div>
         </div>
-        <div class="modal-buttons">
-          <button @click="close" class="button button-cancel">关闭</button>
-        </div>
-      </div>
     </div>
-  </template>
-  
-  <script setup>
-  /* eslint-disable no-undef */
-  defineProps({
+</template>
+
+<script setup>
+/* eslint-disable no-undef */
+defineProps({
     models: {
-      type: Array,
-      required: true
+        type: Array,
+        required: true
     }
-  });
-  
-  const emit = defineEmits(['select-model', 'close']);
-  /* eslint-enable no-undef */
-  
-  const selectModel = (model) => {
+});
+
+const emit = defineEmits(['select-model', 'close']);
+/* eslint-enable no-undef */
+
+const selectModel = (model) => {
     emit('select-model', model);
-  };
-  
-  const close = () => {
+};
+
+const close = () => {
     emit('close');
-  };
-  </script>
+};
+</script>
 
 <style scoped>
 /* 通用样式 */

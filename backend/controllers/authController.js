@@ -18,19 +18,19 @@ const register = async (req, res) => {
             // 分别检查用户名和邮箱
             const [existingUser] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
             const [existingEmail] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-            
+
             if (existingUser.length > 0 && existingEmail.length > 0) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     message: '用户名和邮箱都已被注册',
                     code: 'BOTH_EXIST'
                 });
             } else if (existingUser.length > 0) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     message: '该用户名已被使用',
                     code: 'USERNAME_EXISTS'
                 });
             } else {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     message: '该邮箱已被注册',
                     code: 'EMAIL_EXISTS'
                 });
@@ -87,7 +87,7 @@ const register = async (req, res) => {
 const getEncryptionKey = async (req, res) => {
     try {
         const encryptionKey = generateEncryptionKey(); // 每次请求生成一个新的密钥
-        
+
         // 检查是否有加密的用户名
         if (req.query.encryptedUsername) {
             // 使用固定的初始密钥解密用户名
@@ -95,7 +95,7 @@ const getEncryptionKey = async (req, res) => {
             try {
                 const bytes = CryptoJS.AES.decrypt(req.query.encryptedUsername, initialKey);
                 const username = bytes.toString(CryptoJS.enc.Utf8);
-                
+
                 if (username) {
                     // 将密钥存储在 Redis 中，设置过期时间（例如 5 分钟）
                     await redisClient.set(`encryptionKey:${username}`, encryptionKey, 'EX', 300);
@@ -126,11 +126,11 @@ const login = async (req, res) => {
         if (!encryptedUsername || !encryptedPassword || !key) {
             return res.status(400).json({ message: '缺少必要参数' });
         }
-        
+
         // 使用提供的密钥解密用户名
         const usernameBytes = CryptoJS.AES.decrypt(encryptedUsername, key);
         const username = usernameBytes.toString(CryptoJS.enc.Utf8);
-        
+
         if (!username) {
             return res.status(400).json({ message: '解密用户名失败' });
         }
@@ -140,7 +140,7 @@ const login = async (req, res) => {
         const [results] = await pool.query(findUserQuery, [username, username]);
 
         if (results.length === 0) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: '账号不存在',
                 code: 'ACCOUNT_NOT_FOUND'
             });
@@ -151,9 +151,9 @@ const login = async (req, res) => {
         // 使用提供的密钥解密密码
         const passwordBytes = CryptoJS.AES.decrypt(encryptedPassword, key);
         const password = passwordBytes.toString(CryptoJS.enc.Utf8);
-        
+
         if (!password) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: '密码格式错误',
                 code: 'INVALID_PASSWORD_FORMAT'
             });
@@ -162,7 +162,7 @@ const login = async (req, res) => {
         // 验证密码
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: '密码错误',
                 code: 'WRONG_PASSWORD'
             });
@@ -215,7 +215,7 @@ const refreshToken = async (req, res) => {
         // 验证 Refresh Token
         jwt.verify(refreshToken, 'your_refresh_secret', (err, user) => {
             if (err) {
-                return res.status(403).json({ 
+                return res.status(403).json({
                     message: 'Refresh Token 无效或已过期',
                     code: 'REFRESH_TOKEN_EXPIRED'
                 });
@@ -223,12 +223,12 @@ const refreshToken = async (req, res) => {
 
             // 生成新的 Access Token
             const newAccessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
-            
+
             // 生成新的 Refresh Token
             const newRefreshToken = jwt.sign({ id: user.id }, 'your_refresh_secret', { expiresIn: '7d' });
 
             // 返回新的 Token
-            res.json({ 
+            res.json({
                 accessToken: newAccessToken,
                 refreshToken: newRefreshToken
             });
