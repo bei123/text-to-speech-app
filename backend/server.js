@@ -56,7 +56,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: ['https://tts.2000gallery.art', 'http://localhost:5173'],
+    origin: ['https://tts.2000gallery.art', 'http://localhost:5173','https://bjtts.2000gallery.art'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length'],
