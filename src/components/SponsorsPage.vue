@@ -107,21 +107,21 @@ const goBack = () => {
 
 // 数据
 const voiceModelProviders = ref([
-  { name: "@白菜工厂1145号员工", avatar: "https://oss.2000gallery.art/Sponsorimage/baicaigongc1145.webp" },
-  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp" },
-  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp" }
+  { name: "@白菜工厂1145号员工", avatar: "https://oss.2000gallery.art/Sponsorimage/baicaigongc1145.webp?image_process=resize,fw_80,fh_80" },
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80" },
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80" }
 ]);
 
 const gpuSponsors = ref([
-  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp" }
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80" }
 ]);
 
 const authors = ref([
-  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp" }
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80" }
 ]);
 
 const GSVDeveloper = ref([
-  { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp" }
+  { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp?image_process=resize,fw_80,fh_80" }
 ]);
 
 // 预加载所有图片
