@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import store from '@/store';
+import QQMusicLogin from '../components/QQMusicLogin.vue';
 
 // 路由配置
 const routes = [
@@ -49,6 +50,14 @@ const routes = [
       title: '历史查询',
       keepAlive: true,
     },
+  },
+  {
+    path: '/qq-music-login',
+    name: 'QQMusicLogin',
+    component: QQMusicLogin,
+    meta: {
+      requiresAuth: true
+    }
   },
   {
     path: '/:pathMatch(.*)*',
