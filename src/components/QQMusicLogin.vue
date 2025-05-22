@@ -57,6 +57,8 @@ export default {
     const router = useRouter();
     const qrCodeUrl = ref(null);
     const qrIdentifier = ref(null);
+    const qrData = ref(null);
+    const qrMimeType = ref('image/png');
     const status = ref('SCAN');
     const isLoggedIn = ref(false);
     const isLoading = ref(false);
@@ -126,7 +128,7 @@ export default {
           throw new Error(response.data.message || '获取二维码失败');
         }
 
-        const { data, identifier } = response.data.data;
+        const { data, identifier, mimetype } = response.data.data;
         console.log('获取到新的二维码标识符:', identifier);
 
         if (!identifier) {
@@ -138,18 +140,20 @@ export default {
         // 如果标识符发生变化，更新并重新开始轮询
         if (qrIdentifier.value !== identifier) {
           qrIdentifier.value = identifier;
+          qrData.value = data;
+          qrMimeType.value = mimetype || 'image/png';
+          
           if (qrCodeUrl.value) {
             URL.revokeObjectURL(qrCodeUrl.value);
           }
           // 将 base64 数据转换为 Blob
           const byteString = atob(data);
-          const mimeString = response.data.data.mimetype;
           const ab = new ArrayBuffer(byteString.length);
           const ia = new Uint8Array(ab);
           for (let i = 0; i < byteString.length; i++) {
             ia[i] = byteString.charCodeAt(i);
           }
-          const blob = new Blob([ab], { type: mimeString });
+          const blob = new Blob([ab], { type: qrMimeType.value });
           qrCodeUrl.value = URL.createObjectURL(blob);
           status.value = 'SCAN';
           startCheckingStatus();
@@ -219,8 +223,8 @@ export default {
 
     // 检查二维码状态
     const checkStatus = async () => {
-      if (!qrIdentifier.value) {
-        console.log('没有二维码标识符，停止检查');
+      if (!qrIdentifier.value || !qrData.value) {
+        console.log('没有二维码标识符或数据，停止检查');
         stopCheckingStatus();
         return;
       }
@@ -235,9 +239,9 @@ export default {
 
         console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
         const response = await axios.post(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
-          qr_data: qrCodeUrl.value,
+          qr_data: qrData.value,
           qr_type: 'qq',
-          mimetype: 'image/png',
+          mimetype: qrMimeType.value,
           identifier: qrIdentifier.value
         }, {
           headers: {
