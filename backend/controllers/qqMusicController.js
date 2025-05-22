@@ -71,31 +71,40 @@ async function getQRIdentifier(req, res) {
 async function checkQRStatus(req, res) {
     try {
         const { identifier } = req.params;
+        
+        // 参数验证
+        if (!identifier || typeof identifier !== 'string') {
+            return res.status(400).json({ 
+                error: '无效的二维码标识符',
+                code: 'INVALID_IDENTIFIER'
+            });
+        }
+
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
             params: {
                 identifier,
                 _: Date.now()
-            }
+            },
+            timeout: 5000 // 设置5秒超时
         });
 
         if (response.data.code !== 200) {
-            return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
+            return res.status(500).json({ 
+                error: response.data.message || '检查二维码状态失败',
+                code: 'CHECK_STATUS_FAILED'
+            });
         }
 
         // 处理状态码
-        const status = response.data.data.status;
-        let event;
+        const status = Number(response.data.data.status);
+        let event = 'OTHER';
         
         // 检查状态是否匹配任何预定义状态
         for (const [key, values] of Object.entries(QRCodeLoginEvents)) {
-            if (values.includes(status)) {
+            if (Array.isArray(values) && values.some(value => value === status)) {
                 event = key;
                 break;
             }
-        }
-        
-        if (!event) {
-            event = 'OTHER';
         }
 
         return res.json({
@@ -108,17 +117,29 @@ async function checkQRStatus(req, res) {
         });
     } catch (error) {
         console.error('检查二维码状态失败:', error);
+        
         if (error.code === 'ECONNABORTED') {
-            return res.json({
-                code: 200,
-                message: '请求成功',
+            return res.status(408).json({ 
+                error: '请求超时',
+                code: 'REQUEST_TIMEOUT',
                 data: {
-                    status: 'SCAN',
+                    status: 'TIMEOUT',
                     credential: null
                 }
             });
         }
-        return res.status(500).json({ error: '检查二维码状态失败' });
+        
+        if (error.response) {
+            return res.status(error.response.status).json({ 
+                error: error.response.data?.message || '检查二维码状态失败',
+                code: 'CHECK_STATUS_FAILED'
+            });
+        }
+        
+        return res.status(500).json({ 
+            error: '检查二维码状态失败',
+            code: 'CHECK_STATUS_FAILED'
+        });
     }
 }
 
