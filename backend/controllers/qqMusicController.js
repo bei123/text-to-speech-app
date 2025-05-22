@@ -70,89 +70,68 @@ async function getQRIdentifier(req, res) {
 // 检查二维码状态
 async function checkQRStatus(req, res) {
     try {
-        const { identifier } = req.params;
-        const { qr_data, qr_type, mimetype } = req.body;
+        const { identifier, login_type = QRLoginType.QQ } = req.query;
 
-        // 验证参数
-        if (!qr_data || !identifier) {
-            return res.status(400).json({
-                code: 400,
-                message: "Bad Request",
-                errors: ["缺少必要参数：qr_data 和 identifier 是必需的"],
-                timestamp: Date.now()
-            });
+        if (!identifier) {
+            return res.status(400).json({ error: '缺少二维码标识符' });
         }
 
-        // 验证 qr_type
-        const validQRType = qr_type?.toLowerCase() === 'wx' ? 'wx' : 'qq';
-
-        // 验证 mimetype
-        const validMimeType = mimetype || 'image/png';
-        if (!validMimeType.startsWith('image/')) {
-            return res.status(400).json({
-                code: 400,
-                message: "Bad Request",
-                errors: ["无效的 mimetype：必须是有效的图像 MIME 类型"],
-                timestamp: Date.now()
-            });
-        }
-
-        // 将 base64 字符串转换为 bytes
-        let binaryData;
-        try {
-            const base64Data = qr_data.replace(/^data:image\/\w+;base64,/, '');
-            binaryData = Buffer.from(base64Data, 'base64');
-        } catch (error) {
-            return res.status(400).json({
-                code: 400,
-                message: "Bad Request",
-                errors: ["无效的 base64 数据"],
-                timestamp: Date.now()
-            });
-        }
-
-        // 构建请求体
-        const requestBody = {
-            data: binaryData.toString('base64'),
-            qr_type: validQRType,
-            mimetype: validMimeType,
-            identifier: identifier
-        };
-
-        // 使用 POST 请求
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
-            headers: {
-                'Content-Type': 'application/json'
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
+            params: {
+                identifier,
+                login_type
             }
         });
 
-        // 直接返回后端响应
-        return res.json(response.data);
-
-    } catch (error) {
-        console.error('检查二维码状态失败:', error);
-
-        // 处理超时情况
-        if (error.code === 'ECONNABORTED') {
-            return res.json({
-                code: 200,
-                message: "请求成功",
-                data: {
-                    event: 'SCAN',
-                    credential: null,
-                    identifier: req.params.identifier
-                },
-                timestamp: Date.now()
-            });
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
         }
 
-        // 处理其他错误
-        return res.status(500).json({
-            code: 500,
-            message: "Internal Server Error",
-            errors: [error.response?.data?.message || '检查二维码状态失败'],
-            timestamp: Date.now()
+        // 根据返回的状态码确定事件类型
+        let event;
+        const [qqCode, wxCode] = response.data.data?.status || [null, null];
+
+        if (login_type === QRLoginType.QQ) {
+            if (QRCodeLoginEvents.DONE.includes(qqCode)) {
+                event = 'DONE';
+            } else if (QRCodeLoginEvents.SCAN.includes(qqCode)) {
+                event = 'SCAN';
+            } else if (QRCodeLoginEvents.CONF.includes(qqCode)) {
+                event = 'CONF';
+            } else if (QRCodeLoginEvents.TIMEOUT.includes(qqCode)) {
+                event = 'TIMEOUT';
+            } else if (QRCodeLoginEvents.REFUSE.includes(qqCode)) {
+                event = 'REFUSE';
+            } else {
+                event = 'OTHER';
+            }
+        } else {
+            if (QRCodeLoginEvents.DONE.includes(wxCode)) {
+                event = 'DONE';
+            } else if (QRCodeLoginEvents.SCAN.includes(wxCode)) {
+                event = 'SCAN';
+            } else if (QRCodeLoginEvents.CONF.includes(wxCode)) {
+                event = 'CONF';
+            } else if (QRCodeLoginEvents.TIMEOUT.includes(wxCode)) {
+                event = 'TIMEOUT';
+            } else if (QRCodeLoginEvents.REFUSE.includes(wxCode)) {
+                event = 'REFUSE';
+            } else {
+                event = 'OTHER';
+            }
+        }
+
+        return res.json({
+            code: 200,
+            message: '请求成功',
+            data: {
+                status: event,
+                credential: response.data.data?.credential || null
+            }
         });
+    } catch (error) {
+        console.error('检查二维码状态失败:', error);
+        return res.status(500).json({ error: '检查二维码状态失败' });
     }
 }
 
