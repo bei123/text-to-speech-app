@@ -47,10 +47,14 @@
 <script>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
+import { useStore } from 'vuex';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'QQMusicLogin',
   setup() {
+    const store = useStore();
+    const router = useRouter();
     const qrCodeUrl = ref(null);
     const qrIdentifier = ref(null);
     const status = ref('SCAN');
@@ -83,80 +87,212 @@ export default {
     const statusMessage = computed(() => statusMessages[status.value]);
     const statusClass = computed(() => statusClasses[status.value]);
 
+    // 获取token
+    const getToken = () => {
+      const token = store.getters['auth/accessToken'];
+      const currentUser = store.getters['auth/user'];
+      
+      if (!token || !currentUser) {
+        console.error('未登录或token无效');
+        return null;
+      }
+      return token;
+    };
+
     // 获取二维码
     const getQRCode = async () => {
       try {
         isLoading.value = true;
-        const response = await axios.get('/api/auth/qq-music/qrcode', {
+        const token = getToken();
+        if (!token) {
+          showSnackbar('请先登录');
+          router.replace('/login');
+          return;
+        }
+
+        console.log('正在获取二维码...');
+        
+        // 先获取二维码标识符
+        const identifierResponse = await axios.get('https://backend.2000gallery.art:5000/qq-music/qrcode/identifier', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const newQrIdentifier = identifierResponse.data.identifier;
+        console.log('获取到新的二维码标识符:', newQrIdentifier);
+
+        if (!newQrIdentifier) {
+          console.error('未获取到二维码标识符');
+          showSnackbar('获取二维码失败，请重试');
+          return;
+        }
+
+        // 再获取二维码图片
+        const qrResponse = await axios.get('https://backend.2000gallery.art:5000/qq-music/qrcode', {
           responseType: 'blob',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        qrIdentifier.value = response.headers['x-qr-identifier'];
-        qrCodeUrl.value = URL.createObjectURL(response.data);
-        status.value = 'SCAN';
-        
-        // 开始轮询检查状态
-        startCheckingStatus();
-      } catch (error) {
-        console.error('获取二维码失败:', error);
-        status.value = 'OTHER';
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    // 检查二维码状态
-    const checkStatus = async () => {
-      if (!qrIdentifier.value) return;
-
-      try {
-        const response = await axios.get(`/api/auth/qq-music/qrcode/${qrIdentifier.value}/status`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        status.value = response.data.status;
-
-        if (status.value === 'DONE') {
-          await getUserCredentials();
-          stopCheckingStatus();
-        } else if (status.value === 'TIMEOUT' || status.value === 'REFUSE') {
-          stopCheckingStatus();
+        // 如果标识符发生变化，更新并重新开始轮询
+        if (qrIdentifier.value !== newQrIdentifier) {
+          qrIdentifier.value = newQrIdentifier;
+          if (qrCodeUrl.value) {
+            URL.revokeObjectURL(qrCodeUrl.value);
+          }
+          qrCodeUrl.value = URL.createObjectURL(qrResponse.data);
+          status.value = 'SCAN';
+          startCheckingStatus();
         }
       } catch (error) {
-        console.error('检查状态失败:', error);
+        console.error('获取二维码失败:', error);
+        if (error.response?.status === 401) {
+          try {
+            await store.dispatch('auth/refreshToken');
+            await getQRCode();
+            return;
+          } catch (refreshError) {
+            await store.dispatch('auth/logout');
+            showSnackbar('登录已过期，请重新登录');
+            router.replace('/login');
+            return;
+          }
+        }
         status.value = 'OTHER';
-        stopCheckingStatus();
+        showSnackbar('获取二维码失败，请重试');
+      } finally {
+        isLoading.value = false;
       }
     };
 
     // 获取用户凭证
     const getUserCredentials = async () => {
       try {
-        const response = await axios.get('/api/auth/qq-music/credentials', {
+        const token = getToken();
+        if (!token) {
+          throw new Error('未登录');
+        }
+
+        const response = await axios.get('https://backend.2000gallery.art:5000/qq-music/credentials', {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
+
+        console.log('获取到的用户凭证:', response.data);
         userInfo.value = response.data;
         isLoggedIn.value = true;
+        status.value = 'DONE';
+        showSnackbar('QQ音乐登录成功！');
       } catch (error) {
         console.error('获取用户凭证失败:', error);
+        if (error.response?.status === 401) {
+          try {
+            await store.dispatch('auth/refreshToken');
+            await getUserCredentials();
+            return;
+          } catch (refreshError) {
+            await store.dispatch('auth/logout');
+            showSnackbar('登录已过期，请重新登录');
+            router.replace('/login');
+            return;
+          }
+        }
+        showSnackbar('获取用户信息失败，请重试');
       }
+    };
+
+    // 检查二维码状态
+    const checkStatus = async () => {
+      if (!qrIdentifier.value) {
+        console.log('没有二维码标识符，停止检查');
+        stopCheckingStatus();
+        return;
+      }
+
+      try {
+        const token = getToken();
+        if (!token) {
+          console.log('未获取到token，停止检查');
+          stopCheckingStatus();
+          return;
+        }
+
+        console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
+        const response = await axios.get(`https://backend.2000gallery.art:5000/qq-music/qrcode/${qrIdentifier.value}/status`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.data || !response.data.status) {
+          console.error('状态响应数据无效:', response.data);
+          return;
+        }
+
+        console.log('二维码状态响应:', response.data);
+        const newStatus = response.data.status;
+        
+        // 只有在状态发生变化时才更新
+        if (status.value !== newStatus) {
+          console.log('状态发生变化:', status.value, '->', newStatus);
+          status.value = newStatus;
+        }
+
+        if (newStatus === 'DONE') {
+          console.log('登录成功，获取用户信息...');
+          await getUserCredentials();
+          stopCheckingStatus();
+        } else if (newStatus === 'TIMEOUT' || newStatus === 'REFUSE') {
+          console.log('二维码状态异常:', newStatus);
+          showSnackbar(newStatus === 'TIMEOUT' ? '二维码已过期' : '已拒绝登录');
+          stopCheckingStatus();
+        }
+      } catch (error) {
+        console.error('检查状态失败:', error);
+        if (error.response?.status === 401) {
+          try {
+            console.log('尝试刷新token...');
+            await store.dispatch('auth/refreshToken');
+            await checkStatus();
+            return;
+          } catch (refreshError) {
+            console.error('Token刷新失败:', refreshError);
+            await store.dispatch('auth/logout');
+            showSnackbar('登录已过期，请重新登录');
+            router.replace('/login');
+            return;
+          }
+        }
+        status.value = 'OTHER';
+        stopCheckingStatus();
+      }
+    };
+
+    // 显示提示信息
+    const showSnackbar = (message) => {
+      console.log('提示信息:', message);
     };
 
     // 开始轮询检查状态
     const startCheckingStatus = () => {
-      stopCheckingStatus();
-      checkInterval = setInterval(checkStatus, 2000);
+      console.log('开始轮询检查状态...');
+      stopCheckingStatus(); // 确保先停止之前的轮询
+      checkInterval = setInterval(async () => {
+        console.log('执行状态检查...');
+        await checkStatus();
+      }, 3000); // 每3秒检查一次
     };
 
     // 停止轮询
     const stopCheckingStatus = () => {
+      console.log('停止轮询检查...');
       if (checkInterval) {
         clearInterval(checkInterval);
         checkInterval = null;
@@ -180,6 +316,7 @@ export default {
 
     // 格式化日期
     const formatDate = (dateString) => {
+      if (!dateString) return '未知';
       return new Date(dateString).toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
@@ -190,10 +327,12 @@ export default {
     };
 
     onMounted(() => {
+      console.log('组件挂载，开始获取二维码...');
       getQRCode();
     });
 
     onUnmounted(() => {
+      console.log('组件卸载，清理资源...');
       stopCheckingStatus();
       if (qrCodeUrl.value) {
         URL.revokeObjectURL(qrCodeUrl.value);

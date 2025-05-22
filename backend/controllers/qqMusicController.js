@@ -20,6 +20,26 @@ const cleanupExpiredQRCodes = () => {
 // 每5分钟清理一次过期数据
 setInterval(cleanupExpiredQRCodes, 5 * 60 * 1000);
 
+// 获取二维码标识符
+async function getQRIdentifier(req, res) {
+    try {
+        // 生成唯一标识符
+        const identifier = uuidv4();
+        
+        // 保存二维码状态
+        qrCodeStore.set(identifier, {
+            status: 'SCAN',
+            timestamp: Date.now(),
+            userId: req.user.id // 从认证中间件获取用户ID
+        });
+
+        return res.json({ identifier });
+    } catch (error) {
+        console.error('获取二维码标识符失败:', error);
+        return res.status(500).json({ error: '获取二维码标识符失败' });
+    }
+}
+
 // 获取QQ登录二维码
 async function getQQLoginQR(req, res) {
     try {
@@ -46,20 +66,23 @@ async function getQQLoginQR(req, res) {
             return res.status(500).json({ error: '获取二维码失败' });
         }
 
-        // 生成唯一标识符
-        const identifier = uuidv4();
-        
-        // 保存二维码状态
-        qrCodeStore.set(identifier, {
-            qrsig,
-            status: 'SCAN',
-            timestamp: Date.now(),
-            userId: req.user.id // 从认证中间件获取用户ID
-        });
+        // 从请求头中获取标识符
+        const identifier = req.headers['x-qr-identifier'];
+        if (!identifier) {
+            return res.status(400).json({ error: '缺少二维码标识符' });
+        }
+
+        // 更新二维码状态
+        const qrData = qrCodeStore.get(identifier);
+        if (!qrData) {
+            return res.status(404).json({ error: '二维码标识符无效' });
+        }
+
+        qrData.qrsig = qrsig;
+        qrCodeStore.set(identifier, qrData);
 
         // 设置响应头
         res.set('Content-Type', 'image/png');
-        res.set('X-QR-Identifier', identifier);
         
         return res.send(response.data);
     } catch (error) {
@@ -219,5 +242,6 @@ function hash33(str, init = 0) {
 module.exports = {
     getQQLoginQR,
     checkQRStatus,
-    getUserCredentials
+    getUserCredentials,
+    getQRIdentifier
 }; 
