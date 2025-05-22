@@ -234,7 +234,12 @@ export default {
         }
 
         console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
-        const response = await axios.get(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
+        const response = await axios.post(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
+          qr_data: qrCodeUrl.value,
+          qr_type: 'qq',
+          mimetype: 'image/png',
+          identifier: qrIdentifier.value
+        }, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
