@@ -140,7 +140,7 @@ export default {
         // 如果标识符发生变化，更新并重新开始轮询
         if (qrIdentifier.value !== identifier) {
           qrIdentifier.value = identifier;
-          qrData.value = data;
+          qrData.value = data;  // 保存原始的 base64 数据
           qrMimeType.value = mimetype || 'image/png';
           
           if (qrCodeUrl.value) {
@@ -239,7 +239,7 @@ export default {
 
         console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
         const response = await axios.post(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
-          qr_data: qrData.value,
+          qr_data: qrData.value,  // 使用原始的 base64 数据
           qr_type: 'qq',
           mimetype: qrMimeType.value,
           identifier: qrIdentifier.value
