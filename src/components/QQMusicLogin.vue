@@ -45,7 +45,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 
 export default {
@@ -78,6 +78,10 @@ export default {
       REFUSE: 'status-refuse',
       OTHER: 'status-other'
     };
+
+    // 计算属性
+    const statusMessage = computed(() => statusMessages[status.value]);
+    const statusClass = computed(() => statusClasses[status.value]);
 
     // 获取二维码
     const getQRCode = async () => {
@@ -202,8 +206,8 @@ export default {
       isLoggedIn,
       isLoading,
       userInfo,
-      statusMessage: computed(() => statusMessages[status.value]),
-      statusClass: computed(() => statusClasses[status.value]),
+      statusMessage,
+      statusClass,
       refreshQRCode,
       logout,
       formatDate
