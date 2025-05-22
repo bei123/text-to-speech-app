@@ -71,11 +71,16 @@ async function getQRIdentifier(req, res) {
 async function checkQRStatus(req, res) {
     try {
         const { identifier } = req.params;
+        const params = {
+            identifier,
+            _: Date.now(),
+            qr_data: req.body.qr_data,
+            qr_type: req.body.qr_type,
+            mimetype: req.body.mimetype
+        };
+
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params: {
-                identifier,
-                _: Date.now()
-            }
+            params
         });
 
         if (response.data.code !== 200) {
@@ -98,7 +103,7 @@ async function checkQRStatus(req, res) {
             event = 'OTHER';
         }
 
-        return res.json({
+        const responseData = {
             code: 200,
             message: '请求成功',
             data: {
@@ -109,11 +114,13 @@ async function checkQRStatus(req, res) {
                 mimetype: response.data.data.mimetype || 'image/png',
                 identifier: identifier
             }
-        });
+        };
+
+        return res.json(responseData);
     } catch (error) {
         console.error('检查二维码状态失败:', error);
         if (error.code === 'ECONNABORTED') {
-            return res.json({
+            const timeoutResponse = {
                 code: 200,
                 message: '请求成功',
                 data: {
@@ -124,7 +131,8 @@ async function checkQRStatus(req, res) {
                     mimetype: 'image/png',
                     identifier: req.params.identifier
                 }
-            });
+            };
+            return res.json(timeoutResponse);
         }
         return res.status(500).json({ error: '检查二维码状态失败' });
     }
