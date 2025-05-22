@@ -91,7 +91,7 @@ async function checkQRStatus(req, res) {
             data_length: binaryData.length
         });
 
-        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
             headers: {
                 'Content-Type': 'application/json'
             },
