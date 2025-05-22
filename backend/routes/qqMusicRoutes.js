@@ -15,7 +15,7 @@ const {
 router.get('/qrcode/identifier', authenticateToken, getQRIdentifier);
 
 // 检查二维码状态
-router.post('/qrcode/:identifier/status', authenticateToken, checkQRStatus);
+router.get('/qrcode/:identifier/status', authenticateToken, checkQRStatus);
 
 // 获取用户QQ音乐凭证
 router.get('/credentials', authenticateToken, getUserCredentials);
