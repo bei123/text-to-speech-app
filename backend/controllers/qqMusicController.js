@@ -73,18 +73,13 @@ async function checkQRStatus(req, res) {
         const { identifier } = req.params;
         const { qr_data, qr_type, mimetype } = req.body;
 
-        console.log('接收到的二维码数据:', {
-            identifier,
-            qr_type,
-            mimetype,
-            qr_data_length: qr_data ? qr_data.length : 0,
-            qr_data_sample: qr_data ? qr_data.substring(0, 50) + '...' : null
-        });
+        // 将base64数据转换为二进制
+        const binaryData = Buffer.from(qr_data, 'base64');
 
         // 构建 QR 结构体
         const qr = {
-            data: qr_data,
-            qr_type: qr_type || QRLoginType.QQ,
+            data: binaryData,
+            qr_type: qr_type || 'qq',  // 使用字符串而不是枚举
             mimetype: mimetype || 'image/png',
             identifier: identifier
         };
@@ -95,31 +90,16 @@ async function checkQRStatus(req, res) {
             return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
         }
 
-        // 处理状态码
-        const status = response.data.data.status;
-        let event;
-        
-        // 检查状态是否匹配任何预定义状态
-        for (const [key, values] of Object.entries(QRCodeLoginEvents)) {
-            if (values.includes(status)) {
-                event = key;
-                break;
-            }
-        }
-        
-        if (!event) {
-            event = 'OTHER';
-        }
+        // 直接使用Python端返回的事件状态
+        const event = response.data.data.event;  // Python端返回的是事件名称
+        const credential = response.data.data.credential;
 
         const responseData = {
             code: 200,
             message: '请求成功',
             data: {
-                status: event,
-                credential: response.data.data.credential || null,
-                qr_data: response.data.data.qr_data || null,
-                qr_type: response.data.data.qr_type || qr_type,
-                mimetype: response.data.data.mimetype || mimetype,
+                event: event,  // 使用event而不是status
+                credential: credential || null,
                 identifier: identifier
             }
         };
@@ -127,22 +107,24 @@ async function checkQRStatus(req, res) {
         return res.json(responseData);
     } catch (error) {
         console.error('检查二维码状态失败:', error);
+
+        // 处理超时情况
         if (error.code === 'ECONNABORTED') {
-            const timeoutResponse = {
+            return res.json({
                 code: 200,
                 message: '请求成功',
                 data: {
-                    status: 'SCAN',
+                    event: 'SCAN',  // 使用event而不是status
                     credential: null,
-                    qr_data: null,
-                    qr_type: req.body.qr_type || QRLoginType.QQ,
-                    mimetype: req.body.mimetype || 'image/png',
                     identifier: req.params.identifier
                 }
-            };
-            return res.json(timeoutResponse);
+            });
         }
-        return res.status(500).json({ error: '检查二维码状态失败' });
+
+        // 处理其他错误
+        return res.status(500).json({
+            error: error.response?.data?.message || '检查二维码状态失败'
+        });
     }
 }
 
@@ -150,7 +132,7 @@ async function checkQRStatus(req, res) {
 async function sendAuthCode(req, res) {
     try {
         const { phone, country_code = 86 } = req.body;
-        
+
         const response = await axios.post(`${PYTHON_API_BASE_URL}/login/send_authcode`, {
             phone,
             country_code
@@ -193,7 +175,7 @@ async function sendAuthCode(req, res) {
 async function phoneAuthorize(req, res) {
     try {
         const { phone, auth_code, country_code = 86 } = req.body;
-        
+
         const response = await axios.post(`${PYTHON_API_BASE_URL}/login/phone_authorize`, {
             phone,
             auth_code,
