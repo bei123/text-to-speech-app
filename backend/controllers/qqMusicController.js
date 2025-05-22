@@ -70,7 +70,8 @@ async function getQRIdentifier(req, res) {
 // 检查二维码状态
 async function checkQRStatus(req, res) {
     try {
-        const { identifier, login_type = QRLoginType.QQ } = req.query;
+        const { identifier } = req.params;
+        const { login_type = QRLoginType.QQ } = req.query;
 
         if (!identifier) {
             return res.status(400).json({ error: '缺少二维码标识符' });
