@@ -71,17 +71,17 @@ async function getQRIdentifier(req, res) {
 async function checkQRStatus(req, res) {
     try {
         const { identifier } = req.params;
-        const params = {
-            identifier,
-            _: Date.now(),
-            qr_data: req.body.qr_data,
-            qr_type: req.body.qr_type,
-            mimetype: req.body.mimetype
+        const { qr_data, qr_type, mimetype } = req.body;
+
+        // 构建 QR 结构体
+        const qr = {
+            data: qr_data,
+            qr_type: qr_type || QRLoginType.QQ,
+            mimetype: mimetype || 'image/png',
+            identifier: identifier
         };
 
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params
-        });
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, qr);
 
         if (response.data.code !== 200) {
             return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
@@ -110,8 +110,8 @@ async function checkQRStatus(req, res) {
                 status: event,
                 credential: response.data.data.credential || null,
                 qr_data: response.data.data.qr_data || null,
-                qr_type: response.data.data.qr_type || 'image/png',
-                mimetype: response.data.data.mimetype || 'image/png',
+                qr_type: response.data.data.qr_type || qr_type,
+                mimetype: response.data.data.mimetype || mimetype,
                 identifier: identifier
             }
         };
@@ -127,8 +127,8 @@ async function checkQRStatus(req, res) {
                     status: 'SCAN',
                     credential: null,
                     qr_data: null,
-                    qr_type: 'image/png',
-                    mimetype: 'image/png',
+                    qr_type: req.body.qr_type || QRLoginType.QQ,
+                    mimetype: req.body.mimetype || 'image/png',
                     identifier: req.params.identifier
                 }
             };
