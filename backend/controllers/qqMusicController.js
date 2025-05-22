@@ -80,7 +80,8 @@ async function checkQRStatus(req, res) {
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
             params: {
                 identifier,
-                login_type
+                qr_type: login_type,
+                mimetype: 'image/png'
             }
         });
 
