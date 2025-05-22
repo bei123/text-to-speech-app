@@ -81,7 +81,7 @@ async function checkQRStatus(req, res) {
         }
 
         // 验证 qr_type
-        const validQRType = qr_type?.toUpperCase() === 'WX' ? 'WX' : 'QQ';
+        const validQRType = qr_type?.toLowerCase() === 'wx' ? 'wx' : 'qq';
 
         // 验证 mimetype
         const validMimeType = mimetype || 'image/png';
