@@ -4,6 +4,32 @@ const path = require('path');
 const fs = require('fs').promises;
 const QQMusicCredential = require('../models/QQMusicCredential');
 
+const PYTHON_API_BASE_URL = 'http://wp.2000gallery.art:9987';
+
+// 二维码状态枚举
+const QRCodeLoginEvents = {
+    DONE: [0, 405],
+    SCAN: [66, 408],
+    CONF: [67, 404],
+    TIMEOUT: [65, null],
+    REFUSE: [68, 403],
+    OTHER: [null, null]
+};
+
+// 手机登录状态枚举
+const PhoneLoginEvents = {
+    SEND: 0,
+    CAPTCHA: 20276,
+    FREQUENCY: 100001,
+    OTHER: null
+};
+
+// 登录类型枚举
+const QRLoginType = {
+    QQ: 'qq',
+    WX: 'wx'
+};
+
 // 存储二维码状态和凭证的临时存储
 const qrCodeStore = new Map();
 
@@ -20,230 +46,201 @@ const cleanupExpiredQRCodes = () => {
 // 每5分钟清理一次过期数据
 setInterval(cleanupExpiredQRCodes, 5 * 60 * 1000);
 
-// 获取二维码标识符
+// 获取二维码标识符和二维码数据
 async function getQRIdentifier(req, res) {
     try {
-        // 生成唯一标识符
-        const identifier = uuidv4();
-        
-        // 保存二维码状态
-        qrCodeStore.set(identifier, {
-            status: 'SCAN',
-            timestamp: Date.now(),
-            userId: req.user.id // 从认证中间件获取用户ID
+        const loginType = req.query.login_type || QRLoginType.QQ;
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/get_qrcode`, {
+            params: {
+                login_type: loginType
+            }
         });
 
-        return res.json({ identifier });
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '获取二维码失败' });
+        }
+
+        return res.json(response.data);
     } catch (error) {
         console.error('获取二维码标识符失败:', error);
         return res.status(500).json({ error: '获取二维码标识符失败' });
     }
 }
 
-// 获取QQ登录二维码
-async function getQQLoginQR(req, res) {
-    try {
-        const response = await axios.get('https://ssl.ptlogin2.qq.com/ptqrshow', {
-            params: {
-                appid: '716027609',
-                e: '2',
-                l: 'M',
-                s: '3',
-                d: '72',
-                v: '4',
-                t: Math.random(),
-                daid: '383',
-                pt_3rd_aid: '100497308'
-            },
-            headers: {
-                'Referer': 'https://xui.ptlogin2.qq.com/'
-            },
-            responseType: 'arraybuffer'
-        });
-
-        const qrsig = response.headers['set-cookie']?.[0]?.split(';')[0].split('=')[1];
-        if (!qrsig) {
-            return res.status(500).json({ error: '获取二维码失败' });
-        }
-
-        // 从请求头中获取标识符
-        const identifier = req.headers['x-qr-identifier'] || req.headers['x-qr-identifier'];
-        if (!identifier) {
-            console.error('请求头:', req.headers);
-            return res.status(400).json({ error: '缺少二维码标识符' });
-        }
-
-        // 更新二维码状态
-        const qrData = qrCodeStore.get(identifier);
-        if (!qrData) {
-            console.error('无效的二维码标识符:', identifier);
-            return res.status(404).json({ error: '二维码标识符无效' });
-        }
-
-        qrData.qrsig = qrsig;
-        qrCodeStore.set(identifier, qrData);
-
-        // 设置响应头
-        res.set('Content-Type', 'image/png');
-        
-        return res.send(response.data);
-    } catch (error) {
-        console.error('获取QQ登录二维码失败:', error);
-        return res.status(500).json({ error: '获取二维码失败' });
-    }
-}
-
 // 检查二维码状态
 async function checkQRStatus(req, res) {
-    const { identifier } = req.params;
-    const qrData = qrCodeStore.get(identifier);
-
-    if (!qrData) {
-        return res.status(404).json({ error: '二维码不存在或已过期' });
-    }
-
-    // 验证用户权限
-    if (qrData.userId !== req.user.id) {
-        return res.status(403).json({ error: '无权访问此二维码' });
-    }
-
     try {
-        const response = await axios.get('https://ssl.ptlogin2.qq.com/ptqrlogin', {
+        const { identifier } = req.params;
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
             params: {
-                u1: 'https://graph.qq.com/oauth2.0/login_jump',
-                ptqrtoken: hash33(qrData.qrsig),
-                ptredirect: '0',
-                h: '1',
-                t: '1',
-                g: '1',
-                from_ui: '1',
-                ptlang: '2052',
-                action: `0-0-${Date.now()}`,
-                js_ver: '20102616',
-                js_type: '1',
-                pt_uistyle: '40',
-                aid: '716027609',
-                daid: '383',
-                pt_3rd_aid: '100497308',
-                has_onekey: '1'
-            },
-            headers: {
-                'Referer': 'https://xui.ptlogin2.qq.com/',
-                'Cookie': `qrsig=${qrData.qrsig}`
+                identifier,
+                _: Date.now()
             }
         });
 
-        const match = response.data.match(/ptuiCB\((.*?)\)/);
-        if (!match) {
-            return res.status(500).json({ error: '获取二维码状态失败' });
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
         }
 
-        const data = match[1].split(',').map(p => p.trim().replace(/'/g, ''));
-        const code = parseInt(data[0]);
-
-        let status;
-        switch (code) {
-            case 0:
-                status = 'DONE';
-                // 登录成功，保存凭证
-                await saveCredentials(qrData.userId, response);
+        // 处理状态码
+        const status = response.data.data.status;
+        let event;
+        
+        // 检查状态是否匹配任何预定义状态
+        for (const [key, values] of Object.entries(QRCodeLoginEvents)) {
+            if (values.includes(status)) {
+                event = key;
                 break;
-            case 66:
-                status = 'SCAN';
-                break;
-            case 67:
-                status = 'CONF';
-                break;
-            case 65:
-                status = 'TIMEOUT';
-                break;
-            case 68:
-                status = 'REFUSE';
-                break;
-            default:
-                status = 'OTHER';
+            }
+        }
+        
+        if (!event) {
+            event = 'OTHER';
         }
 
-        // 更新状态
-        qrData.status = status;
-        qrCodeStore.set(identifier, qrData);
-
-        return res.json({ status });
+        return res.json({
+            code: 200,
+            message: '请求成功',
+            data: {
+                status: event,
+                credential: response.data.data.credential || null
+            }
+        });
     } catch (error) {
         console.error('检查二维码状态失败:', error);
+        if (error.code === 'ECONNABORTED') {
+            return res.json({
+                code: 200,
+                message: '请求成功',
+                data: {
+                    status: 'SCAN',
+                    credential: null
+                }
+            });
+        }
         return res.status(500).json({ error: '检查二维码状态失败' });
     }
 }
 
-// 保存用户凭证
-async function saveCredentials(userId, response) {
+// 发送手机验证码
+async function sendAuthCode(req, res) {
     try {
-        const cookies = response.headers['set-cookie'];
-        const cookieObj = {};
-        cookies.forEach(cookie => {
-            const [key, value] = cookie.split(';')[0].split('=');
-            cookieObj[key] = value;
+        const { phone, country_code = 86 } = req.body;
+        
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/send_authcode`, {
+            phone,
+            country_code
         });
 
-        const [qqUin, pSkey, skey] = [
-            cookieObj.uin,
-            cookieObj.p_skey,
-            cookieObj.skey
-        ];
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '发送验证码失败' });
+        }
 
-        // 使用 upsert 来更新或创建凭证
-        await QQMusicCredential.upsert({
-            userId,
-            qqUin,
-            pSkey,
-            skey,
-            cookies: cookieObj,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30天过期
+        let event;
+        switch (response.data.code) {
+            case PhoneLoginEvents.CAPTCHA:
+                event = 'CAPTCHA';
+                break;
+            case PhoneLoginEvents.FREQUENCY:
+                event = 'FREQUENCY';
+                break;
+            case PhoneLoginEvents.SEND:
+                event = 'SEND';
+                break;
+            default:
+                event = 'OTHER';
+        }
+
+        return res.json({
+            code: 200,
+            message: '请求成功',
+            data: {
+                status: event,
+                securityURL: response.data.data?.securityURL || null
+            }
         });
     } catch (error) {
-        console.error('保存凭证失败:', error);
-        throw error;
+        console.error('发送验证码失败:', error);
+        return res.status(500).json({ error: '发送验证码失败' });
+    }
+}
+
+// 手机验证码登录
+async function phoneAuthorize(req, res) {
+    try {
+        const { phone, auth_code, country_code = 86 } = req.body;
+        
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/phone_authorize`, {
+            phone,
+            auth_code,
+            country_code
+        });
+
+        if (response.data.code === 20271) {
+            return res.status(400).json({ error: '验证码错误或已鉴权' });
+        }
+
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '手机登录失败' });
+        }
+
+        return res.json(response.data);
+    } catch (error) {
+        console.error('手机登录失败:', error);
+        return res.status(500).json({ error: '手机登录失败' });
     }
 }
 
 // 获取用户QQ音乐凭证
 async function getUserCredentials(req, res) {
     try {
-        const credential = await QQMusicCredential.findOne({
-            where: { userId: req.user.id }
-        });
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/get_credentials`);
 
-        if (!credential) {
-            return res.status(404).json({ error: '未找到QQ音乐凭证' });
+        if (response.data.code !== 200) {
+            return res.status(500).json({ error: response.data.message || '获取凭证失败' });
         }
 
-        // 检查凭证是否过期
-        if (credential.expiresAt < new Date()) {
-            return res.status(401).json({ error: '凭证已过期' });
-        }
-
-        return res.json({
-            qqUin: credential.qqUin,
-            expiresAt: credential.expiresAt
-        });
+        return res.json(response.data);
     } catch (error) {
         console.error('获取凭证失败:', error);
         return res.status(500).json({ error: '获取凭证失败' });
     }
 }
 
-// 简单的hash33函数实现
-function hash33(str, init = 0) {
-    let hash = init;
-    for (let i = 0; i < str.length; i++) {
-        hash += (hash << 5) + str.charCodeAt(i);
+// 检查凭证是否过期
+async function checkCredentialExpired(req, res) {
+    try {
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_expired`, {
+            credential: req.body.credential
+        });
+
+        return res.json(response.data);
+    } catch (error) {
+        console.error('检查凭证过期失败:', error);
+        return res.status(500).json({ error: '检查凭证过期失败' });
     }
-    return hash & 0x7fffffff;
+}
+
+// 刷新凭证
+async function refreshCredential(req, res) {
+    try {
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/refresh_cookies`, {
+            credential: req.body.credential
+        });
+
+        return res.json(response.data);
+    } catch (error) {
+        console.error('刷新凭证失败:', error);
+        return res.status(500).json({ error: '刷新凭证失败' });
+    }
 }
 
 module.exports = {
-    getQQLoginQR,
     checkQRStatus,
     getUserCredentials,
-    getQRIdentifier
+    getQRIdentifier,
+    sendAuthCode,
+    phoneAuthorize,
+    checkCredentialExpired,
+    refreshCredential
 }; 
