@@ -103,8 +103,8 @@ async function checkQRStatus(req, res) {
             });
         }
 
-        // 构建查询参数
-        const params = {
+        // 构建请求体
+        const requestBody = {
             data: binaryData.toString('base64'),  // 二维码图像数据（base64）
             qr_type: validQRType,  // 二维码类型（小写）
             mimetype: validMimeType,  // 二维码图像类型
@@ -112,14 +112,13 @@ async function checkQRStatus(req, res) {
         };
 
         console.log('发送到Python后端的数据:', {
-            identifier: params.identifier,
-            qr_type: params.qr_type,
-            mimetype: params.mimetype,
-            data_length: params.data.length
+            identifier: requestBody.identifier,
+            qr_type: requestBody.qr_type,
+            mimetype: requestBody.mimetype,
+            data_length: requestBody.data.length
         });
 
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params,
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
             headers: {
                 'Content-Type': 'application/json'
             }
