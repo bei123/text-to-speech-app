@@ -12,7 +12,7 @@ console.log('环境变量加载状态:', {
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const fs = require('fs'); 3
+const fs = require('fs');
 const https = require('https');
 const helmet = require('helmet');
 const { testConnection, syncDatabase } = require('./config/database');
@@ -101,10 +101,10 @@ if (!fs.existsSync(AUDIO_DIR)) {
 }
 
 // 路由设置
-app.use('/', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/models', modelRoutes);
-app.use('/', speechRoutes);
-app.use('/', aiRoutes);
+app.use('/speech', speechRoutes);
+app.use('/ai', aiRoutes);
 app.use('/qqmusic', qqMusicRoutes);
 
 // 初始化数据库
