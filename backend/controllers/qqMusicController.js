@@ -76,19 +76,20 @@ async function checkQRStatus(req, res) {
         // 将base64数据转换为二进制
         const binaryData = Buffer.from(qr_data, 'base64');
 
-        // 构建 QR 结构体
-        const qr = {
+        // 构建查询参数
+        const params = {
             data: binaryData,
-            qr_type: qr_type || 'qq',  // 使用字符串而不是枚举
+            qr_type: qr_type || 'qq',
             mimetype: mimetype || 'image/png',
             identifier: identifier
         };
 
-        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, qr);
-
-        if (response.data.code !== 200) {
-            return res.status(500).json({ error: response.data.message || '检查二维码状态失败' });
-        }
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
+            params,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
 
         // 直接使用Python端返回的事件状态
         const event = response.data.data.event;  // Python端返回的是事件名称
