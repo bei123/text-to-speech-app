@@ -59,6 +59,7 @@ export default {
     const qrIdentifier = ref(null);
     const qrData = ref(null);
     const qrMimeType = ref('image/png');
+    const qrType = ref('qq');
     const status = ref('SCAN');
     const isLoggedIn = ref(false);
     const isLoading = ref(false);
@@ -128,7 +129,7 @@ export default {
           throw new Error(response.data.message || '获取二维码失败');
         }
 
-        const { data, identifier, mimetype } = response.data.data;
+        const { data, identifier, mimetype, qr_type } = response.data.data;
         console.log('获取到新的二维码标识符:', identifier);
 
         if (!identifier) {
@@ -142,6 +143,7 @@ export default {
           qrIdentifier.value = identifier;
           qrData.value = data;  // 保存原始的 base64 数据
           qrMimeType.value = mimetype || 'image/png';
+          qrType.value = qr_type || 'qq';  // 保存二维码类型
           
           if (qrCodeUrl.value) {
             URL.revokeObjectURL(qrCodeUrl.value);
@@ -245,7 +247,7 @@ export default {
           },
           params: {
             data: qrData.value,      // 二维码数据
-            qr_type: 'qq',          // 二维码类型
+            qr_type: qrType.value,   // 使用保存的二维码类型
             mimetype: qrMimeType.value,  // 图片类型
             identifier: qrIdentifier.value  // 标识符
           }
