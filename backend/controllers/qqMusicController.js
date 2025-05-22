@@ -91,9 +91,21 @@ async function checkQRStatus(req, res) {
             });
         }
 
+        // 将 base64 字符串转换为 bytes
+        let binaryData;
+        try {
+            // 移除可能存在的 data:image/png;base64, 前缀
+            const base64Data = qr_data.replace(/^data:image\/\w+;base64,/, '');
+            binaryData = Buffer.from(base64Data, 'base64');
+        } catch (error) {
+            return res.status(400).json({
+                error: '无效的 base64 数据'
+            });
+        }
+
         // 构建 QR 对象，匹配 Python 后端的 QR 类结构
         const qr = {
-            data: qr_data,  // 二维码图像数据
+            data: binaryData,  // 二维码图像数据（bytes）
             qr_type: validQRType,  // 二维码类型
             mimetype: validMimeType,  // 二维码图像类型
             identifier: identifier  // 标识符
@@ -107,7 +119,10 @@ async function checkQRStatus(req, res) {
         });
 
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params: qr,  // 使用 QR 对象作为查询参数
+            params: {
+                ...qr,
+                data: binaryData.toString('base64')  // 将 bytes 转换回 base64 字符串用于 URL
+            },
             headers: {
                 'Content-Type': 'application/json'
             }
