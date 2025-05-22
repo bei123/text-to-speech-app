@@ -1,25 +1,25 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/database').sequelize;
 
-const QQMusicCredential = sequelize.define('QQMusicCredential', {
+const QQMusicCredential = sequelize.define('qq_music_credentials', {
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'Users',
+            model: 'users',
             key: 'id'
         }
     },
     qqUin: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(50),
         allowNull: true
     },
     pSkey: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     skey: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     cookies: {
@@ -27,11 +27,11 @@ const QQMusicCredential = sequelize.define('QQMusicCredential', {
         allowNull: true
     },
     refreshToken: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     refreshKey: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     expiresAt: {
@@ -45,7 +45,8 @@ const QQMusicCredential = sequelize.define('QQMusicCredential', {
             unique: true,
             fields: ['userId']
         }
-    ]
+    ],
+    tableName: 'qq_music_credentials'
 });
 
 module.exports = QQMusicCredential; 
