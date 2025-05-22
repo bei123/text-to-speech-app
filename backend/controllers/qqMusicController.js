@@ -73,38 +73,44 @@ async function checkQRStatus(req, res) {
         const { identifier } = req.params;
         const { qr_data, qr_type, mimetype } = req.body;
 
-        // 将 base64 数据转换为二进制
-        const binaryData = Buffer.from(qr_data, 'base64');
+        // 验证参数
+        if (!qr_data || !identifier) {
+            return res.status(400).json({
+                error: '缺少必要参数：qr_data 和 identifier 是必需的'
+            });
+        }
 
-        // 构建请求体
-        const requestBody = {
-            data: binaryData,
-            qr_type: qr_type || 'QQ',
-            mimetype: mimetype || 'image/png',
+        // 验证 qr_type
+        const validQRType = qr_type?.toUpperCase() === 'WX' ? 'WX' : 'QQ';
+
+        // 验证 mimetype
+        const validMimeType = mimetype || 'image/png';
+        if (!validMimeType.startsWith('image/')) {
+            return res.status(400).json({
+                error: '无效的 mimetype：必须是有效的图像 MIME 类型'
+            });
+        }
+
+        // 构建查询参数
+        const params = {
+            data: qr_data,  // 直接使用 base64 字符串
+            qr_type: validQRType,
+            mimetype: validMimeType,
             identifier: identifier
         };
 
         console.log('发送到Python后端的数据:', {
             identifier,
-            qr_type: requestBody.qr_type,
-            mimetype: requestBody.mimetype,
-            data_length: binaryData.length
+            qr_type: params.qr_type,
+            mimetype: params.mimetype,
+            data_length: params.data.length
         });
 
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
+            params,
             headers: {
                 'Content-Type': 'application/json'
-            },
-            transformRequest: [(data) => {
-                // 自定义转换函数，确保二进制数据被正确处理
-                if (data.data instanceof Buffer) {
-                    return JSON.stringify({
-                        ...data,
-                        data: data.data.toString('base64')
-                    });
-                }
-                return JSON.stringify(data);
-            }]
+            }
         });
 
         // 直接使用Python端返回的事件状态
