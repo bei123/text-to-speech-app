@@ -60,6 +60,15 @@ async function getQRIdentifier(req, res) {
             return res.status(500).json({ error: response.data.message || '获取二维码失败' });
         }
 
+        // 保存二维码数据到临时存储
+        const { identifier, data, mimetype, qr_type } = response.data.data;
+        qrCodeStore.set(identifier, {
+            data,
+            mimetype,
+            qr_type,
+            timestamp: Date.now()
+        });
+
         return res.json(response.data);
     } catch (error) {
         console.error('获取二维码标识符失败:', error);
@@ -77,11 +86,18 @@ async function checkQRStatus(req, res) {
             return res.status(400).json({ error: '缺少二维码标识符' });
         }
 
+        // 从存储中获取二维码数据
+        const qrData = qrCodeStore.get(identifier);
+        if (!qrData) {
+            return res.status(400).json({ error: '二维码数据不存在或已过期' });
+        }
+
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
             params: {
                 identifier,
-                qr_type: login_type,
-                mimetype: 'image/png'
+                qr_type: qrData.qr_type || login_type,
+                mimetype: qrData.mimetype || 'image/png',
+                data: qrData.data
             }
         });
 
