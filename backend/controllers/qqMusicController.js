@@ -104,24 +104,26 @@ async function checkQRStatus(req, res) {
         }
 
         // 构建 QR 对象，匹配 Python 后端的 QR 类结构
-        const qr = {
+        const qrcode = {
             data: binaryData,  // 二维码图像数据（bytes）
-            qr_type: validQRType,  // 二维码类型
+            qr_type: validQRType,  // 二维码类型（小写）
             mimetype: validMimeType,  // 二维码图像类型
             identifier: identifier  // 标识符
         };
 
         console.log('发送到Python后端的数据:', {
-            identifier: qr.identifier,
-            qr_type: qr.qr_type,
-            mimetype: qr.mimetype,
-            data_length: qr.data.length
+            identifier: qrcode.identifier,
+            qr_type: qrcode.qr_type,
+            mimetype: qrcode.mimetype,
+            data_length: qrcode.data.length
         });
 
         const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
             params: {
-                ...qr,
-                data: binaryData.toString('base64')  // 将 bytes 转换回 base64 字符串用于 URL
+                qrcode: {
+                    ...qrcode,
+                    data: binaryData.toString('base64')  // 将 bytes 转换回 base64 字符串用于 URL
+                }
             },
             headers: {
                 'Content-Type': 'application/json'
