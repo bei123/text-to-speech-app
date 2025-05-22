@@ -246,8 +246,8 @@ export default {
             'Content-Type': 'application/json'
           },
           params: {
-            data: qrData.value,      // 二维码数据
-            qr_type: qrType.value,   // 使用保存的二维码类型
+            data: qrData.value,      // 二维码图像数据（base64）
+            qr_type: qrType.value,   // 二维码类型
             mimetype: qrMimeType.value,  // 图片类型
             identifier: qrIdentifier.value  // 标识符
           }
