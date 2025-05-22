@@ -73,6 +73,14 @@ async function checkQRStatus(req, res) {
         const { identifier } = req.params;
         const { qr_data, qr_type, mimetype } = req.body;
 
+        console.log('接收到的二维码数据:', {
+            identifier,
+            qr_type,
+            mimetype,
+            qr_data_length: qr_data ? qr_data.length : 0,
+            qr_data_sample: qr_data ? qr_data.substring(0, 50) + '...' : null
+        });
+
         // 构建 QR 结构体
         const qr = {
             data: qr_data,
