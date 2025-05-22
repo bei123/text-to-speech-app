@@ -15,6 +15,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs'); 3
 const https = require('https');
 const helmet = require('helmet');
+const { testConnection, syncDatabase } = require('./config/database');
 
 // 导入路由
 const authRoutes = require('./routes/authRoutes');
@@ -101,8 +102,15 @@ app.use('/models', modelRoutes);
 app.use('/', speechRoutes);
 app.use('/', aiRoutes);
 
+// 初始化数据库
+const initializeDatabase = async () => {
+  await testConnection();
+  await syncDatabase();
+};
+
 // 启动HTTPS服务器
 const PORT = process.env.PORT || 5000;
-https.createServer(sslOptions, app).listen(PORT, () => {
+https.createServer(sslOptions, app).listen(PORT, async () => {
     console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
+    await initializeDatabase();
 });
