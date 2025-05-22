@@ -238,15 +238,14 @@ export default {
         }
 
         console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
-        const response = await axios.post(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
-          qr_data: qrData.value,  // 使用原始的 base64 数据
-          qr_type: 'qq',
-          mimetype: qrMimeType.value,
-          identifier: qrIdentifier.value
-        }, {
+        const response = await axios.get(`https://backend.2000gallery.art:5000/qqmusic/qrcode/${qrIdentifier.value}/status`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
+          },
+          params: {
+            qr_type: 'qq',
+            mimetype: qrMimeType.value
           }
         });
 
