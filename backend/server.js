@@ -57,12 +57,15 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: ['https://tts.2000gallery.art', 'http://localhost:5173','https://bjtts.2000gallery.art'],
+    origin: ['https://tts.2000gallery.art', 'http://localhost:8080'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length'],
-    credentials: true,
-    maxAge: 86400 // 24小时
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-QR-Identifier',
+        'X-Requested-With'
+    ],
+    credentials: true
 }));
 
 // 添加自定义 CORS 中间件

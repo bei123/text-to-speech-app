@@ -134,7 +134,9 @@ export default {
           responseType: 'blob',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-QR-Identifier': newQrIdentifier,
+            'Accept': 'image/png'
           }
         });
 
