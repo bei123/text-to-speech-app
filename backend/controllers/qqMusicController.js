@@ -79,7 +79,7 @@ async function checkQRStatus(req, res) {
         // 构建请求体
         const requestBody = {
             data: binaryData,
-            qr_type: qr_type || 'qq',
+            qr_type: qr_type || 'QQ',
             mimetype: mimetype || 'image/png',
             identifier: identifier
         };
