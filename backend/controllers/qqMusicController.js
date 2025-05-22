@@ -111,17 +111,16 @@ async function checkQRStatus(req, res) {
             });
         }
 
-        // 构建查询参数
-        const params = {
+        // 构建请求体
+        const requestBody = {
             data: binaryData.toString('base64'),
             qr_type: validQRType,
             mimetype: validMimeType,
             identifier: identifier
         };
 
-        // 使用正确的 API 路径
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params,
+        // 使用 POST 请求
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
             headers: {
                 'Content-Type': 'application/json'
             }
