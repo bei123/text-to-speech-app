@@ -76,7 +76,10 @@ async function checkQRStatus(req, res) {
         // 验证参数
         if (!qr_data || !identifier) {
             return res.status(400).json({
-                error: '缺少必要参数：qr_data 和 identifier 是必需的'
+                code: 400,
+                message: "Bad Request",
+                errors: ["缺少必要参数：qr_data 和 identifier 是必需的"],
+                timestamp: Date.now()
             });
         }
 
@@ -87,58 +90,46 @@ async function checkQRStatus(req, res) {
         const validMimeType = mimetype || 'image/png';
         if (!validMimeType.startsWith('image/')) {
             return res.status(400).json({
-                error: '无效的 mimetype：必须是有效的图像 MIME 类型'
+                code: 400,
+                message: "Bad Request",
+                errors: ["无效的 mimetype：必须是有效的图像 MIME 类型"],
+                timestamp: Date.now()
             });
         }
 
         // 将 base64 字符串转换为 bytes
         let binaryData;
         try {
-            // 移除可能存在的 data:image/png;base64, 前缀
             const base64Data = qr_data.replace(/^data:image\/\w+;base64,/, '');
             binaryData = Buffer.from(base64Data, 'base64');
         } catch (error) {
             return res.status(400).json({
-                error: '无效的 base64 数据'
+                code: 400,
+                message: "Bad Request",
+                errors: ["无效的 base64 数据"],
+                timestamp: Date.now()
             });
         }
 
-        // 构建请求体
-        const requestBody = {
-            data: binaryData.toString('base64'),  // 二维码图像数据（base64）
-            qr_type: validQRType,  // 二维码类型（小写）
-            mimetype: validMimeType,  // 二维码图像类型
-            identifier: identifier  // 标识符
+        // 构建查询参数
+        const params = {
+            data: binaryData.toString('base64'),
+            qr_type: validQRType,
+            mimetype: validMimeType,
+            identifier: identifier
         };
 
-        console.log('发送到Python后端的数据:', {
-            identifier: requestBody.identifier,
-            qr_type: requestBody.qr_type,
-            mimetype: requestBody.mimetype,
-            data_length: requestBody.data.length
-        });
-
-        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
+        // 使用正确的 API 路径
+        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
+            params,
             headers: {
                 'Content-Type': 'application/json'
             }
         });
 
-        // 直接使用Python端返回的事件状态
-        const event = response.data.data.event;  // Python端返回的是事件名称
-        const credential = response.data.data.credential;
+        // 直接返回后端响应
+        return res.json(response.data);
 
-        const responseData = {
-            code: 200,
-            message: '请求成功',
-            data: {
-                event: event,  // 使用event而不是status
-                credential: credential || null,
-                identifier: identifier
-            }
-        };
-
-        return res.json(responseData);
     } catch (error) {
         console.error('检查二维码状态失败:', error);
 
@@ -146,18 +137,22 @@ async function checkQRStatus(req, res) {
         if (error.code === 'ECONNABORTED') {
             return res.json({
                 code: 200,
-                message: '请求成功',
+                message: "请求成功",
                 data: {
-                    event: 'SCAN',  // 使用event而不是status
+                    event: 'SCAN',
                     credential: null,
                     identifier: req.params.identifier
-                }
+                },
+                timestamp: Date.now()
             });
         }
 
         // 处理其他错误
         return res.status(500).json({
-            error: error.response?.data?.message || '检查二维码状态失败'
+            code: 500,
+            message: "Internal Server Error",
+            errors: [error.response?.data?.message || '检查二维码状态失败'],
+            timestamp: Date.now()
         });
     }
 }
