@@ -73,22 +73,38 @@ async function checkQRStatus(req, res) {
         const { identifier } = req.params;
         const { qr_data, qr_type, mimetype } = req.body;
 
-        // 将base64数据转换为二进制
+        // 将 base64 数据转换为二进制
         const binaryData = Buffer.from(qr_data, 'base64');
 
-        // 构建查询参数
-        const params = {
+        // 构建请求体
+        const requestBody = {
             data: binaryData,
             qr_type: qr_type || 'qq',
             mimetype: mimetype || 'image/png',
             identifier: identifier
         };
 
-        const response = await axios.get(`${PYTHON_API_BASE_URL}/login/check_qrcode`, {
-            params,
+        console.log('发送到Python后端的数据:', {
+            identifier,
+            qr_type: requestBody.qr_type,
+            mimetype: requestBody.mimetype,
+            data_length: binaryData.length
+        });
+
+        const response = await axios.post(`${PYTHON_API_BASE_URL}/login/check_qrcode`, requestBody, {
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            transformRequest: [(data) => {
+                // 自定义转换函数，确保二进制数据被正确处理
+                if (data.data instanceof Buffer) {
+                    return JSON.stringify({
+                        ...data,
+                        data: data.data.toString('base64')
+                    });
+                }
+                return JSON.stringify(data);
+            }]
         });
 
         // 直接使用Python端返回的事件状态
