@@ -67,14 +67,16 @@ async function getQQLoginQR(req, res) {
         }
 
         // 从请求头中获取标识符
-        const identifier = req.headers['x-qr-identifier'];
+        const identifier = req.headers['x-qr-identifier'] || req.headers['x-qr-identifier'];
         if (!identifier) {
+            console.error('请求头:', req.headers);
             return res.status(400).json({ error: '缺少二维码标识符' });
         }
 
         // 更新二维码状态
         const qrData = qrCodeStore.get(identifier);
         if (!qrData) {
+            console.error('无效的二维码标识符:', identifier);
             return res.status(404).json({ error: '二维码标识符无效' });
         }
 
