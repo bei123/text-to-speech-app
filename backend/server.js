@@ -101,10 +101,10 @@ if (!fs.existsSync(AUDIO_DIR)) {
 }
 
 // 路由设置
-app.use('/auth', authRoutes);
+app.use('/', authRoutes);
 app.use('/models', modelRoutes);
-app.use('/speech', speechRoutes);
-app.use('/ai', aiRoutes);
+app.use('/', speechRoutes);
+app.use('/', aiRoutes);
 app.use('/qqmusic', qqMusicRoutes);
 
 // 初始化数据库
