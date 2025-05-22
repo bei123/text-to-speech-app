@@ -22,6 +22,7 @@ const authRoutes = require('./routes/authRoutes');
 const modelRoutes = require('./routes/modelRoutes');
 const speechRoutes = require('./routes/speechRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const qqMusicRoutes = require('./routes/qqMusicRoutes');
 
 // 导入队列服务
 const { initQueueProcessor } = require('./services/queueService');
@@ -104,6 +105,7 @@ app.use('/', authRoutes);
 app.use('/models', modelRoutes);
 app.use('/', speechRoutes);
 app.use('/', aiRoutes);
+app.use('/qqmusic', qqMusicRoutes);
 
 // 初始化数据库
 const initializeDatabase = async () => {
