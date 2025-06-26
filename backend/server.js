@@ -32,8 +32,8 @@ const app = express();
 
 // SSL证书配置
 const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, '../ssl/cdn.2000gallery.art.key')),
-    cert: fs.readFileSync(path.join(__dirname, '../ssl/cdn.2000gallery.art.pem'))
+    key: fs.readFileSync(path.join(__dirname, '../ssl/backend.2000gallery.art.key')),
+    cert: fs.readFileSync(path.join(__dirname, '../ssl/backend.2000gallery.art.pem'))
 };
 
 // 安全中间件设置
