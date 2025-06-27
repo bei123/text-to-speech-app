@@ -82,7 +82,10 @@
     <!-- 底部提示 -->
     <div class="footer">
       <span class="footerText">如果你有好的模型提供,或愿意赞助GPU算力,请联系我!</span>
-      <span class="footerText">QQ交流群：<span class="textLink" @click="copyQQGroup">621244714</span></span>
+      <span class="footerText">
+        QQ交流群：
+        <a class="textLink" :href="qqGroupLink" target="_blank">621244714</a>
+      </span>
     </div>
   </div>
   <div>
@@ -155,10 +158,7 @@ const copyProjectLink = () => {
   copyOrOpenLink(link);
 };
 
-const copyQQGroup = () => {
-  const qqGroup = "621244714";
-  copyOrOpenLink(qqGroup, true);
-};
+const qqGroupLink = "https://qm.qq.com/q/vs9jVLpNQs";
 
 const copyOrOpenLink = (link, isQQGroup = false) => {
   // 检测是否为移动设备
