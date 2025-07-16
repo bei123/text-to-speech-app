@@ -1,13 +1,14 @@
 const { Sequelize } = require('sequelize');
 const pool = require('./db');
+require('dotenv').config();
 
 // 创建 Sequelize 实例
 const sequelize = new Sequelize({
   dialect: 'mysql',
-  host: '127.0.0.1',
-  username: 'text_to_speech',
-  password: 'KSrJpjNsCSfp8WRH',
-  database: 'text_to_speech',
+  host: process.env.DB_HOST,
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   pool: {
     max: 10,
     min: 0,

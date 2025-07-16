@@ -1,11 +1,12 @@
 const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 // 数据库连接池
 const pool = mysql.createPool({
-    host: '127.0.0.1',
-    user: 'text_to_speech',
-    password: 'KSrJpjNsCSfp8WRH',
-    database: 'text_to_speech',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,

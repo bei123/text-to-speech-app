@@ -169,10 +169,10 @@ const login = async (req, res) => {
         }
 
         // 生成 Access Token
-        const accessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
+        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
         // 生成 Refresh Token
-        const refreshToken = jwt.sign({ id: user.id }, 'your_refresh_secret', { expiresIn: '7d' });
+        const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
         // 返回的用户信息
         const userResponse = {
@@ -213,7 +213,7 @@ const refreshToken = async (req, res) => {
 
     try {
         // 验证 Refresh Token
-        jwt.verify(refreshToken, 'your_refresh_secret', (err, user) => {
+        jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
             if (err) {
                 return res.status(403).json({
                     message: 'Refresh Token 无效或已过期',
@@ -222,10 +222,10 @@ const refreshToken = async (req, res) => {
             }
 
             // 生成新的 Access Token
-            const newAccessToken = jwt.sign({ id: user.id }, 'your_jwt_secret', { expiresIn: '15m' });
+            const newAccessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
             // 生成新的 Refresh Token
-            const newRefreshToken = jwt.sign({ id: user.id }, 'your_refresh_secret', { expiresIn: '7d' });
+            const newRefreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
             // 返回新的 Token
             res.json({

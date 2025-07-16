@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 // JWT 验证中间件
 const authenticateToken = (req, res, next) => {
@@ -9,7 +10,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ message: '未提供 Token' });
     }
 
-    jwt.verify(token, 'your_jwt_secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(401).json({
                 message: 'Token 无效或已过期',

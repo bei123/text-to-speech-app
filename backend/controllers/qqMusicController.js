@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const QQMusicCredential = require('../models/QQMusicCredential');
 
-const PYTHON_API_BASE_URL = 'http://wp.2000gallery.art:9987';
+const PYTHON_API_BASE_URL = process.env.PYTHON_API_BASE_URL;
 
 // 二维码状态枚举
 const QRCodeLoginEvents = {

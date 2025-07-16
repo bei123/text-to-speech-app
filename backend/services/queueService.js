@@ -2,9 +2,10 @@ const axios = require('axios');
 const pool = require('../config/db');
 const speechQueue = require('../config/queue');
 const { uploadToOSS } = require('../utils/ossUtils');
+require('dotenv').config();
 
 // 语音生成 API 地址
-const API_URL = 'http://autodl.2000gallery.art:44344';
+const API_URL = process.env.SPEECH_API_URL;
 
 // 初始化队列处理器
 const initQueueProcessor = () => {

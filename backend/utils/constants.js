@@ -7,8 +7,8 @@ if (!fs.existsSync(AUDIO_DIR)) {
 }
 
 // DeepSeek API 配置
-const DEEPSEEK_API_KEY = 'sk-65061bf460e14ec283f1f0d287827ba4';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL;
 
 module.exports = {
     AUDIO_DIR,
