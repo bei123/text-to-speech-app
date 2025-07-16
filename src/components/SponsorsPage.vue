@@ -28,9 +28,17 @@
           <span class="textLink" @click="copyGptSoVitsLink">https://github.com/RVC-Boss/GPT-SoVITS</span>
           <h2 class="sectionTitle">GPT-SoVITS开发者</h2>
           <div class="cardContainer">
-            <div v-for="(item, index) in GSVDeveloper" :key="index" class="card">
-              <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
-              <span class="cardText">{{ item.name }}</span>
+            <div v-for="(item, index) in GSVDeveloper" :key="index">
+              <a v-if="item.bilibili" :href="item.bilibili" target="_blank" rel="noopener noreferrer" class="card-link">
+                <div class="card">
+                  <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+                  <span class="cardText">{{ item.name }}</span>
+                </div>
+              </a>
+              <div v-else class="card">
+                <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+                <span class="cardText">{{ item.name }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -49,9 +57,17 @@
       <div class="section">
         <h2 class="sectionTitle">语音模型提供</h2>
         <div class="cardContainer">
-          <div v-for="(item, index) in voiceModelProviders" :key="index" class="card">
-            <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
-            <span class="cardText">{{ item.name }}</span>
+          <div v-for="(item, index) in voiceModelProviders" :key="index">
+            <a v-if="item.bilibili" :href="item.bilibili" target="_blank" rel="noopener noreferrer" class="card-link">
+              <div class="card">
+                <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+                <span class="cardText">{{ item.name }}</span>
+              </div>
+            </a>
+            <div v-else class="card">
+              <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+              <span class="cardText">{{ item.name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -60,9 +76,17 @@
       <div class="section">
         <h2 class="sectionTitle">GPU算力赞助</h2>
         <div class="cardContainer">
-          <div v-for="(item, index) in gpuSponsors" :key="index" class="card">
-            <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
-            <span class="cardText">{{ item.name }}</span>
+          <div v-for="(item, index) in gpuSponsors" :key="index">
+            <a v-if="item.bilibili" :href="item.bilibili" target="_blank" rel="noopener noreferrer" class="card-link">
+              <div class="card">
+                <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+                <span class="cardText">{{ item.name }}</span>
+              </div>
+            </a>
+            <div v-else class="card">
+              <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+              <span class="cardText">{{ item.name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -71,9 +95,17 @@
       <div class="section">
         <h2 class="sectionTitle">软件作者</h2>
         <div class="cardContainer">
-          <div v-for="(item, index) in authors" :key="index" class="card">
-            <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
-            <span class="cardText">{{ item.name }}</span>
+          <div v-for="(item, index) in authors" :key="index">
+            <a v-if="item.bilibili" :href="item.bilibili" target="_blank" rel="noopener noreferrer" class="card-link">
+              <div class="card">
+                <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+                <span class="cardText">{{ item.name }}</span>
+              </div>
+            </a>
+            <div v-else class="card">
+              <img class="cardImage" :src="item.avatar" :alt="item.name" @error="handleImageError" />
+              <span class="cardText">{{ item.name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -110,21 +142,21 @@ const goBack = () => {
 
 // 数据
 const voiceModelProviders = ref([
-  { name: "@白菜工厂1145号员工", avatar: "https://oss.2000gallery.art/Sponsorimage/baicaigongc1145.webp?image_process=resize,fw_80,fh_80" },
-  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80" },
-  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80" }
+  { name: "@白菜工厂1145号员工", avatar: "https://oss.2000gallery.art/Sponsorimage/baicaigongc1145.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/518098961" },
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/243913620" },
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/25755986" }
 ]);
 
 const gpuSponsors = ref([
-  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80" }
+  { name: "@熙式甜点", avatar: "https://oss.2000gallery.art/Sponsorimage/ystd.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/243913620" }
 ]);
 
 const authors = ref([
-  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80" }
+  { name: "@天冬天冬", avatar: "https://oss.2000gallery.art/Sponsorimage/tdxa.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/25755986" }
 ]);
 
 const GSVDeveloper = ref([
-  { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp?image_process=resize,fw_80,fh_80" }
+  { name: "@花儿不哭", avatar: "https://oss.2000gallery.art/Sponsorimage/huaerbku.webp?image_process=resize,fw_80,fh_80", bilibili: "https://space.bilibili.com/5760446" }
 ]);
 
 // 预加载所有图片
@@ -433,6 +465,12 @@ const handleImageError = (event) => {
   margin: 6px 0;
   color: #666;
   font-size: 13px;
+}
+
+.card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 
 @media (max-width: 600px) {
