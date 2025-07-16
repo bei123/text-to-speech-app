@@ -4,7 +4,7 @@ const speechQueue = require('../config/queue');
 const { uploadToOSS } = require('../utils/ossUtils');
 
 // 语音生成 API 地址
-const API_URL = 'http://autodl.2000gallery.art:36439';
+const API_URL = 'http://autodl.2000gallery.art:44344';
 
 // 初始化队列处理器
 const initQueueProcessor = () => {
