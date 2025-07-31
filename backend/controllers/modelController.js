@@ -6,7 +6,7 @@ const { encryptResponse, decryptRequest } = require('../utils/encryption');
 // 获取模型数据
 const getModels = async (req, res) => {
     try {
-        const query = 'SELECT value, label, avatar_url FROM models';
+        const query = 'SELECT value, label, avatar_url, series FROM models ORDER BY series ASC, label ASC';
         const [results] = await pool.query(query);
 
         // 生成加密密钥
