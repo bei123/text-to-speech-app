@@ -3,11 +3,8 @@
         <div class="modal-content">
             <h2>选择模型</h2>
             <div class="model-list">
-                <div v-for="(modelsInSeries, series) in groupedModels" :key="series" class="series-group">
-                    <div class="series-title">{{ series || '其他' }}</div>
-                    <div v-for="model in modelsInSeries" :key="model.value" class="model-item" @click="selectModel(model)">
-                        {{ model.label }}
-                    </div>
+                <div v-for="model in sortedModels" :key="model.value" class="model-item" @click="selectModel(model)">
+                    {{ model.label }}
                 </div>
             </div>
             <div class="modal-buttons">
@@ -31,17 +28,28 @@ const props = defineProps({
 const emit = defineEmits(['select-model', 'close']);
 /* eslint-enable no-undef */
 
-// 按系列分组模型
-const groupedModels = computed(() => {
-    const groups = {};
-    props.models.forEach(model => {
-        const series = model.series || '其他';
-        if (!groups[series]) {
-            groups[series] = [];
+// 按系列排序模型
+const sortedModels = computed(() => {
+    return [...props.models].sort((a, b) => {
+        const seriesA = a.series || '其他';
+        const seriesB = b.series || '其他';
+        
+        // "其他"系列排在最后
+        if (seriesA === '其他' && seriesB !== '其他') {
+            return 1;
         }
-        groups[series].push(model);
+        if (seriesA !== '其他' && seriesB === '其他') {
+            return -1;
+        }
+        
+        // 首先按系列排序
+        if (seriesA !== seriesB) {
+            return seriesA.localeCompare(seriesB);
+        }
+        
+        // 同一系列内按标签排序
+        return a.label.localeCompare(b.label);
     });
-    return groups;
 });
 
 const selectModel = (model) => {
@@ -211,27 +219,11 @@ const close = () => {
     overflow-y: auto;
 }
 
-.series-group {
-    margin-bottom: 16px;
-}
-
-.series-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #42b983;
-    padding: 8px 12px;
-    background-color: rgba(66, 185, 131, 0.1);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    border-left: 3px solid #42b983;
-}
-
 .model-item {
     padding: 10px;
     border-bottom: 1px solid #ddd;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    margin-left: 8px;
 }
 
 .model-item:hover {
