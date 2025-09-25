@@ -7,9 +7,38 @@ const { generateEncryptionKey } = require('../utils/encryption');
 
 // 用户注册
 const register = async (req, res) => {
-    const { username, email, password } = req.body;
+    const { encryptedUsername, encryptedEmail, encryptedPassword, key } = req.body;
 
     try {
+        // 验证请求参数
+        if (!encryptedUsername || !encryptedEmail || !encryptedPassword || !key) {
+            return res.status(400).json({ message: '缺少必要参数' });
+        }
+
+        // 解密用户名
+        const usernameBytes = CryptoJS.AES.decrypt(encryptedUsername, key);
+        const username = usernameBytes.toString(CryptoJS.enc.Utf8);
+
+        if (!username) {
+            return res.status(400).json({ message: '解密用户名失败' });
+        }
+
+        // 解密邮箱
+        const emailBytes = CryptoJS.AES.decrypt(encryptedEmail, key);
+        const email = emailBytes.toString(CryptoJS.enc.Utf8);
+
+        if (!email) {
+            return res.status(400).json({ message: '解密邮箱失败' });
+        }
+
+        // 解密密码
+        const passwordBytes = CryptoJS.AES.decrypt(encryptedPassword, key);
+        const password = passwordBytes.toString(CryptoJS.enc.Utf8);
+
+        if (!password) {
+            return res.status(400).json({ message: '解密密码失败' });
+        }
+
         // 检查用户名和邮箱是否已存在
         const checkUserQuery = 'SELECT * FROM users WHERE username = ? OR email = ?';
         const [results] = await pool.query(checkUserQuery, [username, email]);
@@ -44,28 +73,16 @@ const register = async (req, res) => {
                 code: 'PASSWORD_TOO_SHORT'
             });
         }
-        if (!/[A-Z]/.test(password)) {
+        if (!/[a-zA-Z]/.test(password)) {
             return res.status(400).json({
-                message: '密码必须包含至少一个大写字母',
-                code: 'PASSWORD_NO_UPPERCASE'
-            });
-        }
-        if (!/[a-z]/.test(password)) {
-            return res.status(400).json({
-                message: '密码必须包含至少一个小写字母',
-                code: 'PASSWORD_NO_LOWERCASE'
+                message: '密码必须包含至少一个字母',
+                code: 'PASSWORD_NO_LETTER'
             });
         }
         if (!/[0-9]/.test(password)) {
             return res.status(400).json({
                 message: '密码必须包含至少一个数字',
                 code: 'PASSWORD_NO_NUMBER'
-            });
-        }
-        if (!/[!@#$%^&*]/.test(password)) {
-            return res.status(400).json({
-                message: '密码必须包含至少一个特殊字符 (!@#$%^&*)',
-                code: 'PASSWORD_NO_SPECIAL'
             });
         }
 

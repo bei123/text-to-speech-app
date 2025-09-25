@@ -22,21 +22,13 @@
                 <span class="tip-icon">{{ form.password.length >= 6 ? '✓' : '×' }}</span>
                 <span class="tip-text">至少6个字符</span>
               </div>
-              <div class="tip-item" :class="{ 'met': /[A-Z]/.test(form.password) }">
-                <span class="tip-icon">{{ /[A-Z]/.test(form.password) ? '✓' : '×' }}</span>
-                <span class="tip-text">包含大写字母</span>
-              </div>
-              <div class="tip-item" :class="{ 'met': /[a-z]/.test(form.password) }">
-                <span class="tip-icon">{{ /[a-z]/.test(form.password) ? '✓' : '×' }}</span>
-                <span class="tip-text">包含小写字母</span>
+              <div class="tip-item" :class="{ 'met': /[a-zA-Z]/.test(form.password) }">
+                <span class="tip-icon">{{ /[a-zA-Z]/.test(form.password) ? '✓' : '×' }}</span>
+                <span class="tip-text">包含字母</span>
               </div>
               <div class="tip-item" :class="{ 'met': /[0-9]/.test(form.password) }">
                 <span class="tip-icon">{{ /[0-9]/.test(form.password) ? '✓' : '×' }}</span>
                 <span class="tip-text">包含数字</span>
-              </div>
-              <div class="tip-item" :class="{ 'met': /[!@#$%^&*]/.test(form.password) }">
-                <span class="tip-icon">{{ /[!@#$%^&*]/.test(form.password) ? '✓' : '×' }}</span>
-                <span class="tip-text">包含特殊字符</span>
               </div>
             </div>
           </div>
@@ -73,6 +65,7 @@ import { ref, computed } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 import Snackbar from './MySnackbar.vue';
+import CryptoJS from 'crypto-js';
 
 const form = ref({
   username: '',
@@ -92,13 +85,18 @@ const showPasswordTips = ref(false);
 const isFormValid = computed(() => {
   const { username, email, password, confirmPassword } = form.value;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{6,}$/;
+  
+  // 密码验证：至少6个字符，包含字母和数字
+  const isPasswordValid = password.length >= 6 &&
+    /[a-zA-Z]/.test(password) &&
+    /[0-9]/.test(password);
+  
   return username &&
     email &&
     password &&
     confirmPassword &&
     emailRegex.test(email) &&
-    passwordRegex.test(password) &&
+    isPasswordValid &&
     password === confirmPassword;
 });
 
@@ -118,11 +116,9 @@ const passwordStrength = computed(() => {
   let strength = 0;
   const password = form.value.password;
 
-  if (password.length >= 6) strength += 20;
-  if (/[A-Z]/.test(password)) strength += 20;
-  if (/[a-z]/.test(password)) strength += 20;
-  if (/[0-9]/.test(password)) strength += 20;
-  if (/[!@#$%^&*]/.test(password)) strength += 20;
+  if (password.length >= 6) strength += 33;
+  if (/[a-zA-Z]/.test(password)) strength += 33;
+  if (/[0-9]/.test(password)) strength += 34;
 
   return strength;
 });
@@ -165,10 +161,26 @@ const register = async () => {
   isSubmitting.value = true;
 
   try {
+    // 获取加密密钥
+    // 使用固定的初始密钥对用户名进行加密
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(form.value.username, initialKey).toString();
+
+    const keyResponse = await axios.get('https://backend.2000gallery.art:5000/encryption-key', {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 加密用户名、邮箱和密码
+    const encryptedUsername = CryptoJS.AES.encrypt(form.value.username, secretKey).toString();
+    const encryptedEmail = CryptoJS.AES.encrypt(form.value.email, secretKey).toString();
+    const encryptedPassword = CryptoJS.AES.encrypt(form.value.password, secretKey).toString();
+
     await axios.post('https://backend.2000gallery.art:5000/register', {
-      username: form.value.username,
-      email: form.value.email,
-      password: form.value.password
+      encryptedUsername,
+      encryptedEmail,
+      encryptedPassword,
+      key: secretKey
     });
 
     showSnackbar('注册成功', 'success', 2000);
@@ -193,17 +205,11 @@ const register = async () => {
         case 'PASSWORD_TOO_SHORT':
           errorMessage = '密码长度至少为6个字符';
           break;
-        case 'PASSWORD_NO_UPPERCASE':
-          errorMessage = '密码必须包含至少一个大写字母';
-          break;
-        case 'PASSWORD_NO_LOWERCASE':
-          errorMessage = '密码必须包含至少一个小写字母';
+        case 'PASSWORD_NO_LETTER':
+          errorMessage = '密码必须包含至少一个字母';
           break;
         case 'PASSWORD_NO_NUMBER':
           errorMessage = '密码必须包含至少一个数字';
-          break;
-        case 'PASSWORD_NO_SPECIAL':
-          errorMessage = '密码必须包含至少一个特殊字符 (!@#$%^&*)';
           break;
         default:
           errorMessage = error.response?.data?.message || errorMessage;
