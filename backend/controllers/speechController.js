@@ -258,53 +258,98 @@ const generateSpeechWithReference = async (req, res) => {
         const prompt_text = req.body.prompt_text || '';
         const prompt_language = req.body.prompt_language || '';
         const model_name = 'v2ProPlus';
+        const ref_audio_url = req.body.ref_audio_url; // OSS URL（如果使用预设）
         
-        // 获取上传的文件
+        // 获取上传的文件（如果提供了文件）
         const ref_wav_file = req.file;
         
-        // 验证必要参数
-        if (!text || !text_language || !ref_wav_file || !prompt_text || !prompt_language) {
+        // 验证必要参数：必须有文件或OSS URL
+        if (!text || !text_language || (!ref_wav_file && !ref_audio_url) || !prompt_text || !prompt_language) {
             return res.status(400).json({ 
-                message: '缺少必要参数：text, text_language, ref_wav_file, prompt_text 和 prompt_language 都是必需的',
+                message: '缺少必要参数：text, text_language, ref_wav_file 或 ref_audio_url, prompt_text 和 prompt_language 都是必需的',
                 received: {
                     text: !!text,
                     text_language: !!text_language,
                     ref_wav_file: !!ref_wav_file,
+                    ref_audio_url: !!ref_audio_url,
                     prompt_text: !!prompt_text,
                     prompt_language: !!prompt_language
                 }
             });
         }
         
-        // 验证文件是否存在
-        if (!fs.existsSync(ref_wav_file.path)) {
-            return res.status(400).json({ message: '上传的文件不存在' });
+        let audioFilePath = null;
+        let shouldDeleteTempFile = false;
+        
+        // 如果提供了OSS URL，从OSS下载文件到临时目录
+        if (ref_audio_url && !ref_wav_file) {
+            try {
+                console.log('从OSS下载音频文件:', ref_audio_url);
+                const axios = require('axios');
+                const response = await axios.get(ref_audio_url, {
+                    responseType: 'arraybuffer'
+                });
+                
+                // 保存到临时文件
+                const tempDir = path.join(__dirname, '../../audio_files/temp');
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                }
+                audioFilePath = path.join(tempDir, `preset_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
+                fs.writeFileSync(audioFilePath, response.data);
+                shouldDeleteTempFile = true;
+                
+                console.log('OSS音频文件已下载到:', audioFilePath);
+            } catch (downloadError) {
+                console.error('从OSS下载音频文件失败:', downloadError);
+                return res.status(400).json({ message: '从OSS下载音频文件失败' });
+            }
+        } else if (ref_wav_file) {
+            // 使用上传的文件
+            audioFilePath = ref_wav_file.path;
+            
+            // 验证文件是否存在
+            if (!fs.existsSync(audioFilePath)) {
+                return res.status(400).json({ message: '上传的文件不存在' });
+            }
         }
         
         // 验证音频文件时长（3-10秒）
         try {
-            const metadata = await parseFile(ref_wav_file.path);
+            const metadata = await parseFile(audioFilePath);
             const duration = metadata.format.duration; // 时长（秒）
             
             console.log('音频文件时长:', duration, '秒');
             
             if (!duration) {
+                if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                    fs.unlinkSync(audioFilePath);
+                }
                 return res.status(400).json({ message: '无法读取音频文件时长，请确保文件格式正确' });
             }
             
             if (duration < 3) {
+                if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                    fs.unlinkSync(audioFilePath);
+                }
                 return res.status(400).json({ 
                     message: `音频时长过短（${duration.toFixed(2)}秒），要求时长在3-10秒之间` 
                 });
             }
             
             if (duration > 10) {
+                if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                    fs.unlinkSync(audioFilePath);
+                }
                 return res.status(400).json({ 
                     message: `音频时长过长（${duration.toFixed(2)}秒），要求时长在3-10秒之间` 
                 });
             }
         } catch (metadataError) {
             console.error('读取音频元数据失败:', metadataError);
+            if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                fs.unlinkSync(audioFilePath);
+            }
             return res.status(400).json({ 
                 message: '无法读取音频文件信息，请确保文件格式正确（支持 WAV、MP3）' 
             });
@@ -358,8 +403,8 @@ const generateSpeechWithReference = async (req, res) => {
                 prompt_text: prompt_text ? prompt_text.substring(0, 50) + '...' : '',
                 prompt_language,
                 model_name,
-                filePath: ref_wav_file.path,
-                fileSize: ref_wav_file.size
+                filePath: audioFilePath,
+                isFromPreset: !!ref_audio_url
             });
             
             // 注意：FastAPI 端点不需要 Authorization header
@@ -424,7 +469,12 @@ const generateSpeechWithReference = async (req, res) => {
             );
 
             // 删除临时文件
-            fs.unlinkSync(ref_wav_file.path);
+            if (ref_wav_file && fs.existsSync(ref_wav_file.path)) {
+                fs.unlinkSync(ref_wav_file.path);
+            }
+            if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                fs.unlinkSync(audioFilePath);
+            }
 
             // 返回下载链接
             res.json({ downloadLink: ossResult.url });
@@ -444,6 +494,13 @@ const generateSpeechWithReference = async (req, res) => {
             if (ref_wav_file && ref_wav_file.path && fs.existsSync(ref_wav_file.path)) {
                 try {
                     fs.unlinkSync(ref_wav_file.path);
+                } catch (unlinkError) {
+                    console.error('删除临时文件失败:', unlinkError);
+                }
+            }
+            if (shouldDeleteTempFile && audioFilePath && fs.existsSync(audioFilePath)) {
+                try {
+                    fs.unlinkSync(audioFilePath);
                 } catch (unlinkError) {
                     console.error('删除临时文件失败:', unlinkError);
                 }

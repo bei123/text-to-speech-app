@@ -3,9 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const speechController = require('../controllers/speechController');
+const presetController = require('../controllers/presetController');
 const { authenticateToken } = require('../middleware/auth');
-const { uploadToOSS, deleteFromOSS } = require('../utils/ossUtils');
 
 // 配置 multer 用于文件上传
 const storage = multer.diskStorage({
@@ -18,7 +17,7 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'ref_' + uniqueSuffix + path.extname(file.originalname));
+        cb(null, 'preset_' + uniqueSuffix + path.extname(file.originalname));
     }
 });
 
@@ -38,18 +37,8 @@ const upload = multer({
     }
 });
 
-// 生成语音
-router.post('/generate-speech', authenticateToken, speechController.generateSpeech);
-
-// 使用参考音频生成语音 (v2ProPlus)
-// 注意：文件上传是可选的，如果使用预设（ref_audio_url），则不需要上传文件
-router.post('/v2proplus', authenticateToken, (req, res, next) => {
-    // 如果提供了 ref_audio_url（使用预设），跳过文件上传
-    if (req.body.ref_audio_url) {
-        return next();
-    }
-    
-    // 否则，处理文件上传
+// 保存预设
+router.post('/save', authenticateToken, (req, res, next) => {
     upload.single('ref_wav_file')(req, res, (err) => {
         if (err) {
             console.error('文件上传错误:', err);
@@ -63,9 +52,13 @@ router.post('/v2proplus', authenticateToken, (req, res, next) => {
         }
         next();
     });
-}, speechController.generateSpeechWithReference);
+}, presetController.savePreset);
 
-// 获取历史记录
-router.get('/history', authenticateToken, speechController.getHistory);
+// 获取预设列表
+router.get('/list', authenticateToken, presetController.getPresets);
+
+// 删除预设
+router.delete('/:id', authenticateToken, presetController.deletePreset);
 
 module.exports = router;
+

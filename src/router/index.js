@@ -57,7 +57,7 @@ const routes = [
     component: () => import(/* webpackPreload: true */ '@/components/ReferenceAudioSpeech.vue'),
     meta: {
       requiresAuth: true,
-      title: '参考音频语音生成',
+      title: '自定义音色',
       keepAlive: true,
     },
   },

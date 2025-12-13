@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
-    <h1 class="page-title">参考音频语音生成</h1>
-    <p class="page-description">上传参考音频文件，使用 v2ProPlus 模型生成语音</p>
+    <h1 class="page-title">自定义音色</h1>
+    <p class="page-description">上传参考音频文件，使用 v2ProPlus 模型生成自定义音色语音</p>
 
     <!-- 文本输入框 -->
     <div class="form-group">
@@ -30,11 +30,18 @@
     <!-- 参考音频上传区域 -->
     <div class="form-group">
       <label for="ref-audio-file" class="form-label">
-        上传参考音频文件 (WAV/MP3，最大 50MB) <span class="required-mark">*</span>
+        上传音色参考音频 (WAV/MP3，最大 50MB) <span class="required-mark">*</span>
       </label>
       <div class="help-text">
         <i class="fas fa-info-circle"></i>
         参考音频时长必须在 <strong>3-10秒</strong> 之间
+      </div>
+      <div class="help-text quality-tip">
+        <i class="fas fa-microphone-alt"></i>
+        <span>
+          <strong>音频质量要求：</strong>
+          最好要干净，无背景杂音，只有一个人的声音，清晰
+        </span>
       </div>
       <div class="file-upload-wrapper">
         <input 
@@ -73,12 +80,12 @@
       </label>
       <div class="help-text">
         <i class="fas fa-info-circle"></i>
-        提示文本必须与参考音频的内容完全一致
+        提示文本必须与音色参考音频的内容完全一致
       </div>
       <textarea 
         id="prompt-text" 
         v-model="promptText" 
-        placeholder="请输入与参考音频内容完全一致的文本" 
+        placeholder="请输入与音色参考音频内容完全一致的文本" 
         class="input-field prompt-text-field"
         :class="{ 'input-error': promptTextError }"
       ></textarea>
@@ -107,6 +114,65 @@
       <div v-if="promptLanguageError" class="error-message">{{ promptLanguageError }}</div>
     </div>
 
+    <!-- 预设管理区域 -->
+    <div class="preset-section">
+      <div class="preset-header">
+        <h3 class="preset-title">音色预设</h3>
+        <div class="preset-actions">
+          <button @click="openPresetModal" class="button button-secondary" :disabled="!canSavePreset">
+            <i class="fas fa-save"></i> 保存预设
+          </button>
+          <button @click="loadPresets" class="button button-secondary">
+            <i class="fas fa-sync-alt"></i> 刷新
+          </button>
+        </div>
+      </div>
+      
+      <!-- 预设选择 -->
+      <div class="form-group">
+        <label for="preset-select" class="form-label">选择预设（可选）：</label>
+        <div class="select-wrapper">
+          <select 
+            id="preset-select" 
+            v-model="selectedPresetId" 
+            @change="loadPreset"
+            class="select-field"
+          >
+            <option value="">不使用预设</option>
+            <option v-for="preset in presets" :key="preset.id" :value="preset.id">
+              {{ preset.name }} ({{ formatDate(preset.updated_at) }})
+            </option>
+          </select>
+          <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+        </div>
+      </div>
+
+      <!-- 预设列表 -->
+      <div v-if="presets.length > 0" class="preset-list">
+        <div v-for="preset in presets" :key="preset.id" class="preset-item">
+          <div class="preset-info">
+            <div class="preset-name">{{ preset.name }}</div>
+            <div class="preset-meta">
+              <span>提示语言: {{ getLanguageLabel(preset.prompt_language) }}</span>
+              <span>更新时间: {{ formatDate(preset.updated_at) }}</span>
+            </div>
+          </div>
+          <div class="preset-item-actions">
+            <button @click="selectPreset(preset)" class="preset-action-btn">
+              <i class="fas fa-check"></i> 使用
+            </button>
+            <button @click="deletePreset(preset.id)" class="preset-action-btn delete-btn">
+              <i class="fas fa-trash"></i> 删除
+            </button>
+          </div>
+        </div>
+      </div>
+      <div v-else class="no-presets">
+        <i class="fas fa-inbox"></i>
+        <p>暂无预设，保存当前配置后可在此处快速使用</p>
+      </div>
+    </div>
+
     <!-- 生成语音按钮 -->
     <button 
       @click="generateSpeechWithReference" 
@@ -116,6 +182,46 @@
       <span v-if="!isLoading">生成语音</span>
       <span v-else class="loading-spinner"></span>
     </button>
+
+    <!-- 保存预设模态框 -->
+    <div v-if="showPresetModal" class="modal-overlay" @click="closePresetModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>保存音色预设</h3>
+          <button @click="closePresetModal" class="modal-close-btn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="preset-name" class="form-label">预设名称 <span class="required-mark">*</span></label>
+            <input 
+              id="preset-name"
+              v-model="presetName" 
+              type="text" 
+              placeholder="请输入预设名称"
+              class="input-field"
+              maxlength="50"
+            />
+          </div>
+          <div class="preset-preview">
+            <p><strong>将保存以下内容：</strong></p>
+            <ul>
+              <li>音色参考音频: {{ refAudioFile ? refAudioFile.name : '未选择' }}</li>
+              <li>提示文本: {{ promptText || '未填写' }}</li>
+              <li>提示语言: {{ getLanguageLabel(promptLanguage) || '未选择' }}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closePresetModal" class="button button-cancel">取消</button>
+          <button @click="savePreset" class="button button-primary" :disabled="!presetName.trim() || isSavingPreset">
+            <span v-if="!isSavingPreset">保存</span>
+            <span v-else class="loading-spinner"></span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- 语音预览 -->
     <div v-if="audioUrl" class="audio-preview">
@@ -137,7 +243,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -156,6 +262,14 @@ const audioDuration = ref(null); // 音频时长（秒）
 const isCheckingDuration = ref(false); // 是否正在检查时长
 const promptTextError = ref(''); // 提示文本错误信息
 const promptLanguageError = ref(''); // 提示语言错误信息
+
+// 预设相关
+const presets = ref([]); // 预设列表
+const selectedPresetId = ref(''); // 选中的预设ID
+const showPresetModal = ref(false); // 显示保存预设模态框
+const presetName = ref(''); // 预设名称
+const isSavingPreset = ref(false); // 是否正在保存预设
+const currentPresetAudioUrl = ref(null); // 当前使用的预设音频OSS URL（如果来自预设）
 
 // 音频播放器相关
 const waveformRef = ref(null);
@@ -348,6 +462,8 @@ const handleRefAudioFileChange = async (event) => {
 const clearRefAudioFile = () => {
   refAudioFile.value = null;
   audioDuration.value = null;
+  currentPresetAudioUrl.value = null; // 清除预设URL
+  selectedPresetId.value = ''; // 清除预设选择
   if (refAudioFileInput.value) {
     refAudioFileInput.value.value = '';
   }
@@ -380,7 +496,7 @@ const validateForm = () => {
   }
   
   if (!refAudioFile.value) {
-    showSnackbar('请上传参考音频文件');
+    showSnackbar('请上传音色参考音频文件');
     isValid = false;
   }
   
@@ -429,7 +545,14 @@ const generateSpeechWithReference = async () => {
     const formData = new FormData();
     formData.append('text', inputText.value);
     formData.append('text_language', selectedLanguage.value);
-    formData.append('ref_wav_file', refAudioFile.value);
+    
+    // 如果使用预设，直接发送OSS URL；否则上传文件
+    if (currentPresetAudioUrl.value) {
+      formData.append('ref_audio_url', currentPresetAudioUrl.value);
+    } else {
+      formData.append('ref_wav_file', refAudioFile.value);
+    }
+    
     formData.append('prompt_text', promptText.value || '');
     formData.append('prompt_language', promptLanguage.value || '');
     formData.append('model_name', 'v2ProPlus');
@@ -583,6 +706,216 @@ onBeforeUnmount(() => {
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
   }
+});
+
+// ========== 预设管理功能 ==========
+
+// 获取语言标签
+const getLanguageLabel = (value) => {
+  const language = languages.find(lang => lang.value === value);
+  return language ? language.label : value;
+};
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// 计算是否可以保存预设
+const canSavePreset = computed(() => {
+  return refAudioFile.value && promptText.value.trim() && promptLanguage.value;
+});
+
+// 加载预设列表
+const loadPresets = async () => {
+  try {
+    const response = await axios.get(API_URLS.PRESET_LIST, {
+      headers: {
+        Authorization: `Bearer ${store.getters['auth/accessToken']}`
+      }
+    });
+    presets.value = response.data.presets || [];
+  } catch (error) {
+    console.error('加载预设列表失败:', error);
+    if (error.response?.status === 401) {
+      try {
+        await store.dispatch('auth/refreshToken');
+        await loadPresets();
+      } catch (refreshError) {
+        showSnackbar('登录已过期，请重新登录');
+        router.replace('/login');
+      }
+    } else {
+      showSnackbar('加载预设列表失败');
+    }
+  }
+};
+
+// 打开保存预设模态框
+const openPresetModal = () => {
+  if (!canSavePreset.value) {
+    showSnackbar('请先完成音色参考音频、提示文本和提示语言的设置');
+    return;
+  }
+  presetName.value = '';
+  showPresetModal.value = true;
+};
+
+// 关闭保存预设模态框
+const closePresetModal = () => {
+  showPresetModal.value = false;
+  presetName.value = '';
+};
+
+// 保存预设
+const savePreset = async () => {
+  if (!presetName.value.trim()) {
+    showSnackbar('请输入预设名称');
+    return;
+  }
+
+  if (!refAudioFile.value) {
+    showSnackbar('请先上传音色参考音频');
+    return;
+  }
+
+  isSavingPreset.value = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('name', presetName.value.trim());
+    formData.append('prompt_text', promptText.value);
+    formData.append('prompt_language', promptLanguage.value);
+    formData.append('ref_wav_file', refAudioFile.value);
+
+    const response = await axios.post(API_URLS.PRESET_SAVE, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${store.getters['auth/accessToken']}`
+      }
+    });
+
+    showSnackbar('预设保存成功');
+    closePresetModal();
+    await loadPresets(); // 重新加载预设列表
+  } catch (error) {
+    console.error('保存预设失败:', error);
+    if (error.response?.status === 401) {
+      try {
+        await store.dispatch('auth/refreshToken');
+        await savePreset();
+        return;
+      } catch (refreshError) {
+        showSnackbar('登录已过期，请重新登录');
+        router.replace('/login');
+        return;
+      }
+    }
+    const errorMessage = error.response?.data?.message || '保存预设失败';
+    showSnackbar(errorMessage);
+  } finally {
+    isSavingPreset.value = false;
+  }
+};
+
+// 选择预设
+const selectPreset = (preset) => {
+  // 保存预设的OSS URL，这样生成语音时可以直接使用，无需重新上传
+  currentPresetAudioUrl.value = preset.ref_audio_url;
+  
+  // 从 OSS URL 下载音频文件用于前端预览和时长检查
+  fetch(preset.ref_audio_url)
+    .then(response => response.blob())
+    .then(blob => {
+      const file = new File([blob], `preset_${preset.id}.wav`, { type: 'audio/wav' });
+      refAudioFile.value = file;
+      
+      // 更新提示文本和提示语言
+      promptText.value = preset.prompt_text;
+      promptLanguage.value = preset.prompt_language;
+      
+      // 清除文件输入的错误状态
+      promptTextError.value = '';
+      promptLanguageError.value = '';
+      
+      // 检查音频时长
+      getAudioDuration(file).then(duration => {
+        audioDuration.value = duration;
+        if (!isDurationValid()) {
+          showSnackbar(`预设音频时长${duration.toFixed(2)}秒，不在3-10秒范围内`);
+        }
+      }).catch(() => {
+        // 如果无法读取时长，继续使用
+      });
+      
+      selectedPresetId.value = preset.id;
+      showSnackbar(`已加载预设: ${preset.name}`);
+    })
+    .catch(error => {
+      console.error('加载预设音频失败:', error);
+      showSnackbar('加载预设音频失败');
+    });
+};
+
+// 加载预设（从下拉框选择）
+const loadPreset = () => {
+  if (!selectedPresetId.value) {
+    return;
+  }
+  const preset = presets.value.find(p => p.id === parseInt(selectedPresetId.value));
+  if (preset) {
+    selectPreset(preset);
+  }
+};
+
+// 删除预设
+const deletePreset = async (presetId) => {
+  if (!confirm('确定要删除这个预设吗？')) {
+    return;
+  }
+
+  try {
+    await axios.delete(`${API_URLS.PRESET_DELETE}/${presetId}`, {
+      headers: {
+        Authorization: `Bearer ${store.getters['auth/accessToken']}`
+      }
+    });
+
+    showSnackbar('预设删除成功');
+    await loadPresets(); // 重新加载预设列表
+    
+    // 如果删除的是当前选中的预设，清除选择
+    if (selectedPresetId.value == presetId) {
+      selectedPresetId.value = '';
+    }
+  } catch (error) {
+    console.error('删除预设失败:', error);
+    if (error.response?.status === 401) {
+      try {
+        await store.dispatch('auth/refreshToken');
+        await deletePreset(presetId);
+        return;
+      } catch (refreshError) {
+        showSnackbar('登录已过期，请重新登录');
+        router.replace('/login');
+        return;
+      }
+    }
+    showSnackbar('删除预设失败');
+  }
+};
+
+// 组件挂载时加载预设列表
+onMounted(() => {
+  loadPresets();
 });
 </script>
 
@@ -861,6 +1194,20 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.quality-tip {
+  background-color: #fff7e6;
+  border-left-color: #ff9800;
+  margin-top: 8px;
+}
+
+.quality-tip i {
+  color: #ff9800;
+}
+
+.quality-tip strong {
+  color: #ff9800;
+}
+
 .input-error {
   border-color: #ff4d4d !important;
   box-shadow: 0 0 0 3px rgba(255, 77, 77, 0.1) !important;
@@ -1090,6 +1437,238 @@ onBeforeUnmount(() => {
     padding: 12px 24px;
     font-size: 14px;
   }
+}
+
+/* 预设管理样式 */
+.preset-section {
+  margin-top: 30px;
+  padding: 20px;
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  border-radius: 12px;
+  border: 1px solid rgba(66, 185, 131, 0.2);
+}
+
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
+}
+
+.preset-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.preset-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.button-secondary {
+  background-color: #f0f0f0;
+  color: #42b983;
+  border: 1px solid #42b983;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background-color: #42b983;
+  color: white;
+}
+
+.button-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preset-list {
+  margin-top: 15px;
+}
+
+.preset-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.preset-item:hover {
+  border-color: #42b983;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.1);
+}
+
+.preset-info {
+  flex: 1;
+}
+
+.preset-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.preset-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 12px;
+  color: #666;
+}
+
+.preset-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #42b983;
+  color: white;
+}
+
+.preset-action-btn:hover {
+  background-color: #3aa876;
+  transform: translateY(-1px);
+}
+
+.preset-action-btn.delete-btn {
+  background-color: #ff4d4d;
+}
+
+.preset-action-btn.delete-btn:hover {
+  background-color: #ff1a1a;
+}
+
+.no-presets {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-presets i {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #2c3e50;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.preset-preview {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #42b983;
+}
+
+.preset-preview p {
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.preset-preview ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #666;
+}
+
+.preset-preview li {
+  margin-bottom: 5px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.button-cancel {
+  background-color: #f0f0f0;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.button-cancel:hover {
+  background-color: #e0e0e0;
 }
 </style>
 

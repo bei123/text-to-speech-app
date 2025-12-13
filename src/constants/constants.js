@@ -13,6 +13,9 @@ export const API_URLS = {
     MODELS: `${API_BASE_URL}/models`,
     CALL_DEEPSEEK: `${API_BASE_URL}/call-deepseek`,
     MODEL_PROMPT: `${API_BASE_URL}/models/model-prompt`,
+    PRESET_SAVE: `${API_BASE_URL}/presets/save`,
+    PRESET_LIST: `${API_BASE_URL}/presets/list`,
+    PRESET_DELETE: `${API_BASE_URL}/presets`,
 };
 
 export const LOCAL_STORAGE_KEYS = {
