@@ -50,6 +50,13 @@
       </div>
       <div v-if="refAudioFile" class="file-info">
         <span>文件大小: {{ formatFileSize(refAudioFile.size) }}</span>
+        <span v-if="isCheckingDuration" class="duration-checking">正在检查音频时长...</span>
+        <span v-else-if="audioDuration !== null" :class="['duration-info', getDurationClass()]">
+          时长: {{ formatDuration(audioDuration) }}
+          <span v-if="!isDurationValid()" class="duration-warning">
+            (要求3-10秒)
+          </span>
+        </span>
       </div>
     </div>
 
@@ -123,6 +130,8 @@ const refAudioFile = ref(null);
 const refAudioFileInput = ref(null);
 const audioUrl = ref('');
 const isLoading = ref(false);
+const audioDuration = ref(null); // 音频时长（秒）
+const isCheckingDuration = ref(false); // 是否正在检查时长
 
 // 音频播放器相关
 const waveformRef = ref(null);
@@ -144,8 +153,35 @@ const store = useStore();
 
 // 计算是否可以生成
 const canGenerate = computed(() => {
+  // 如果文件已选择但时长还没检查完，允许继续（后端会验证）
+  if (refAudioFile.value && isCheckingDuration.value) {
+    return false; // 正在检查时禁用按钮
+  }
+  // 如果时长已检查且无效，禁用按钮
+  if (refAudioFile.value && audioDuration.value !== null && !isDurationValid()) {
+    return false;
+  }
   return inputText.value.trim() && refAudioFile.value;
 });
+
+// 检查时长是否有效（3-10秒）
+const isDurationValid = () => {
+  if (audioDuration.value === null) return true; // 如果还没检查，先允许
+  return audioDuration.value >= 3 && audioDuration.value <= 10;
+};
+
+// 获取时长样式类
+const getDurationClass = () => {
+  if (audioDuration.value === null) return '';
+  if (isDurationValid()) return 'duration-valid';
+  return 'duration-invalid';
+};
+
+// 格式化时长显示
+const formatDuration = (seconds) => {
+  if (!seconds) return '0秒';
+  return `${seconds.toFixed(2)}秒`;
+};
 
 // 格式化文件大小
 const formatFileSize = (bytes) => {
@@ -211,8 +247,28 @@ const showSnackbar = (message) => {
   }, 3000);
 };
 
+// 获取音频时长
+const getAudioDuration = (file) => {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    const url = URL.createObjectURL(file);
+    
+    audio.addEventListener('loadedmetadata', () => {
+      URL.revokeObjectURL(url);
+      resolve(audio.duration);
+    });
+    
+    audio.addEventListener('error', (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error('无法读取音频文件'));
+    });
+    
+    audio.src = url;
+  });
+};
+
 // 处理参考音频文件选择
-const handleRefAudioFileChange = (event) => {
+const handleRefAudioFileChange = async (event) => {
   const file = event.target.files[0];
   if (file) {
     // 验证文件类型
@@ -234,6 +290,28 @@ const handleRefAudioFileChange = (event) => {
       return;
     }
     
+    // 检查音频时长
+    isCheckingDuration.value = true;
+    audioDuration.value = null;
+    
+    try {
+      const duration = await getAudioDuration(file);
+      audioDuration.value = duration;
+      
+      if (duration < 3) {
+        showSnackbar(`音频时长过短（${duration.toFixed(2)}秒），要求时长在3-10秒之间`);
+      } else if (duration > 10) {
+        showSnackbar(`音频时长过长（${duration.toFixed(2)}秒），要求时长在3-10秒之间`);
+      }
+    } catch (error) {
+      console.error('获取音频时长失败:', error);
+      // 即使获取时长失败，也允许上传，让后端验证
+      audioDuration.value = null;
+      showSnackbar('无法读取音频时长，将在上传时验证');
+    } finally {
+      isCheckingDuration.value = false;
+    }
+    
     refAudioFile.value = file;
   }
 };
@@ -241,6 +319,7 @@ const handleRefAudioFileChange = (event) => {
 // 清除参考音频文件
 const clearRefAudioFile = () => {
   refAudioFile.value = null;
+  audioDuration.value = null;
   if (refAudioFileInput.value) {
     refAudioFileInput.value.value = '';
   }
@@ -650,6 +729,33 @@ onBeforeUnmount(() => {
   margin-top: 8px;
   font-size: 12px;
   color: #666;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.duration-checking {
+  color: #42b983;
+  font-style: italic;
+}
+
+.duration-info {
+  display: inline-block;
+}
+
+.duration-valid {
+  color: #42b983;
+  font-weight: 500;
+}
+
+.duration-invalid {
+  color: #ff4d4d;
+  font-weight: 500;
+}
+
+.duration-warning {
+  color: #ff9800;
+  margin-left: 4px;
 }
 
 /* 生成语音按钮样式 */

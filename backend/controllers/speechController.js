@@ -3,6 +3,7 @@ const fs = require('fs');
 const FormData = require('form-data');
 const axios = require('axios');
 const CryptoJS = require('crypto-js');
+const { parseFile } = require('music-metadata');
 const pool = require('../config/db');
 const redisClient = require('../config/redis');
 const speechQueue = require('../config/queue');
@@ -276,6 +277,35 @@ const generateSpeechWithReference = async (req, res) => {
         // 验证文件是否存在
         if (!fs.existsSync(ref_wav_file.path)) {
             return res.status(400).json({ message: '上传的文件不存在' });
+        }
+        
+        // 验证音频文件时长（3-10秒）
+        try {
+            const metadata = await parseFile(ref_wav_file.path);
+            const duration = metadata.format.duration; // 时长（秒）
+            
+            console.log('音频文件时长:', duration, '秒');
+            
+            if (!duration) {
+                return res.status(400).json({ message: '无法读取音频文件时长，请确保文件格式正确' });
+            }
+            
+            if (duration < 3) {
+                return res.status(400).json({ 
+                    message: `音频时长过短（${duration.toFixed(2)}秒），要求时长在3-10秒之间` 
+                });
+            }
+            
+            if (duration > 10) {
+                return res.status(400).json({ 
+                    message: `音频时长过长（${duration.toFixed(2)}秒），要求时长在3-10秒之间` 
+                });
+            }
+        } catch (metadataError) {
+            console.error('读取音频元数据失败:', metadataError);
+            return res.status(400).json({ 
+                message: '无法读取音频文件信息，请确保文件格式正确（支持 WAV、MP3）' 
+            });
         }
 
         // 获取用户信息
