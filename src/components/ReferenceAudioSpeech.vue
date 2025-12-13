@@ -3,185 +3,251 @@
     <h1 class="page-title">自定义音色</h1>
     <p class="page-description">上传参考音频文件，使用 v2ProPlus 模型生成自定义音色语音</p>
 
-    <!-- 文本输入框 -->
-    <div class="form-group">
-      <label for="input-text" class="form-label">输入要生成的文本：</label>
-      <textarea 
-        id="input-text"
-        v-model="inputText" 
-        placeholder="请输入要生成的文本" 
-        class="input-field"
-      ></textarea>
-    </div>
-
-    <!-- 语言选择 -->
-    <div class="form-group">
-      <label for="language-select" class="form-label">选择文本语言：</label>
-      <div class="select-wrapper">
-        <select id="language-select" v-model="selectedLanguage" class="select-field">
-          <option v-for="language in languages" :key="language.value" :value="language.value">
-            {{ language.label }}
-          </option>
-        </select>
-        <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
-      </div>
-    </div>
-
-    <!-- 参考音频上传区域 -->
-    <div class="form-group">
-      <label for="ref-audio-file" class="form-label">
-        上传音色参考音频 (WAV/MP3，最大 50MB) <span class="required-mark">*</span>
-      </label>
-      <div class="help-text">
-        <i class="fas fa-info-circle"></i>
-        参考音频时长必须在 <strong>3-10秒</strong> 之间
-      </div>
-      <div class="help-text quality-tip">
-        <i class="fas fa-microphone-alt"></i>
-        <span>
-          <strong>音频质量要求：</strong>
-          最好要干净，无背景杂音，只有一个人的声音，清晰
-        </span>
-      </div>
-      <div class="file-upload-wrapper">
-        <input 
-          type="file" 
-          id="ref-audio-file" 
-          ref="refAudioFileInput"
-          @change="handleRefAudioFileChange" 
-          accept="audio/wav,audio/mpeg,audio/mp3,.wav,.mp3"
-          class="file-input"
-        />
-        <label for="ref-audio-file" class="file-upload-label">
-          <i class="fas fa-upload"></i>
-          <span v-if="!refAudioFile">点击选择音频文件或拖拽文件到此处</span>
-          <span v-else class="file-name">{{ refAudioFile.name }}</span>
+    <!-- 主要操作区域：预设选择 + 文本输入（一体化流程） -->
+    <div class="main-action-section">
+      <!-- 预设快速选择（更显眼） -->
+      <div v-if="presets.length > 0" class="preset-quick-section">
+        <label class="preset-quick-label">
+          <i class="fas fa-star"></i> 快速使用预设（可选）
         </label>
-        <button v-if="refAudioFile" @click="clearRefAudioFile" class="clear-file-button" type="button">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div v-if="refAudioFile" class="file-info">
-        <span>文件大小: {{ formatFileSize(refAudioFile.size) }}</span>
-        <span v-if="isCheckingDuration" class="duration-checking">正在检查音频时长...</span>
-        <span v-else-if="audioDuration !== null" :class="['duration-info', getDurationClass()]">
-          时长: {{ formatDuration(audioDuration) }}
-          <span v-if="!isDurationValid()" class="duration-warning">
-            (要求3-10秒)
-          </span>
-        </span>
-      </div>
-    </div>
-
-    <!-- 提示文本 -->
-    <div class="form-group">
-      <label for="prompt-text" class="form-label">
-        提示文本 <span class="required-mark">*</span>
-      </label>
-      <div class="help-text">
-        <i class="fas fa-info-circle"></i>
-        提示文本必须与音色参考音频的内容完全一致
-      </div>
-      <textarea 
-        id="prompt-text" 
-        v-model="promptText" 
-        placeholder="请输入与音色参考音频内容完全一致的文本" 
-        class="input-field prompt-text-field"
-        :class="{ 'input-error': promptTextError }"
-      ></textarea>
-      <div v-if="promptTextError" class="error-message">{{ promptTextError }}</div>
-    </div>
-
-    <!-- 提示语言 -->
-    <div class="form-group">
-      <label for="prompt-language-select" class="form-label">
-        提示语言 <span class="required-mark">*</span>
-      </label>
-      <div class="select-wrapper">
-        <select 
-          id="prompt-language-select" 
-          v-model="promptLanguage" 
-          class="select-field"
-          :class="{ 'input-error': promptLanguageError }"
-        >
-          <option value="">请选择提示语言</option>
-          <option v-for="language in languages" :key="language.value" :value="language.value">
-            {{ language.label }}
-          </option>
-        </select>
-        <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
-      </div>
-      <div v-if="promptLanguageError" class="error-message">{{ promptLanguageError }}</div>
-    </div>
-
-    <!-- 预设管理区域 -->
-    <div class="preset-section">
-      <div class="preset-header">
-        <h3 class="preset-title">音色预设</h3>
-        <div class="preset-actions">
-          <button @click="openPresetModal" class="button button-secondary" :disabled="!canSavePreset">
-            <i class="fas fa-save"></i> 保存预设
+        <div class="preset-quick-select-wrapper">
+          <div class="select-wrapper">
+            <select 
+              id="preset-select" 
+              v-model="selectedPresetId" 
+              @change="loadPreset"
+              class="select-field preset-select-field"
+            >
+              <option value="">不使用预设，手动配置</option>
+              <option v-for="preset in presets" :key="preset.id" :value="preset.id">
+                {{ preset.name }}
+              </option>
+            </select>
+            <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>
+          <button v-if="selectedPresetId" @click="clearPreset" class="clear-preset-btn-small" type="button" title="清除预设">
+            <i class="fas fa-times"></i>
           </button>
-          <button @click="loadPresets" class="button button-secondary">
-            <i class="fas fa-sync-alt"></i> 刷新
+        </div>
+        <div v-if="selectedPresetId" class="preset-active-badge">
+          <i class="fas fa-check-circle"></i>
+          <span>已选择: {{ getPresetName(selectedPresetId) }}</span>
+        </div>
+      </div>
+
+      <!-- 文本输入区域（核心操作） -->
+      <div class="text-input-section">
+        <label for="input-text" class="form-label main-label">
+          <i class="fas fa-edit"></i> 输入要生成的文本 <span class="required-mark">*</span>
+        </label>
+        <textarea 
+          id="input-text"
+          ref="inputTextRef"
+          v-model="inputText" 
+          placeholder="请输入要生成的文本..." 
+          class="input-field main-textarea"
+          rows="4"
+        ></textarea>
+        
+        <div class="language-row">
+          <label for="language-select" class="form-label inline-label">文本语言：</label>
+          <div class="select-wrapper inline-select">
+            <select id="language-select" v-model="selectedLanguage" class="select-field">
+              <option v-for="language in languages" :key="language.value" :value="language.value">
+                {{ language.label }}
+              </option>
+            </select>
+            <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 生成按钮（显眼位置） -->
+      <button 
+        @click="generateSpeechWithReference" 
+        :disabled="isLoading || !canGenerate" 
+        class="button button-primary generate-button-large"
+      >
+        <i class="fas" :class="isLoading ? 'fa-spinner fa-spin' : 'fa-magic'"></i>
+        <span v-if="!isLoading">生成语音</span>
+        <span v-else>生成中...</span>
+      </button>
+    </div>
+
+    <!-- 音色配置区域（可折叠，使用预设时自动隐藏） -->
+    <div class="config-section" :class="{ 'section-collapsed': selectedPresetId, 'section-disabled': selectedPresetId }">
+      <div class="section-header-toggle" @click="toggleConfigSection">
+        <h3 class="section-title">
+          <i class="fas fa-cog"></i> 音色配置
+          <span v-if="selectedPresetId" class="preset-indicator">
+            <i class="fas fa-lock"></i> 已通过预设自动填充（不可修改）
+          </span>
+        </h3>
+        <i class="fas toggle-icon" :class="showConfigSection ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+      </div>
+      
+      <div v-if="showConfigSection" class="section-content" :class="{ 'content-disabled': selectedPresetId }">
+
+      <!-- 参考音频上传区域 -->
+      <div class="form-group">
+        <label for="ref-audio-file" class="form-label">
+          上传音色参考音频 <span class="required-mark">*</span>
+          <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+        </label>
+        <div class="help-text-group">
+          <div class="help-text">
+            <i class="fas fa-info-circle"></i>
+            时长必须在 <strong>3-10秒</strong> 之间，支持格式：WAV/MP3/M4A/AAC/OGG/FLAC，最大 50MB
+            <br>
+            <span style="color: #42b983; font-size: 11px;">
+              <i class="fas fa-magic"></i> 非 WAV 格式将自动转换为 WAV
+            </span>
+          </div>
+          <div class="help-text quality-tip">
+            <i class="fas fa-microphone-alt"></i>
+            <span><strong>质量要求：</strong>干净、无背景杂音、单人声音、清晰</span>
+          </div>
+        </div>
+        <div 
+          class="file-upload-wrapper" 
+          :class="{ 'disabled': selectedPresetId, 'drag-over': isDragOver }"
+          @dragover.prevent="handleDragOver"
+          @dragenter.prevent="handleDragEnter"
+          @dragleave.prevent="handleDragLeave"
+          @drop.prevent="handleDrop"
+        >
+          <input 
+            type="file" 
+            id="ref-audio-file" 
+            ref="refAudioFileInput"
+            @change="handleRefAudioFileChange" 
+            accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac"
+            class="file-input"
+            :disabled="!!selectedPresetId"
+          />
+          <label for="ref-audio-file" class="file-upload-label" :class="{ 'disabled': selectedPresetId }">
+            <i class="fas fa-upload"></i>
+            <span v-if="!refAudioFile">点击选择音频文件或拖拽到此处</span>
+            <span v-else class="file-name">{{ refAudioFile.name }}</span>
+          </label>
+          <button 
+            v-if="refAudioFile && !selectedPresetId" 
+            @click="clearRefAudioFile" 
+            class="clear-file-button" 
+            type="button" 
+            title="清除文件"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div v-if="refAudioFile" class="file-info">
+          <span class="file-info-item">文件大小: {{ formatFileSize(refAudioFile.size) }}</span>
+          <span v-if="isCheckingDuration" class="duration-checking">正在检查音频时长...</span>
+          <span v-else-if="audioDuration !== null" :class="['duration-info', getDurationClass()]">
+            时长: {{ formatDuration(audioDuration) }}
+            <span v-if="!isDurationValid()" class="duration-warning">(要求3-10秒)</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- 提示文本和提示语言（并排显示） -->
+      <div class="form-row">
+        <div class="form-group form-group-half">
+          <label for="prompt-text" class="form-label">
+            提示文本 <span class="required-mark">*</span>
+            <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+          </label>
+          <div class="help-text-inline">
+            <i class="fas fa-info-circle"></i>
+            必须与参考音频内容完全一致
+          </div>
+          <textarea 
+            id="prompt-text" 
+            v-model="promptText" 
+            placeholder="请输入与音色参考音频内容完全一致的文本" 
+            class="input-field prompt-text-field"
+            :class="{ 'input-error': promptTextError, 'readonly': selectedPresetId }"
+            :readonly="!!selectedPresetId"
+          ></textarea>
+          <div v-if="promptTextError" class="error-message">{{ promptTextError }}</div>
+        </div>
+
+        <div class="form-group form-group-half">
+          <label for="prompt-language-select" class="form-label">
+            提示语言 <span class="required-mark">*</span>
+            <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+          </label>
+          <div class="select-wrapper">
+            <select 
+              id="prompt-language-select" 
+              v-model="promptLanguage" 
+              class="select-field"
+              :class="{ 'input-error': promptLanguageError, 'readonly': selectedPresetId }"
+              :disabled="!!selectedPresetId"
+            >
+              <option value="">请选择</option>
+              <option v-for="language in languages" :key="language.value" :value="language.value">
+                {{ language.label }}
+              </option>
+            </select>
+            <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>
+          <div v-if="promptLanguageError" class="error-message">{{ promptLanguageError }}</div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- 预设管理区域（折叠式） -->
+    <div class="preset-section preset-section-bottom">
+      <div class="preset-header" @click="togglePresetList">
+        <h3 class="preset-title">
+          <i class="fas" :class="showPresetList ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+          预设管理
+        </h3>
+        <div class="preset-actions" @click.stop>
+          <button @click.stop="openPresetModal" class="button button-secondary" :disabled="!canSavePreset">
+            <i class="fas fa-save"></i> 保存当前配置
           </button>
         </div>
       </div>
       
-      <!-- 预设选择 -->
-      <div class="form-group">
-        <label for="preset-select" class="form-label">选择预设（可选）：</label>
-        <div class="select-wrapper">
-          <select 
-            id="preset-select" 
-            v-model="selectedPresetId" 
-            @change="loadPreset"
-            class="select-field"
+      <!-- 预设列表（可折叠） -->
+      <div v-if="showPresetList" class="preset-list-container">
+        <div v-if="presets.length > 0" class="preset-list">
+          <div 
+            v-for="preset in presets" 
+            :key="preset.id" 
+            class="preset-item"
+            :class="{ 'preset-active': selectedPresetId == preset.id }"
           >
-            <option value="">不使用预设</option>
-            <option v-for="preset in presets" :key="preset.id" :value="preset.id">
-              {{ preset.name }} ({{ formatDate(preset.updated_at) }})
-            </option>
-          </select>
-          <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
-        </div>
-      </div>
-
-      <!-- 预设列表 -->
-      <div v-if="presets.length > 0" class="preset-list">
-        <div v-for="preset in presets" :key="preset.id" class="preset-item">
-          <div class="preset-info">
-            <div class="preset-name">{{ preset.name }}</div>
-            <div class="preset-meta">
-              <span>提示语言: {{ getLanguageLabel(preset.prompt_language) }}</span>
-              <span>更新时间: {{ formatDate(preset.updated_at) }}</span>
+            <div class="preset-info" @click="selectPreset(preset)">
+              <div class="preset-name">
+                <i v-if="selectedPresetId == preset.id" class="fas fa-check-circle active-icon"></i>
+                {{ preset.name }}
+              </div>
+              <div class="preset-meta">
+                <span><i class="fas fa-language"></i> {{ getLanguageLabel(preset.prompt_language) }}</span>
+                <span><i class="fas fa-clock"></i> {{ formatDate(preset.updated_at) }}</span>
+              </div>
+            </div>
+            <div class="preset-item-actions" @click.stop>
+              <button @click="selectPreset(preset)" class="preset-action-btn" :class="{ 'active': selectedPresetId == preset.id }">
+                <i class="fas fa-check"></i> {{ selectedPresetId == preset.id ? '已使用' : '使用' }}
+              </button>
+              <button @click="deletePreset(preset.id)" class="preset-action-btn delete-btn" title="删除预设">
+                <i class="fas fa-trash"></i>
+              </button>
             </div>
           </div>
-          <div class="preset-item-actions">
-            <button @click="selectPreset(preset)" class="preset-action-btn">
-              <i class="fas fa-check"></i> 使用
-            </button>
-            <button @click="deletePreset(preset.id)" class="preset-action-btn delete-btn">
-              <i class="fas fa-trash"></i> 删除
-            </button>
-          </div>
         </div>
-      </div>
-      <div v-else class="no-presets">
-        <i class="fas fa-inbox"></i>
-        <p>暂无预设，保存当前配置后可在此处快速使用</p>
+        <div v-else class="no-presets">
+          <i class="fas fa-inbox"></i>
+          <p>暂无预设，完成上方配置后点击"保存当前配置"按钮创建预设</p>
+        </div>
       </div>
     </div>
 
-    <!-- 生成语音按钮 -->
-    <button 
-      @click="generateSpeechWithReference" 
-      :disabled="isLoading || !canGenerate" 
-      class="button button-primary generate-button"
-    >
-      <span v-if="!isLoading">生成语音</span>
-      <span v-else class="loading-spinner"></span>
-    </button>
 
     <!-- 保存预设模态框 -->
     <div v-if="showPresetModal" class="modal-overlay" @click="closePresetModal">
@@ -270,6 +336,10 @@ const showPresetModal = ref(false); // 显示保存预设模态框
 const presetName = ref(''); // 预设名称
 const isSavingPreset = ref(false); // 是否正在保存预设
 const currentPresetAudioUrl = ref(null); // 当前使用的预设音频OSS URL（如果来自预设）
+const showPresetList = ref(false); // 是否显示预设列表
+const showConfigSection = ref(true); // 是否显示配置区域
+const inputTextRef = ref(null); // 文本输入框引用
+const isDragOver = ref(false); // 是否正在拖拽
 
 // 音频播放器相关
 const waveformRef = ref(null);
@@ -409,61 +479,238 @@ const getAudioDuration = (file) => {
   });
 };
 
+// 将音频文件转换为 WAV 格式
+const convertToWav = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target.result;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 解码音频文件
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // 转换为 WAV
+        const wavBuffer = audioBufferToWav(audioBuffer);
+        const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+        
+        // 创建新的 File 对象
+        const fileName = file.name.replace(/\.[^/.]+$/, '') + '.wav';
+        const wavFile = new File([wavBlob], fileName, { type: 'audio/wav' });
+        
+        resolve(wavFile);
+      } catch (error) {
+        console.error('音频转换失败:', error);
+        reject(error);
+      }
+    };
+    
+    reader.onerror = (error) => {
+      reject(error);
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+// 将 AudioBuffer 转换为 WAV 格式
+const audioBufferToWav = (buffer) => {
+  const length = buffer.length;
+  const numberOfChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+  const view = new DataView(arrayBuffer);
+  const channels = [];
+  let offset = 0;
+  let pos = 0;
+
+  // WAV 文件头
+  const setUint16 = (data) => {
+    view.setUint16(pos, data, true);
+    pos += 2;
+  };
+  const setUint32 = (data) => {
+    view.setUint32(pos, data, true);
+    pos += 4;
+  };
+
+  // RIFF 标识
+  setUint32(0x46464952); // "RIFF"
+  setUint32(length * numberOfChannels * 2 + 36); // 文件大小 - 8
+  setUint32(0x45564157); // "WAVE"
+
+  // fmt 子块
+  setUint32(0x20746d66); // "fmt "
+  setUint32(16); // 子块大小
+  setUint16(1); // 音频格式 (PCM)
+  setUint16(numberOfChannels); // 声道数
+  setUint32(sampleRate); // 采样率
+  setUint32(sampleRate * numberOfChannels * 2); // 字节率
+  setUint16(numberOfChannels * 2); // 块对齐
+  setUint16(16); // 位深度
+
+  // data 子块
+  setUint32(0x61746164); // "data"
+  setUint32(length * numberOfChannels * 2); // 数据大小
+
+  // 写入 PCM 数据
+  for (let i = 0; i < numberOfChannels; i++) {
+    channels.push(buffer.getChannelData(i));
+  }
+
+  while (pos < arrayBuffer.byteLength) {
+    for (let i = 0; i < numberOfChannels; i++) {
+      let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+      sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(pos, sample, true);
+      pos += 2;
+    }
+    offset++;
+  }
+
+  return arrayBuffer;
+};
+
 // 处理参考音频文件选择
 const handleRefAudioFileChange = async (event) => {
+  // 如果使用预设，不允许修改
+  if (selectedPresetId.value) {
+    event.target.value = ''; // 清空选择
+    showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
+    return;
+  }
+  
   const file = event.target.files[0];
   if (file) {
-    // 验证文件类型
-    const allowedTypes = ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'];
-    const allowedExtensions = ['.wav', '.mp3'];
-    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-    
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-      showSnackbar('请选择有效的音频文件 (WAV 或 MP3)');
-      event.target.value = '';
-      return;
+    await processAudioFile(file);
+  }
+};
+
+// 统一的音频文件处理函数
+const processAudioFile = async (file) => {
+  // 验证文件类型
+  const allowedTypes = ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'audio/mp3', 'audio/m4a', 'audio/aac', 'audio/ogg', 'audio/flac'];
+  const allowedExtensions = ['.wav', '.mp3', '.m4a', '.aac', '.ogg', '.flac'];
+  const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+  
+  if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+    showSnackbar('请选择有效的音频文件 (WAV, MP3, M4A, AAC, OGG, FLAC)');
+    if (refAudioFileInput.value) {
+      refAudioFileInput.value.value = '';
     }
-    
-    // 验证文件大小（50MB）
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      showSnackbar('文件大小不能超过 50MB');
-      event.target.value = '';
-      return;
+    return;
+  }
+  
+  // 验证文件大小（50MB）
+  const maxSize = 50 * 1024 * 1024;
+  if (file.size > maxSize) {
+    showSnackbar('文件大小不能超过 50MB');
+    if (refAudioFileInput.value) {
+      refAudioFileInput.value.value = '';
     }
-    
-    // 检查音频时长
-    isCheckingDuration.value = true;
-    audioDuration.value = null;
-    
+    return;
+  }
+  
+  // 检查是否需要转换（如果不是 WAV 格式）
+  const isWav = file.type === 'audio/wav' || file.type === 'audio/wave' || file.type === 'audio/x-wav' || fileExtension === '.wav';
+  let processedFile = file;
+  
+  if (!isWav) {
+    // 显示转换提示
+    showSnackbar('正在将音频转换为 WAV 格式...');
     try {
-      const duration = await getAudioDuration(file);
-      audioDuration.value = duration;
-      
-      if (duration < 3) {
-        showSnackbar(`音频时长过短（${duration.toFixed(2)}秒），要求时长在3-10秒之间`);
-      } else if (duration > 10) {
-        showSnackbar(`音频时长过长（${duration.toFixed(2)}秒），要求时长在3-10秒之间`);
-      }
+      processedFile = await convertToWav(file);
+      showSnackbar('音频已转换为 WAV 格式');
     } catch (error) {
-      console.error('获取音频时长失败:', error);
-      // 即使获取时长失败，也允许上传，让后端验证
-      audioDuration.value = null;
-      showSnackbar('无法读取音频时长，将在上传时验证');
-    } finally {
-      isCheckingDuration.value = false;
+      console.error('音频转换失败:', error);
+      showSnackbar('音频转换失败，将使用原文件');
+      // 如果转换失败，继续使用原文件
     }
+  }
+  
+  // 检查音频时长
+  isCheckingDuration.value = true;
+  audioDuration.value = null;
+  
+  try {
+    const duration = await getAudioDuration(processedFile);
+    audioDuration.value = duration;
     
-    refAudioFile.value = file;
+    if (duration < 3) {
+      showSnackbar(`音频时长过短（${formatDuration(duration)}），要求时长在3-10秒之间`);
+    } else if (duration > 10) {
+      showSnackbar(`音频时长过长（${formatDuration(duration)}），要求时长在3-10秒之间`);
+    }
+  } catch (error) {
+    console.error('获取音频时长失败:', error);
+    audioDuration.value = null;
+    showSnackbar('无法读取音频时长，将在上传时验证');
+  } finally {
+    isCheckingDuration.value = false;
+  }
+  
+  refAudioFile.value = processedFile;
+};
+
+// 拖拽上传相关函数
+const handleDragOver = (event) => {
+  if (selectedPresetId.value) {
+    return;
+  }
+  event.preventDefault();
+  isDragOver.value = true;
+};
+
+const handleDragEnter = (event) => {
+  if (selectedPresetId.value) {
+    return;
+  }
+  event.preventDefault();
+  isDragOver.value = true;
+};
+
+const handleDragLeave = (event) => {
+  if (selectedPresetId.value) {
+    return;
+  }
+  // 只有当离开整个上传区域时才取消高亮
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX;
+  const y = event.clientY;
+  
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+    isDragOver.value = false;
+  }
+};
+
+const handleDrop = async (event) => {
+  if (selectedPresetId.value) {
+    showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
+    isDragOver.value = false;
+    return;
+  }
+  
+  event.preventDefault();
+  isDragOver.value = false;
+  
+  const files = event.dataTransfer.files;
+  if (files.length > 0) {
+    const file = files[0];
+    await processAudioFile(file);
   }
 };
 
 // 清除参考音频文件
 const clearRefAudioFile = () => {
+  // 如果使用预设，不允许清除
+  if (selectedPresetId.value) {
+    showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
+    return;
+  }
   refAudioFile.value = null;
   audioDuration.value = null;
-  currentPresetAudioUrl.value = null; // 清除预设URL
-  selectedPresetId.value = ''; // 清除预设选择
   if (refAudioFileInput.value) {
     refAudioFileInput.value.value = '';
   }
@@ -716,6 +963,35 @@ const getLanguageLabel = (value) => {
   return language ? language.label : value;
 };
 
+// 获取预设名称
+const getPresetName = (presetId) => {
+  const preset = presets.value.find(p => p.id === parseInt(presetId));
+  return preset ? preset.name : '';
+};
+
+// 切换预设列表显示
+const togglePresetList = () => {
+  showPresetList.value = !showPresetList.value;
+};
+
+// 切换配置区域显示
+const toggleConfigSection = () => {
+  showConfigSection.value = !showConfigSection.value;
+};
+
+// 清除预设选择
+const clearPreset = () => {
+  selectedPresetId.value = '';
+  currentPresetAudioUrl.value = null;
+  clearRefAudioFile();
+  promptText.value = '';
+  promptLanguage.value = '';
+  showConfigSection.value = true; // 清除预设后展开配置区域
+  showSnackbar('已清除预设选择');
+};
+
+// ========== 预设管理功能 ==========
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '';
@@ -858,6 +1134,18 @@ const selectPreset = (preset) => {
       
       selectedPresetId.value = preset.id;
       showSnackbar(`已加载预设: ${preset.name}`);
+      
+      // 自动聚焦到文本输入框
+      nextTick(() => {
+        if (inputTextRef.value) {
+          inputTextRef.value.focus();
+        }
+      });
+      
+      // 如果使用预设，自动折叠配置区域
+      if (!showConfigSection.value) {
+        showConfigSection.value = false;
+      }
     })
     .catch(error => {
       console.error('加载预设音频失败:', error);
@@ -1415,6 +1703,31 @@ onMounted(() => {
     font-size: 24px;
   }
 
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .form-group-half {
+    margin-bottom: 24px;
+  }
+
+  .preset-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .preset-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .preset-item-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
   .audio-preview {
     padding: 16px;
   }
@@ -1439,29 +1752,423 @@ onMounted(() => {
   }
 }
 
+/* 主要操作区域 */
+.main-action-section {
+  margin-top: 24px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f0f7ff, #ffffff);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.1);
+  border: 2px solid rgba(66, 185, 131, 0.2);
+}
+
+.preset-quick-section {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px dashed rgba(66, 185, 131, 0.2);
+}
+
+.preset-quick-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-quick-label i {
+  color: #ff9800;
+}
+
+.preset-quick-select-wrapper {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.preset-quick-select-wrapper .select-wrapper {
+  flex: 1;
+}
+
+.preset-select-field {
+  font-weight: 500;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+
+.clear-preset-btn-small {
+  padding: 10px 12px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.clear-preset-btn-small:hover {
+  background: #ff1a1a;
+  transform: scale(1.05);
+}
+
+.preset-active-badge {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+  border-radius: 8px;
+  border-left: 3px solid #42b983;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.preset-active-badge i {
+  color: #42b983;
+  font-size: 16px;
+}
+
+/* 文本输入区域 */
+.text-input-section {
+  margin-bottom: 20px;
+}
+
+.main-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main-label i {
+  color: #42b983;
+}
+
+.main-textarea {
+  font-size: 15px;
+  padding: 14px 16px;
+  min-height: 120px;
+  resize: vertical;
+  border: 2px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.main-textarea:focus {
+  border-color: #42b983;
+  box-shadow: 0 0 0 4px rgba(66, 185, 131, 0.1);
+  outline: none;
+}
+
+.language-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inline-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.inline-select {
+  min-width: 150px;
+}
+
+.generate-button-large {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #42b983, #3aa876);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(66, 185, 131, 0.3);
+  margin-top: 20px;
+}
+
+.generate-button-large:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 185, 131, 0.4);
+}
+
+.generate-button-large:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.generate-button-large:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.generate-button-large i {
+  font-size: 20px;
+}
+
+/* 配置区域样式 */
+.config-section {
+  margin-top: 24px;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.config-section.section-collapsed {
+  opacity: 0.7;
+}
+
+.config-section.section-disabled {
+  background: #f8f9fa;
+}
+
+.content-disabled {
+  position: relative;
+}
+
+.content-disabled::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 8px;
+}
+
+.readonly-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #ff9800;
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.file-upload-wrapper.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-upload-wrapper.drag-over {
+  border-color: #42b983 !important;
+  background: linear-gradient(135deg, rgba(66, 185, 131, 0.1), rgba(66, 185, 131, 0.05)) !important;
+  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.2) !important;
+  transform: scale(1.02);
+}
+
+.file-upload-wrapper.drag-over .file-upload-label {
+  background: linear-gradient(135deg, #42b983, #3aa876) !important;
+  color: white !important;
+  border-color: #42b983 !important;
+}
+
+.file-upload-wrapper.drag-over .file-upload-label i {
+  color: white !important;
+  transform: scale(1.2);
+}
+
+.file-upload-label.disabled {
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
+.file-upload-label.disabled:hover {
+  background: #f5f5f5;
+}
+
+.input-field.readonly,
+.select-field.readonly {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.input-field.readonly:focus,
+.select-field.readonly:focus {
+  border-color: #e0e0e0;
+  box-shadow: none;
+  outline: none;
+}
+
+.preset-indicator i {
+  margin-right: 4px;
+  color: #ff9800;
+}
+
+.section-header-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
+}
+
+.section-header-toggle:hover {
+  opacity: 0.8;
+}
+
+.section-header-toggle .section-title {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.preset-indicator {
+  font-size: 13px;
+  font-weight: normal;
+  color: #42b983;
+  margin-left: 8px;
+}
+
+.toggle-icon {
+  color: #666;
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+.section-content {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(66, 185, 131, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title i {
+  color: #42b983;
+}
+
+/* 表单行（并排显示） */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 0;
+}
+
+.form-group-half {
+  margin-bottom: 0;
+}
+
+.help-text-group {
+  margin-bottom: 12px;
+}
+
+.help-text-inline {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.help-text-inline i {
+  color: #42b983;
+  font-size: 12px;
+}
+
+.file-info-item {
+  display: inline-block;
+  margin-right: 12px;
+}
+
 /* 预设管理样式 */
 .preset-section {
-  margin-top: 30px;
+  margin-top: 24px;
   padding: 20px;
-  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  background: white;
   border-radius: 12px;
-  border: 1px solid rgba(66, 185, 131, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+}
+
+.preset-section-top {
+  background: linear-gradient(135deg, #f0f7ff, #ffffff);
+  border: 2px solid rgba(66, 185, 131, 0.3);
+}
+
+.preset-section-bottom {
+  background: #f8f9fa;
 }
 
 .preset-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
+  margin-bottom: 15px;
+  padding-bottom: 12px;
   border-bottom: 2px solid rgba(66, 185, 131, 0.1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.preset-section-top .preset-header {
+  cursor: default;
 }
 
 .preset-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-title i {
+  color: #42b983;
+  font-size: 14px;
 }
 
 .preset-actions {
@@ -1475,6 +2182,12 @@ onMounted(() => {
   border: 1px solid #42b983;
   padding: 8px 16px;
   font-size: 14px;
+  white-space: nowrap;
+}
+
+.refresh-btn {
+  padding: 8px 12px;
+  min-width: auto;
 }
 
 .button-secondary:hover:not(:disabled) {
@@ -1487,8 +2200,72 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.preset-list {
+.preset-quick-select {
+  margin-top: 12px;
+}
+
+.preset-select-field {
+  font-weight: 500;
+}
+
+.preset-active-info {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+  border-radius: 8px;
+  border-left: 3px solid #42b983;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.preset-active-info i {
+  color: #42b983;
+  font-size: 16px;
+}
+
+.clear-preset-btn {
+  margin-left: auto;
+  padding: 4px 8px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clear-preset-btn:hover {
+  background: #ff1a1a;
+}
+
+.no-presets-hint {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.no-presets-hint i {
+  color: #42b983;
+}
+
+.preset-list-container {
   margin-top: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.preset-list {
+  margin-top: 0;
 }
 
 .preset-item {
@@ -1501,11 +2278,19 @@ onMounted(() => {
   border-radius: 8px;
   border: 1px solid #e0e0e0;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .preset-item:hover {
   border-color: #42b983;
   box-shadow: 0 2px 8px rgba(66, 185, 131, 0.1);
+  transform: translateY(-1px);
+}
+
+.preset-item.preset-active {
+  border-color: #42b983;
+  background: linear-gradient(135deg, #f0f7ff, #ffffff);
+  box-shadow: 0 2px 12px rgba(66, 185, 131, 0.15);
 }
 
 .preset-info {
@@ -1516,6 +2301,14 @@ onMounted(() => {
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-icon {
+  color: #42b983;
+  font-size: 16px;
 }
 
 .preset-meta {
@@ -1523,6 +2316,18 @@ onMounted(() => {
   gap: 15px;
   font-size: 12px;
   color: #666;
+  flex-wrap: wrap;
+}
+
+.preset-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preset-meta i {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .preset-item-actions {
@@ -1539,11 +2344,17 @@ onMounted(() => {
   transition: all 0.3s ease;
   background-color: #42b983;
   color: white;
+  white-space: nowrap;
 }
 
 .preset-action-btn:hover {
   background-color: #3aa876;
   transform: translateY(-1px);
+}
+
+.preset-action-btn.active {
+  background-color: #2c8d63;
+  cursor: default;
 }
 
 .preset-action-btn.delete-btn {
