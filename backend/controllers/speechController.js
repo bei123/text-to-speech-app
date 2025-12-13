@@ -240,6 +240,17 @@ const generateSpeechWithReference = async (req, res) => {
     try {
         const userId = req.user.id;
         
+        console.log('收到参考音频请求:', {
+            userId,
+            body: req.body,
+            file: req.file ? {
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size,
+                path: req.file.path
+            } : null
+        });
+        
         // 从表单数据中获取参数
         const text = req.body.text || '';
         const text_language = req.body.text_language || '';
@@ -252,7 +263,19 @@ const generateSpeechWithReference = async (req, res) => {
         
         // 验证必要参数
         if (!text || !text_language || !ref_wav_file) {
-            return res.status(400).json({ message: '缺少必要参数：text, text_language 和 ref_wav_file 是必需的' });
+            return res.status(400).json({ 
+                message: '缺少必要参数：text, text_language 和 ref_wav_file 是必需的',
+                received: {
+                    text: !!text,
+                    text_language: !!text_language,
+                    ref_wav_file: !!ref_wav_file
+                }
+            });
+        }
+        
+        // 验证文件是否存在
+        if (!fs.existsSync(ref_wav_file.path)) {
+            return res.status(400).json({ message: '上传的文件不存在' });
         }
 
         // 获取用户信息
@@ -295,14 +318,55 @@ const generateSpeechWithReference = async (req, res) => {
 
             // 调用外部语音生成 API
             const V2PROPLUS_API_URL = process.env.V2PROPLUS_API_URL || 'http://127.0.0.1:6006/v2proplus';
+            
+            console.log('调用外部API:', {
+                url: V2PROPLUS_API_URL,
+                text: text.substring(0, 50) + '...',
+                text_language,
+                prompt_text: prompt_text ? prompt_text.substring(0, 50) + '...' : '',
+                prompt_language,
+                model_name,
+                filePath: ref_wav_file.path,
+                fileSize: ref_wav_file.size
+            });
+            
+            // 注意：FastAPI 端点不需要 Authorization header
             const response = await axios.post(V2PROPLUS_API_URL, formData, {
                 headers: {
-                    ...formData.getHeaders(),
-                    'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '') || ''}`
+                    ...formData.getHeaders()
                 },
                 responseType: 'arraybuffer',
-                timeout: 300000 // 5分钟超时
+                timeout: 300000, // 5分钟超时
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
             });
+            
+            // 检查响应状态码
+            if (response.status !== 200) {
+                throw new Error(`外部API返回非200状态码: ${response.status}`);
+            }
+            
+            // 检查响应内容类型，如果是 JSON（错误响应），则解析错误
+            const contentType = response.headers['content-type'] || '';
+            if (contentType.includes('application/json')) {
+                try {
+                    const errorData = JSON.parse(Buffer.from(response.data).toString());
+                    throw new Error(errorData.message || errorData.detail || '外部API返回错误');
+                } catch (parseError) {
+                    if (parseError.message && parseError.message !== '外部API返回错误') {
+                        throw parseError;
+                    }
+                    // 如果解析失败，继续处理（可能是其他格式）
+                    console.warn('无法解析错误响应:', parseError);
+                }
+            }
+            
+            // 验证响应数据大小
+            if (!response.data || response.data.length === 0) {
+                throw new Error('外部API返回空数据');
+            }
+            
+            console.log('外部API响应成功，数据大小:', response.data.length, 'Content-Type:', contentType);
 
             // 生成文件名
             const fileName = `speech_${requestId}.wav`;
@@ -334,18 +398,79 @@ const generateSpeechWithReference = async (req, res) => {
             res.json({ downloadLink: ossResult.url });
         } catch (error) {
             console.error('生成语音失败:', error);
+            console.error('错误详情:', {
+                message: error.message,
+                stack: error.stack,
+                response: error.response?.data,
+                status: error.response?.status,
+                requestId: requestId
+            });
+            
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
             
             // 删除临时文件
             if (ref_wav_file && ref_wav_file.path && fs.existsSync(ref_wav_file.path)) {
-                fs.unlinkSync(ref_wav_file.path);
+                try {
+                    fs.unlinkSync(ref_wav_file.path);
+                } catch (unlinkError) {
+                    console.error('删除临时文件失败:', unlinkError);
+                }
             }
             
-            res.status(500).json({ message: '生成语音失败: ' + (error.message || '未知错误') });
+            // 返回更详细的错误信息
+            let errorMessage = '生成语音失败';
+            if (error.response) {
+                // 外部API返回的错误
+                const status = error.response.status;
+                let responseData = error.response.data;
+                
+                // 尝试解析响应数据（可能是 Buffer 或字符串）
+                if (Buffer.isBuffer(responseData)) {
+                    try {
+                        const jsonData = JSON.parse(responseData.toString('utf-8'));
+                        responseData = jsonData;
+                    } catch (e) {
+                        // 如果不是 JSON，转换为字符串
+                        responseData = responseData.toString('utf-8').substring(0, 200);
+                    }
+                } else if (typeof responseData === 'string') {
+                    try {
+                        responseData = JSON.parse(responseData);
+                    } catch (e) {
+                        // 保持为字符串
+                    }
+                }
+                
+                // FastAPI 错误格式：{"code": 500, "message": "..."} 或 {"detail": "..."}
+                if (responseData && typeof responseData === 'object') {
+                    if (responseData.message) {
+                        errorMessage = `外部API错误: ${responseData.message}`;
+                    } else if (responseData.detail) {
+                        errorMessage = `外部API错误: ${responseData.detail}`;
+                    } else {
+                        errorMessage = `外部API错误 (${status}): ${JSON.stringify(responseData)}`;
+                    }
+                } else {
+                    errorMessage = `外部API错误 (${status}): ${String(responseData)}`;
+                }
+            } else if (error.request) {
+                // 请求发送失败（网络问题或外部API不可达）
+                errorMessage = `无法连接到外部API: ${V2PROPLUS_API_URL}。请确保服务正在运行。`;
+            } else {
+                // 其他错误
+                errorMessage = error.message || '未知错误';
+            }
+            
+            console.error('最终错误信息:', errorMessage);
+            res.status(500).json({ message: errorMessage });
         }
     } catch (error) {
         console.error('处理请求失败:', error);
-        res.status(500).json({ message: '处理请求失败' });
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ message: '处理请求失败: ' + (error.message || '未知错误') });
     }
 };
 

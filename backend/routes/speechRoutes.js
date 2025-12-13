@@ -42,7 +42,21 @@ const upload = multer({
 router.post('/generate-speech', authenticateToken, speechController.generateSpeech);
 
 // 使用参考音频生成语音 (v2ProPlus)
-router.post('/v2proplus', authenticateToken, upload.single('ref_wav_file'), speechController.generateSpeechWithReference);
+router.post('/v2proplus', authenticateToken, (req, res, next) => {
+    upload.single('ref_wav_file')(req, res, (err) => {
+        if (err) {
+            console.error('文件上传错误:', err);
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ message: '文件大小超过限制（最大50MB）' });
+                }
+                return res.status(400).json({ message: '文件上传错误: ' + err.message });
+            }
+            return res.status(400).json({ message: err.message || '文件上传失败' });
+        }
+        next();
+    });
+}, speechController.generateSpeechWithReference);
 
 // 获取历史记录
 router.get('/history', authenticateToken, speechController.getHistory);
