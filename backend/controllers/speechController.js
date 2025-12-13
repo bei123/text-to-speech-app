@@ -263,13 +263,15 @@ const generateSpeechWithReference = async (req, res) => {
         const ref_wav_file = req.file;
         
         // 验证必要参数
-        if (!text || !text_language || !ref_wav_file) {
+        if (!text || !text_language || !ref_wav_file || !prompt_text || !prompt_language) {
             return res.status(400).json({ 
-                message: '缺少必要参数：text, text_language 和 ref_wav_file 是必需的',
+                message: '缺少必要参数：text, text_language, ref_wav_file, prompt_text 和 prompt_language 都是必需的',
                 received: {
                     text: !!text,
                     text_language: !!text_language,
-                    ref_wav_file: !!ref_wav_file
+                    ref_wav_file: !!ref_wav_file,
+                    prompt_text: !!prompt_text,
+                    prompt_language: !!prompt_language
                 }
             });
         }

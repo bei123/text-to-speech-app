@@ -29,7 +29,13 @@
 
     <!-- 参考音频上传区域 -->
     <div class="form-group">
-      <label for="ref-audio-file" class="form-label">上传参考音频文件 (WAV/MP3，最大 50MB)：</label>
+      <label for="ref-audio-file" class="form-label">
+        上传参考音频文件 (WAV/MP3，最大 50MB) <span class="required-mark">*</span>
+      </label>
+      <div class="help-text">
+        <i class="fas fa-info-circle"></i>
+        参考音频时长必须在 <strong>3-10秒</strong> 之间
+      </div>
       <div class="file-upload-wrapper">
         <input 
           type="file" 
@@ -62,27 +68,43 @@
 
     <!-- 提示文本 -->
     <div class="form-group">
-      <label for="prompt-text" class="form-label">提示文本（可选）：</label>
+      <label for="prompt-text" class="form-label">
+        提示文本 <span class="required-mark">*</span>
+      </label>
+      <div class="help-text">
+        <i class="fas fa-info-circle"></i>
+        提示文本必须与参考音频的内容完全一致
+      </div>
       <textarea 
         id="prompt-text" 
         v-model="promptText" 
-        placeholder="输入提示文本（可选）" 
+        placeholder="请输入与参考音频内容完全一致的文本" 
         class="input-field prompt-text-field"
+        :class="{ 'input-error': promptTextError }"
       ></textarea>
+      <div v-if="promptTextError" class="error-message">{{ promptTextError }}</div>
     </div>
 
     <!-- 提示语言 -->
     <div class="form-group">
-      <label for="prompt-language-select" class="form-label">提示语言（可选）：</label>
+      <label for="prompt-language-select" class="form-label">
+        提示语言 <span class="required-mark">*</span>
+      </label>
       <div class="select-wrapper">
-        <select id="prompt-language-select" v-model="promptLanguage" class="select-field">
-          <option value="">请选择</option>
+        <select 
+          id="prompt-language-select" 
+          v-model="promptLanguage" 
+          class="select-field"
+          :class="{ 'input-error': promptLanguageError }"
+        >
+          <option value="">请选择提示语言</option>
           <option v-for="language in languages" :key="language.value" :value="language.value">
             {{ language.label }}
           </option>
         </select>
         <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
       </div>
+      <div v-if="promptLanguageError" class="error-message">{{ promptLanguageError }}</div>
     </div>
 
     <!-- 生成语音按钮 -->
@@ -132,6 +154,8 @@ const audioUrl = ref('');
 const isLoading = ref(false);
 const audioDuration = ref(null); // 音频时长（秒）
 const isCheckingDuration = ref(false); // 是否正在检查时长
+const promptTextError = ref(''); // 提示文本错误信息
+const promptLanguageError = ref(''); // 提示语言错误信息
 
 // 音频播放器相关
 const waveformRef = ref(null);
@@ -153,15 +177,19 @@ const store = useStore();
 
 // 计算是否可以生成
 const canGenerate = computed(() => {
-  // 如果文件已选择但时长还没检查完，允许继续（后端会验证）
+  // 如果文件已选择但时长还没检查完，禁用按钮
   if (refAudioFile.value && isCheckingDuration.value) {
-    return false; // 正在检查时禁用按钮
+    return false;
   }
   // 如果时长已检查且无效，禁用按钮
   if (refAudioFile.value && audioDuration.value !== null && !isDurationValid()) {
     return false;
   }
-  return inputText.value.trim() && refAudioFile.value;
+  // 检查所有必填项
+  return inputText.value.trim() && 
+         refAudioFile.value && 
+         promptText.value.trim() && 
+         promptLanguage.value;
 });
 
 // 检查时长是否有效（3-10秒）
@@ -258,7 +286,7 @@ const getAudioDuration = (file) => {
       resolve(audio.duration);
     });
     
-    audio.addEventListener('error', (e) => {
+    audio.addEventListener('error', () => {
       URL.revokeObjectURL(url);
       reject(new Error('无法读取音频文件'));
     });
@@ -325,15 +353,62 @@ const clearRefAudioFile = () => {
   }
 };
 
-// 使用参考音频生成语音
-const generateSpeechWithReference = async () => {
-  if (!inputText.value.trim()) {
-    showSnackbar('请输入文本');
-    return;
+// 监听提示文本变化，清除错误信息
+watch(promptText, () => {
+  if (promptText.value.trim()) {
+    promptTextError.value = '';
   }
+});
 
+// 监听提示语言变化，清除错误信息
+watch(promptLanguage, () => {
+  if (promptLanguage.value) {
+    promptLanguageError.value = '';
+  }
+});
+
+// 验证表单
+const validateForm = () => {
+  promptTextError.value = '';
+  promptLanguageError.value = '';
+  
+  let isValid = true;
+  
+  if (!inputText.value.trim()) {
+    showSnackbar('请输入要生成的文本');
+    isValid = false;
+  }
+  
   if (!refAudioFile.value) {
     showSnackbar('请上传参考音频文件');
+    isValid = false;
+  }
+  
+  if (!promptText.value.trim()) {
+    promptTextError.value = '提示文本为必填项';
+    isValid = false;
+  }
+  
+  if (!promptLanguage.value) {
+    promptLanguageError.value = '提示语言为必选项';
+    isValid = false;
+  }
+  
+  // 验证音频时长
+  if (refAudioFile.value && audioDuration.value !== null) {
+    if (!isDurationValid()) {
+      showSnackbar('参考音频时长必须在3-10秒之间');
+      isValid = false;
+    }
+  }
+  
+  return isValid;
+};
+
+// 使用参考音频生成语音
+const generateSpeechWithReference = async () => {
+  // 验证表单
+  if (!validateForm()) {
     return;
   }
 
@@ -756,6 +831,53 @@ onBeforeUnmount(() => {
 .duration-warning {
   color: #ff9800;
   margin-left: 4px;
+}
+
+.required-mark {
+  color: #ff4d4d;
+  margin-left: 4px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #f0f7ff;
+  border-left: 3px solid #42b983;
+  border-radius: 4px;
+}
+
+.help-text i {
+  color: #42b983;
+  font-size: 14px;
+}
+
+.help-text strong {
+  color: #42b983;
+  font-weight: 600;
+}
+
+.input-error {
+  border-color: #ff4d4d !important;
+  box-shadow: 0 0 0 3px rgba(255, 77, 77, 0.1) !important;
+}
+
+.error-message {
+  color: #ff4d4d;
+  font-size: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.error-message::before {
+  content: '⚠';
+  font-size: 14px;
 }
 
 /* 生成语音按钮样式 */
