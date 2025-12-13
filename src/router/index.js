@@ -52,6 +52,16 @@ const routes = [
     },
   },
   {
+    path: '/reference-audio',
+    name: 'ReferenceAudioSpeech',
+    component: () => import(/* webpackPreload: true */ '@/components/ReferenceAudioSpeech.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '参考音频语音生成',
+      keepAlive: true,
+    },
+  },
+  {
     path: '/qq-music-login',
     name: 'QQMusicLogin',
     component: QQMusicLogin,

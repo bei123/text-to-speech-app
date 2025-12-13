@@ -8,6 +8,7 @@ export const API_URLS = {
     REFRESH_TOKEN: `${API_BASE_URL}/refresh-token`,
     ENCRYPTION_KEY: `${API_BASE_URL}/encryption-key`,
     GENERATE_SPEECH: `${API_BASE_URL}/generate-speech`,
+    GENERATE_SPEECH_WITH_REFERENCE: `${API_BASE_URL}/v2proplus`,
     HISTORY: `${API_BASE_URL}/history`,
     MODELS: `${API_BASE_URL}/models`,
     CALL_DEEPSEEK: `${API_BASE_URL}/call-deepseek`,
