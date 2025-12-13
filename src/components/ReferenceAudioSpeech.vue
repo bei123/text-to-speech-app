@@ -796,7 +796,7 @@ const savePreset = async () => {
     formData.append('prompt_language', promptLanguage.value);
     formData.append('ref_wav_file', refAudioFile.value);
 
-    const response = await axios.post(API_URLS.PRESET_SAVE, formData, {
+    await axios.post(API_URLS.PRESET_SAVE, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         Authorization: `Bearer ${store.getters['auth/accessToken']}`

@@ -385,9 +385,14 @@ const generateSpeechWithReference = async (req, res) => {
             const formData = new FormData();
             formData.append('text', text);
             formData.append('text_language', text_language);
-            formData.append('ref_wav_file', fs.createReadStream(ref_wav_file.path), {
-                filename: ref_wav_file.originalname,
-                contentType: ref_wav_file.mimetype
+            
+            // 使用 audioFilePath（无论是上传的文件还是从OSS下载的）
+            const audioFileName = ref_wav_file ? ref_wav_file.originalname : 'preset_audio.wav';
+            const audioMimeType = ref_wav_file ? ref_wav_file.mimetype : 'audio/wav';
+            
+            formData.append('ref_wav_file', fs.createReadStream(audioFilePath), {
+                filename: audioFileName,
+                contentType: audioMimeType
             });
             formData.append('prompt_text', prompt_text);
             formData.append('prompt_language', prompt_language);
