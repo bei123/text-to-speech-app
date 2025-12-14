@@ -39,34 +39,53 @@
     <v-bottom-navigation v-if="isAuthenticated && isMobile" app color="primary" dark shift class="bottom-nav">
       <v-btn to="/" value="home">
         <v-icon>mdi-home</v-icon>
-        <span>Home</span>
+        <span class="nav-label">首页</span>
       </v-btn>
       <v-btn to="/custom-voice" value="reference">
         <v-icon>mdi-microphone</v-icon>
-        <span>自定义音色</span>
+        <span class="nav-label">音色</span>
       </v-btn>
       <v-btn to="/community" value="community">
         <v-icon>mdi-account-group</v-icon>
-        <span>音色圈子</span>
+        <span class="nav-label">圈子</span>
       </v-btn>
       <v-btn to="/history" value="history">
         <v-icon>mdi-history</v-icon>
-        <span>生成记录</span>
+        <span class="nav-label">记录</span>
       </v-btn>
-      <v-btn to="/sponsors" value="sponsors">
-        <v-icon>mdi-heart</v-icon>
-        <span>为爱发电</span>
-      </v-btn>
-      <v-btn color="error" @click="logout" value="logout">
-        <v-icon>mdi-logout</v-icon>
-        <span>退出登入</span>
+      <v-btn @click="showMoreMenu = true" value="more">
+        <v-icon>mdi-dots-vertical</v-icon>
+        <span class="nav-label">更多</span>
       </v-btn>
     </v-bottom-navigation>
+
+    <!-- 更多菜单（移动端底部抽屉） -->
+    <v-bottom-sheet v-if="isAuthenticated && isMobile" v-model="showMoreMenu">
+      <v-list>
+        <v-list-item to="/sponsors" @click="showMoreMenu = false">
+          <v-list-item-icon>
+            <v-icon>mdi-heart</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>为爱发电</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-divider></v-divider>
+        <v-list-item @click="handleLogout">
+          <v-list-item-icon>
+            <v-icon color="error">mdi-logout</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title class="error--text">退出登入</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-bottom-sheet>
   </v-app>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useDisplay } from 'vuetify';
 import { useStore } from 'vuex';
 import router from './router';
@@ -79,6 +98,9 @@ const isAuthenticated = computed(() => store.getters['auth/isAuthenticated']);
 
 const isMobile = computed(() => mobile.value);
 
+// 控制更多菜单显示
+const showMoreMenu = ref(false);
+
 // 优化登出逻辑
 const logout = async () => {
   try {
@@ -90,6 +112,12 @@ const logout = async () => {
   } catch (error) {
     console.error('登出失败:', error);
   }
+};
+
+// 处理登出（关闭菜单后登出）
+const handleLogout = async () => {
+  showMoreMenu.value = false;
+  await logout();
 };
 
 console.log('isAuthenticated:', isAuthenticated.value);
@@ -130,6 +158,39 @@ console.log('isAuthenticated:', isAuthenticated.value);
 .bottom-nav {
   height: var(--bottom-nav-height) !important;
   z-index: 2;
+}
+
+/* 移动端导航栏标签样式 */
+.bottom-nav .nav-label {
+  font-size: 11px;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* 移动端导航栏按钮样式优化 */
+.bottom-nav .v-btn {
+  min-width: 60px !important;
+  padding: 4px 8px !important;
+}
+
+.bottom-nav .v-btn .v-icon {
+  font-size: 20px !important;
+}
+
+/* 小屏幕设备进一步优化 */
+@media (max-width: 360px) {
+  .bottom-nav .nav-label {
+    font-size: 10px;
+  }
+  
+  .bottom-nav .v-btn {
+    min-width: 50px !important;
+    padding: 4px 4px !important;
+  }
+  
+  .bottom-nav .v-btn .v-icon {
+    font-size: 18px !important;
+  }
 }
 
 /* 添加过渡动画 */

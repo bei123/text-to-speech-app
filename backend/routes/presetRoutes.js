@@ -60,6 +60,9 @@ router.get('/list', authenticateToken, presetController.getPresets);
 // 获取公开预设列表（圈子）
 router.get('/public', presetController.getPublicPresets);
 
+// 增加预设使用次数
+router.post('/:id/use', presetController.incrementPresetUseCount);
+
 // 分享/取消分享预设
 router.put('/:id/share', authenticateToken, presetController.toggleSharePreset);
 

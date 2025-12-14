@@ -16,6 +16,7 @@ export const API_URLS = {
     PRESET_SAVE: `${API_BASE_URL}/presets/save`,
     PRESET_LIST: `${API_BASE_URL}/presets/list`,
     PRESET_PUBLIC: `${API_BASE_URL}/presets/public`,
+    PRESET_USE: `${API_BASE_URL}/presets`, // POST /presets/:id/use
     PRESET_SHARE: `${API_BASE_URL}/presets`, // PUT /presets/:id/share
     PRESET_DELETE: `${API_BASE_URL}/presets`,
 };

@@ -36,6 +36,10 @@
             <i class="fas fa-clock"></i>
             <span>更新时间: {{ formatDate(preset.updated_at) }}</span>
           </div>
+          <div class="preset-meta-item">
+            <i class="fas fa-chart-line"></i>
+            <span>使用次数: {{ preset.use_count || 0 }}</span>
+          </div>
         </div>
 
         <div class="preset-actions">
@@ -207,17 +211,30 @@ const loadPage = (pageNum) => {
 const usePreset = async (preset) => {
   isUsingPreset.value = preset.id;
   try {
-    // 跳转到自定义音色页面，并传递预设信息
+    // 增加预设使用次数（异步执行，不阻塞跳转）
+    try {
+      await axios.post(`${API_URLS.PRESET_USE}/${preset.id}/use`);
+      // 更新本地显示的使用次数
+      preset.use_count = (preset.use_count || 0) + 1;
+    } catch (countError) {
+      // 使用次数更新失败不影响预设使用
+      console.warn('更新使用次数失败:', countError);
+    }
+    
+    console.log('使用预设，准备跳转:', preset);
+    
+    // 跳转到自定义音色页面，并传递预设信息（对URL进行编码）
     router.push({
       path: '/custom-voice',
       query: {
         presetId: preset.id,
-        presetName: preset.name,
-        refAudioUrl: preset.ref_audio_url,
-        promptText: preset.prompt_text,
-        promptLanguage: preset.prompt_language
+        presetName: encodeURIComponent(preset.name || ''),
+        refAudioUrl: encodeURIComponent(preset.ref_audio_url || ''),
+        promptText: encodeURIComponent(preset.prompt_text || ''),
+        promptLanguage: encodeURIComponent(preset.prompt_language || '')
       }
     });
+    console.log('已跳转到自定义音色页面');
   } catch (error) {
     console.error('使用预设失败:', error);
     showSnackbar('使用预设失败，请稍后重试');

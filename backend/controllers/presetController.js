@@ -15,6 +15,7 @@ const initPresetTable = async () => {
             prompt_text TEXT NOT NULL,
             prompt_language VARCHAR(50) NOT NULL,
             is_shared TINYINT(1) DEFAULT 0,
+            use_count INT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -36,6 +37,17 @@ const initPresetTable = async () => {
             // 字段已存在，忽略错误
             if (!alterError.message.includes('Duplicate column name')) {
                 console.warn('添加 is_shared 字段时出现警告:', alterError.message);
+            }
+        }
+        
+        // 检查并添加 use_count 字段（如果表已存在但没有该字段）
+        try {
+            await pool.query('ALTER TABLE voice_presets ADD COLUMN use_count INT DEFAULT 0');
+            console.log('已添加 use_count 字段');
+        } catch (alterError) {
+            // 字段已存在，忽略错误
+            if (!alterError.message.includes('Duplicate column name')) {
+                console.warn('添加 use_count 字段时出现警告:', alterError.message);
             }
         }
     } catch (error) {
@@ -137,7 +149,7 @@ const getPresets = async (req, res) => {
         const userId = req.user.id;
 
         const query = `
-            SELECT id, name, ref_audio_url, prompt_text, prompt_language, is_shared, created_at, updated_at
+            SELECT id, name, ref_audio_url, prompt_text, prompt_language, is_shared, use_count, created_at, updated_at
             FROM voice_presets
             WHERE user_id = ?
             ORDER BY updated_at DESC
@@ -214,6 +226,7 @@ const getPublicPresets = async (req, res) => {
                 vp.ref_audio_url, 
                 vp.prompt_text, 
                 vp.prompt_language, 
+                vp.use_count,
                 vp.created_at, 
                 vp.updated_at,
                 u.username as author_name
@@ -285,6 +298,38 @@ const toggleSharePreset = async (req, res) => {
     }
 };
 
+// 增加预设使用次数
+const incrementPresetUseCount = async (req, res) => {
+    try {
+        const presetId = req.params.id;
+
+        // 验证预设是否存在
+        const checkQuery = 'SELECT id FROM voice_presets WHERE id = ?';
+        const [checkResults] = await pool.query(checkQuery, [presetId]);
+
+        if (checkResults.length === 0) {
+            return res.status(404).json({ message: '预设不存在' });
+        }
+
+        // 增加使用次数
+        const updateQuery = 'UPDATE voice_presets SET use_count = use_count + 1 WHERE id = ?';
+        await pool.query(updateQuery, [presetId]);
+
+        // 获取更新后的使用次数
+        const getCountQuery = 'SELECT use_count FROM voice_presets WHERE id = ?';
+        const [countResults] = await pool.query(getCountQuery, [presetId]);
+        const useCount = countResults[0].use_count;
+
+        res.json({ 
+            message: '使用次数已更新',
+            use_count: useCount
+        });
+    } catch (error) {
+        console.error('增加预设使用次数失败:', error);
+        res.status(500).json({ message: '增加预设使用次数失败' });
+    }
+};
+
 // 初始化表（在模块加载时执行）
 initPresetTable();
 
@@ -293,6 +338,7 @@ module.exports = {
     getPresets,
     deletePreset,
     getPublicPresets,
-    toggleSharePreset
+    toggleSharePreset,
+    incrementPresetUseCount
 };
 

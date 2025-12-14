@@ -15,7 +15,7 @@
             <select 
               id="preset-select" 
               v-model="selectedPresetId" 
-              @change="loadPreset"
+              @change="handlePresetSelectChange"
               class="select-field preset-select-field"
             >
               <option value="">不使用预设，手动配置</option>
@@ -25,13 +25,13 @@
             </select>
             <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
           </div>
-          <button v-if="selectedPresetId" @click="clearPreset" class="clear-preset-btn-small" type="button" title="清除预设">
+          <button v-if="selectedPresetId || isExternalPreset" @click="clearPreset" class="clear-preset-btn-small" type="button" title="清除预设">
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div v-if="selectedPresetId" class="preset-active-badge">
+        <div v-if="selectedPresetId || isExternalPreset" class="preset-active-badge">
           <i class="fas fa-check-circle"></i>
-          <span>已选择: {{ getPresetName(selectedPresetId) }}</span>
+          <span>已选择: {{ selectedPresetId ? getPresetName(selectedPresetId) : '外部预设' }}</span>
         </div>
       </div>
 
@@ -75,24 +75,24 @@
     </div>
 
     <!-- 音色配置区域（可折叠，使用预设时自动隐藏） -->
-    <div class="config-section" :class="{ 'section-collapsed': selectedPresetId, 'section-disabled': selectedPresetId }">
+    <div class="config-section" :class="{ 'section-collapsed': selectedPresetId || isExternalPreset, 'section-disabled': selectedPresetId || isExternalPreset }">
       <div class="section-header-toggle" @click="toggleConfigSection">
         <h3 class="section-title">
           <i class="fas fa-cog"></i> 音色配置
-          <span v-if="selectedPresetId" class="preset-indicator">
+          <span v-if="selectedPresetId || isExternalPreset" class="preset-indicator">
             <i class="fas fa-lock"></i> 已通过预设自动填充（不可修改）
           </span>
         </h3>
         <i class="fas toggle-icon" :class="showConfigSection ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
       </div>
       
-      <div v-if="showConfigSection" class="section-content" :class="{ 'content-disabled': selectedPresetId }">
+      <div v-if="showConfigSection" class="section-content" :class="{ 'content-disabled': selectedPresetId || isExternalPreset }">
 
       <!-- 参考音频上传区域 -->
       <div class="form-group">
         <label for="ref-audio-file" class="form-label">
           上传音色参考音频 <span class="required-mark">*</span>
-          <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+          <span v-if="selectedPresetId || isExternalPreset" class="readonly-badge">只读</span>
         </label>
         <div class="help-text-group">
           <div class="help-text">
@@ -116,7 +116,8 @@
         </div>
         <div 
           class="file-upload-wrapper" 
-          :class="{ 'disabled': selectedPresetId, 'drag-over': isDragOver }"
+          :class="{ 'disabled': selectedPresetId || isExternalPreset, 'drag-over': isDragOver }"
+          :key="`file-upload-${isExternalPreset}-${selectedPresetId}-${refAudioFile?.name || 'none'}`"
           @dragover.prevent="handleDragOver"
           @dragenter.prevent="handleDragEnter"
           @dragleave.prevent="handleDragLeave"
@@ -129,15 +130,15 @@
             @change="handleRefAudioFileChange" 
             accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac"
             class="file-input"
-            :disabled="!!selectedPresetId"
+            :disabled="!!selectedPresetId || isExternalPreset"
           />
-          <label for="ref-audio-file" class="file-upload-label" :class="{ 'disabled': selectedPresetId }">
+          <label for="ref-audio-file" class="file-upload-label" :class="{ 'disabled': selectedPresetId || isExternalPreset }">
             <i class="fas fa-upload"></i>
             <span v-if="!refAudioFile">点击选择音频文件或拖拽到此处</span>
             <span v-else class="file-name">{{ refAudioFile.name }}</span>
           </label>
           <button 
-            v-if="refAudioFile && !selectedPresetId" 
+            v-if="refAudioFile && !selectedPresetId && !isExternalPreset" 
             @click="clearRefAudioFile" 
             class="clear-file-button" 
             type="button" 
@@ -146,7 +147,7 @@
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div v-if="refAudioFile" class="file-info">
+        <div v-if="refAudioFile" class="file-info" :key="`file-info-${refAudioFile?.name || 'none'}-${refAudioFile?.size || 0}`">
           <span class="file-info-item">文件大小: {{ formatFileSize(refAudioFile.size) }}</span>
           <span v-if="isCheckingDuration" class="duration-checking">正在检查音频时长...</span>
           <span v-else-if="audioDuration !== null" :class="['duration-info', getDurationClass()]">
@@ -161,7 +162,7 @@
         <div class="form-group form-group-half">
           <label for="prompt-text" class="form-label">
             提示文本 <span class="required-mark">*</span>
-            <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+            <span v-if="selectedPresetId || isExternalPreset" class="readonly-badge">只读</span>
           </label>
           <div class="help-text-inline">
             <i class="fas fa-info-circle"></i>
@@ -169,11 +170,13 @@
           </div>
           <textarea 
             id="prompt-text" 
-            v-model="promptText" 
+            :value="promptText"
+            @input="promptText = $event.target.value"
+            :key="`prompt-text-${isExternalPreset}-${selectedPresetId}`"
             placeholder="请输入与音色参考音频内容完全一致的文本" 
             class="input-field prompt-text-field"
             :class="{ 'input-error': promptTextError, 'readonly': selectedPresetId }"
-            :readonly="!!selectedPresetId"
+                      :readonly="!!selectedPresetId || isExternalPreset"
           ></textarea>
           <div v-if="promptTextError" class="error-message">{{ promptTextError }}</div>
         </div>
@@ -181,15 +184,17 @@
         <div class="form-group form-group-half">
           <label for="prompt-language-select" class="form-label">
             提示语言 <span class="required-mark">*</span>
-            <span v-if="selectedPresetId" class="readonly-badge">只读</span>
+            <span v-if="selectedPresetId || isExternalPreset" class="readonly-badge">只读</span>
           </label>
           <div class="select-wrapper">
             <select 
               id="prompt-language-select" 
-              v-model="promptLanguage" 
+              :value="promptLanguage"
+              @change="promptLanguage = $event.target.value"
+              :key="`prompt-language-${isExternalPreset}-${selectedPresetId}-${promptLanguage}`"
               class="select-field"
               :class="{ 'input-error': promptLanguageError, 'readonly': selectedPresetId }"
-              :disabled="!!selectedPresetId"
+                      :disabled="!!selectedPresetId || isExternalPreset"
             >
               <option value="">请选择</option>
               <option v-for="language in languages" :key="language.value" :value="language.value">
@@ -244,11 +249,11 @@
               <button 
                 @click="toggleSharePreset(preset)" 
                 class="preset-action-btn share-btn" 
-                :class="{ 'shared': preset.is_shared }"
-                :title="preset.is_shared ? '取消分享' : '分享到圈子'"
+                :class="{ 'shared': preset.is_shared == 1 || preset.is_shared === true }"
+                :title="(preset.is_shared == 1 || preset.is_shared === true) ? '取消分享' : '分享到圈子'"
               >
-                <i class="fas" :class="preset.is_shared ? 'fa-share-alt' : 'fa-share'"></i>
-                {{ preset.is_shared ? '已分享' : '分享' }}
+                <i class="fas" :class="(preset.is_shared == 1 || preset.is_shared === true) ? 'fa-share-alt' : 'fa-share'"></i>
+                {{ (preset.is_shared == 1 || preset.is_shared === true) ? '已分享' : '分享' }}
               </button>
               <button @click="deletePreset(preset.id)" class="preset-action-btn delete-btn" title="删除预设">
                 <i class="fas fa-trash"></i>
@@ -324,7 +329,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted, onActivated, watch, watchEffect, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
@@ -352,8 +357,17 @@ const showPresetModal = ref(false); // 显示保存预设模态框
 const presetName = ref(''); // 预设名称
 const isSavingPreset = ref(false); // 是否正在保存预设
 const currentPresetAudioUrl = ref(null); // 当前使用的预设音频OSS URL（如果来自预设）
+
+// 保存外部预设的原始数据，用于恢复
+const externalPresetBackup = ref({
+  refAudioFile: null,
+  presetAudioUrl: null,
+  promptText: '',
+  promptLanguage: ''
+});
 const showPresetList = ref(false); // 是否显示预设列表
 const showConfigSection = ref(true); // 是否显示配置区域
+const isExternalPreset = ref(false); // 是否是外部预设（从圈子页面来的）
 const inputTextRef = ref(null); // 文本输入框引用
 const isDragOver = ref(false); // 是否正在拖拽
 
@@ -386,11 +400,29 @@ const canGenerate = computed(() => {
   if (refAudioFile.value && audioDuration.value !== null && !isDurationValid()) {
     return false;
   }
+  // 在计算前，先尝试恢复外部预设数据（如果值丢失了）
+  // 这确保在 canGenerate 计算时，值已经被恢复
+  if ((!refAudioFile.value || !currentPresetAudioUrl.value) && 
+      (externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl)) {
+    // 如果值丢失但备份存在，立即恢复
+    restoreExternalPreset();
+  }
+  
   // 检查所有必填项
-  return inputText.value.trim() && 
-         refAudioFile.value && 
-         promptText.value.trim() && 
-         promptLanguage.value;
+  // 注意：使用预设时，refAudioFile 可能为空，但 currentPresetAudioUrl 会有值
+  const hasAudio = refAudioFile.value || currentPresetAudioUrl.value;
+  const hasInputText = !!inputText.value.trim();
+  const hasPromptText = !!promptText.value.trim();
+  const hasPromptLanguage = !!promptLanguage.value;
+  
+  const result = hasInputText && hasAudio && hasPromptText && hasPromptLanguage;
+  
+  // 如果检查失败且备份存在，再次尝试恢复
+  if (!result && (externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl) && !hasAudio) {
+    restoreExternalPreset();
+  }
+  
+  return result;
 });
 
 // 检查时长是否有效（3-10秒）
@@ -593,7 +625,7 @@ const audioBufferToWav = (buffer) => {
 // 处理参考音频文件选择
 const handleRefAudioFileChange = async (event) => {
   // 如果使用预设，不允许修改
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     event.target.value = ''; // 清空选择
     showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
     return;
@@ -673,7 +705,7 @@ const processAudioFile = async (file) => {
 
 // 拖拽上传相关函数
 const handleDragOver = (event) => {
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     return;
   }
   event.preventDefault();
@@ -681,7 +713,7 @@ const handleDragOver = (event) => {
 };
 
 const handleDragEnter = (event) => {
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     return;
   }
   event.preventDefault();
@@ -689,7 +721,7 @@ const handleDragEnter = (event) => {
 };
 
 const handleDragLeave = (event) => {
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     return;
   }
   // 只有当离开整个上传区域时才取消高亮
@@ -703,7 +735,7 @@ const handleDragLeave = (event) => {
 };
 
 const handleDrop = async (event) => {
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
     isDragOver.value = false;
     return;
@@ -722,7 +754,7 @@ const handleDrop = async (event) => {
 // 清除参考音频文件
 const clearRefAudioFile = () => {
   // 如果使用预设，不允许清除
-  if (selectedPresetId.value) {
+  if (selectedPresetId.value || isExternalPreset.value) {
     showSnackbar('使用预设时不允许修改音色配置，请先清除预设');
     return;
   }
@@ -747,6 +779,93 @@ watch(promptLanguage, () => {
   }
 });
 
+// 监听外部预设状态，防止 refAudioFile 和 currentPresetAudioUrl 被意外清空
+// 使用 watchEffect 持续监控，确保值不会被清空
+let isRestoring = false; // 防止无限循环
+let restoreTimeout = null; // 恢复定时器
+
+// 恢复函数，可以在多个地方调用
+const restoreExternalPreset = () => {
+  if (isRestoring) {
+    return; // 正在恢复中，避免重复
+  }
+  
+  // 首先检查是否有全局恢复函数（从 router.replace 后设置的）
+  if (typeof window !== 'undefined' && window._restorePresetValues) {
+    try {
+      window._restorePresetValues();
+      // 恢复后清除全局函数，避免重复调用
+      delete window._restorePresetValues;
+      return;
+    } catch (error) {
+      console.error('执行全局恢复函数失败:', error);
+    }
+  }
+  
+  // 如果 externalPresetBackup 有值，即使 isExternalPreset 为 false，也尝试恢复
+  // 这样可以处理用户预设列表加载后，预设被识别为用户预设但值丢失的情况
+  const hasBackup = externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl;
+  
+  if (hasBackup) {
+    // 检查是否需要恢复（即使 isExternalPreset 为 false，只要有备份就恢复）
+    const needsRestore = 
+      (!refAudioFile.value && externalPresetBackup.value.refAudioFile) ||
+      (!currentPresetAudioUrl.value && externalPresetBackup.value.presetAudioUrl) ||
+      (!promptText.value && externalPresetBackup.value.promptText) ||
+      (!promptLanguage.value && externalPresetBackup.value.promptLanguage);
+    
+    if (needsRestore) {
+      // 清除之前的定时器
+      if (restoreTimeout) {
+        clearTimeout(restoreTimeout);
+      }
+      
+      isRestoring = true;
+      // 注意：不要强制设置 isExternalPreset，因为预设可能是用户预设
+      // 只要恢复值即可
+      
+      // 立即恢复，不等待 nextTick
+      if (!refAudioFile.value && externalPresetBackup.value.refAudioFile) {
+        refAudioFile.value = externalPresetBackup.value.refAudioFile;
+      }
+      if (!currentPresetAudioUrl.value && externalPresetBackup.value.presetAudioUrl) {
+        currentPresetAudioUrl.value = externalPresetBackup.value.presetAudioUrl;
+      }
+      if (!promptText.value && externalPresetBackup.value.promptText) {
+        promptText.value = externalPresetBackup.value.promptText;
+      }
+      if (!promptLanguage.value && externalPresetBackup.value.promptLanguage) {
+        promptLanguage.value = externalPresetBackup.value.promptLanguage;
+      }
+      
+      // 延迟重置标志，确保恢复完成
+      restoreTimeout = setTimeout(() => {
+        isRestoring = false;
+        restoreTimeout = null;
+      }, 50);
+    }
+  }
+};
+
+// 使用 watchEffect 持续监控
+watchEffect(() => {
+  // 访问这些值以建立依赖关系（使用 void 避免 ESLint 警告）
+  void refAudioFile.value;
+  void currentPresetAudioUrl.value;
+  void isExternalPreset.value;
+  void promptText.value;
+  void promptLanguage.value;
+  
+  // 调用恢复函数
+  restoreExternalPreset();
+});
+
+// 也监听 canGenerate 计算属性的变化，在计算时检查并恢复
+watch(() => canGenerate.value, () => {
+  // 当 canGenerate 重新计算时，检查并恢复外部预设数据
+  restoreExternalPreset();
+});
+
 // 验证表单
 const validateForm = () => {
   promptTextError.value = '';
@@ -759,8 +878,9 @@ const validateForm = () => {
     isValid = false;
   }
   
-  if (!refAudioFile.value) {
-    showSnackbar('请上传音色参考音频文件');
+  // 检查音频文件（可以是上传的文件或预设的OSS URL）
+  if (!refAudioFile.value && !currentPresetAudioUrl.value) {
+    showSnackbar('请上传音色参考音频文件或选择预设');
     isValid = false;
   }
   
@@ -1019,15 +1139,41 @@ const toggleConfigSection = () => {
   showConfigSection.value = !showConfigSection.value;
 };
 
-// 清除预设选择
+// 清除预设选择（包括用户预设和外部预设）
 const clearPreset = () => {
+  // 清除用户预设
   selectedPresetId.value = '';
+  
+  // 清除外部预设标志
+  isExternalPreset.value = false;
+  
+  // 清除所有预设相关的URL（确保完全清除）
   currentPresetAudioUrl.value = null;
+  
+  // 清除外部预设备份（包括URL）
+  externalPresetBackup.value = {
+    refAudioFile: null,
+    presetAudioUrl: null, // 确保外部预设的URL被清除
+    promptText: '',
+    promptLanguage: ''
+  };
+  
+  // 清除音频文件和时长
   clearRefAudioFile();
+  
+  // 清除提示文本和语言
   promptText.value = '';
   promptLanguage.value = '';
-  showConfigSection.value = true; // 清除预设后展开配置区域
-  showSnackbar('已清除预设选择');
+  
+  // 展开配置区域，允许手动配置
+  showConfigSection.value = true;
+  
+  // 清除地址栏中的预设URL参数
+  if (route.query.presetId || route.query.presetName || route.query.refAudioUrl || route.query.promptText || route.query.promptLanguage) {
+    router.replace({ path: '/custom-voice', query: {} });
+  }
+  
+  showSnackbar('已清除预设选择，可以手动配置');
 };
 
 // ========== 预设管理功能 ==========
@@ -1083,10 +1229,16 @@ const loadPresets = async () => {
         response.data.key || secretKey
       );
       const decryptedData = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
-      presets.value = decryptedData.presets || [];
+      presets.value = (decryptedData.presets || []).map(p => ({
+        ...p,
+        is_shared: p.is_shared || 0 // 确保 is_shared 有默认值
+      }));
     } else {
       // 兼容未加密的响应
-      presets.value = response.data.presets || [];
+      presets.value = (response.data.presets || []).map(p => ({
+        ...p,
+        is_shared: p.is_shared || 0 // 确保 is_shared 有默认值
+      }));
     }
   } catch (error) {
     console.error('加载预设列表失败:', error);
@@ -1202,57 +1354,277 @@ const savePreset = async () => {
 };
 
 // 选择预设
-const selectPreset = (preset) => {
-  // 保存预设的OSS URL，这样生成语音时可以直接使用，无需重新上传
-  currentPresetAudioUrl.value = preset.ref_audio_url;
-  
-  // 从 OSS URL 下载音频文件用于前端预览和时长检查
-  fetch(preset.ref_audio_url)
-    .then(response => response.blob())
-    .then(blob => {
-      const file = new File([blob], `preset_${preset.id}.wav`, { type: 'audio/wav' });
-      refAudioFile.value = file;
+const selectPreset = async (preset) => {
+  try {
+    // 如果之前是外部预设，现在选择用户自己的预设，清除外部预设状态和URL
+    if (isExternalPreset.value && preset.id && presets.value.find(p => p.id === preset.id)) {
+      // 保存外部预设的URL，用于后续清除
+      const externalPresetUrl = externalPresetBackup.value.presetAudioUrl || currentPresetAudioUrl.value;
       
-      // 更新提示文本和提示语言
-      promptText.value = preset.prompt_text;
-      promptLanguage.value = preset.prompt_language;
+      isExternalPreset.value = false;
       
-      // 清除文件输入的错误状态
-      promptTextError.value = '';
-      promptLanguageError.value = '';
-      
-      // 检查音频时长
-      getAudioDuration(file).then(duration => {
-        audioDuration.value = duration;
-        if (!isDurationValid()) {
-          showSnackbar(`预设音频时长${duration.toFixed(2)}秒，不在3-10秒范围内`);
-        }
-      }).catch(() => {
-        // 如果无法读取时长，继续使用
-      });
-      
-      selectedPresetId.value = preset.id;
-      showSnackbar(`已加载预设: ${preset.name}`);
-      
-      // 自动聚焦到文本输入框
-      nextTick(() => {
-        if (inputTextRef.value) {
-          inputTextRef.value.focus();
-        }
-      });
-      
-      // 如果使用预设，自动折叠配置区域
-      if (!showConfigSection.value) {
-        showConfigSection.value = false;
+      // 清除外部预设的URL（无论是否匹配，只要之前是外部预设就清除）
+      if (externalPresetUrl && currentPresetAudioUrl.value === externalPresetUrl) {
+        currentPresetAudioUrl.value = null;
       }
-    })
-    .catch(error => {
-      console.error('加载预设音频失败:', error);
-      showSnackbar('加载预设音频失败');
+      
+      // 清除外部预设备份（包括URL）
+      externalPresetBackup.value = {
+        refAudioFile: null,
+        presetAudioUrl: null, // 确保外部预设的URL被清除
+        promptText: '',
+        promptLanguage: ''
+      };
+      
+      // 清除地址栏中的预设URL参数
+      if (route.query.presetId || route.query.presetName || route.query.refAudioUrl || route.query.promptText || route.query.promptLanguage) {
+        router.replace({ path: '/custom-voice', query: {} });
+      }
+    }
+    
+    // 保存预设的OSS URL，这样生成语音时可以直接使用，无需重新上传
+    currentPresetAudioUrl.value = preset.ref_audio_url;
+    
+    // 从 OSS URL 下载音频文件用于前端预览和时长检查
+    const response = await fetch(preset.ref_audio_url);
+    if (!response.ok) {
+      throw new Error(`下载音频失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const blob = await response.blob();
+    const file = new File([blob], `preset_${preset.id || 'external'}.wav`, { type: 'audio/wav' });
+    refAudioFile.value = file;
+    
+    // 关键：先设置值，再设置 disabled 状态
+    // 这样可以确保 v-model 在 disabled 之前正确绑定
+    
+    // 更新提示文本和提示语言（确保值被正确设置）
+    if (preset.prompt_text) {
+      promptText.value = String(preset.prompt_text).trim();
+    }
+    if (preset.prompt_language) {
+      promptLanguage.value = String(preset.prompt_language).trim();
+    }
+    
+    // 清除文件输入的错误状态
+    promptTextError.value = '';
+    promptLanguageError.value = '';
+    
+    // 等待一个tick，确保值已经设置到DOM
+    await nextTick();
+    
+    // 保存预设数据，防止在后续操作中丢失（在音频下载之前就保存）
+    const savedPromptText = String(preset.prompt_text || '').trim();
+    const savedPromptLanguage = String(preset.prompt_language || '').trim();
+    
+    // 再次等待，确保值已经渲染到DOM
+    await nextTick();
+    await nextTick();
+    
+    // 现在才设置 disabled 状态（在值已经设置并渲染之后）
+    // 关键：即使预设ID在用户预设列表中找到，也保留 externalPresetBackup 作为备份
+    // 这样可以防止在 router.replace 后值丢失
+    if (preset.id && presets.value.find(p => p.id === preset.id)) {
+      selectedPresetId.value = preset.id;
+      isExternalPreset.value = false;
+      
+      // 如果之前是外部预设，清除外部预设的URL和备份
+      // 无论URL是否匹配，只要之前是外部预设，就清除所有外部预设数据
+      if (externalPresetBackup.value.presetAudioUrl) {
+        // 如果当前URL是外部预设的URL，先清除它（用户预设的URL会在后面设置）
+        if (currentPresetAudioUrl.value === externalPresetBackup.value.presetAudioUrl) {
+          currentPresetAudioUrl.value = null;
+        }
+        // 清除外部预设备份（包括URL）
+        externalPresetBackup.value = {
+          refAudioFile: null,
+          presetAudioUrl: null, // 确保外部预设的URL被清除
+          promptText: '',
+          promptLanguage: ''
+        };
+      } else if (!externalPresetBackup.value.refAudioFile && !externalPresetBackup.value.presetAudioUrl) {
+        // 只有在 externalPresetBackup 为空时才设置，避免覆盖已有的备份
+        externalPresetBackup.value = {
+          refAudioFile: file,
+          presetAudioUrl: preset.ref_audio_url,
+          promptText: savedPromptText,
+          promptLanguage: savedPromptLanguage
+        };
+      }
+    } else {
+      // 从圈子页面来的预设可能不在用户列表中，标记为外部预设
+      selectedPresetId.value = '';
+      isExternalPreset.value = true;
+      // 保存外部预设的备份数据
+      externalPresetBackup.value = {
+        refAudioFile: file,
+        presetAudioUrl: preset.ref_audio_url,
+        promptText: savedPromptText,
+        promptLanguage: savedPromptLanguage
+      };
+    }
+    
+    // 等待状态更新
+    await nextTick();
+    
+    // 关键：在设置 disabled 状态后，立即重新设置值，确保值不会被清空
+    // 这是因为设置 disabled 可能会触发某些响应式更新
+    promptText.value = savedPromptText;
+    promptLanguage.value = savedPromptLanguage;
+    if (!refAudioFile.value && file) {
+      refAudioFile.value = file;
+    }
+    
+    // 再次等待确保所有响应式更新完成
+    await nextTick();
+    await nextTick();
+    
+    // 检查音频时长（异步执行，不阻塞UI更新）
+    getAudioDuration(file).then((duration) => {
+      audioDuration.value = duration;
+      if (!isDurationValid()) {
+        showSnackbar(`预设音频时长${duration.toFixed(2)}秒，不在3-10秒范围内`);
+      }
+      // 在音频时长检查完成后，再次确保值没有被清空
+      if (!promptText.value && savedPromptText) {
+        promptText.value = savedPromptText;
+      }
+      if (!promptLanguage.value && savedPromptLanguage) {
+        promptLanguage.value = savedPromptLanguage;
+      }
+    }).catch(() => {
+      // 如果无法读取时长，继续使用
     });
+    
+    // 保存预设音频URL和文件，防止被意外清空
+    const savedPresetAudioUrl = preset.ref_audio_url;
+    const savedPresetFile = file;
+    
+    // 设置一个定时器，持续检查并修复值（防止值被意外清空）
+    const checkInterval = setInterval(() => {
+      if (isExternalPreset.value || selectedPresetId.value) {
+        // 如果使用预设，但值丢失了，强制重新设置
+        if (!promptText.value && savedPromptText) {
+          promptText.value = savedPromptText;
+        }
+        if (!promptLanguage.value && savedPromptLanguage) {
+          promptLanguage.value = savedPromptLanguage;
+        }
+        if (!refAudioFile.value && savedPresetFile) {
+          refAudioFile.value = savedPresetFile;
+        }
+        if (!currentPresetAudioUrl.value && savedPresetAudioUrl) {
+          currentPresetAudioUrl.value = savedPresetAudioUrl;
+        }
+      } else {
+        // 如果不再使用预设，清除定时器
+        clearInterval(checkInterval);
+      }
+    }, 500);
+    
+    // 5秒后清除定时器（避免内存泄漏）
+    setTimeout(() => {
+      clearInterval(checkInterval);
+    }, 5000);
+    
+    // 如果数据丢失，强制重新设置
+    if (!promptText.value && savedPromptText) {
+      promptText.value = savedPromptText;
+    }
+    if (!promptLanguage.value && savedPromptLanguage) {
+      promptLanguage.value = savedPromptLanguage;
+    }
+    if (!refAudioFile.value && file) {
+      refAudioFile.value = file;
+    }
+    
+    // 设置配置区域显示状态
+    // 如果是外部预设（从音色圈子跳转），默认折叠；如果是用户自己的预设，默认展开
+    showConfigSection.value = !isExternalPreset.value;
+    
+    // 最终验证所有数据
+    await nextTick();
+    await nextTick();
+    
+    // 最后一次强制设置值，确保UI更新
+    if (promptText.value !== savedPromptText) {
+      promptText.value = savedPromptText;
+    }
+    if (promptLanguage.value !== savedPromptLanguage) {
+      promptLanguage.value = savedPromptLanguage;
+    }
+    
+    // 直接操作DOM，强制更新（作为最后的保障）
+    await nextTick();
+    const textareaEl = document.getElementById('prompt-text');
+    const selectEl = document.getElementById('prompt-language-select');
+    if (textareaEl && textareaEl.value !== promptText.value) {
+      textareaEl.value = promptText.value;
+      // 触发input事件，确保Vue知道值已更改
+      textareaEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (selectEl && selectEl.value !== promptLanguage.value) {
+      selectEl.value = promptLanguage.value;
+      // 触发change事件，确保Vue知道值已更改
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    // 再次等待确保DOM更新
+    await nextTick();
+    
+    showSnackbar(`已加载预设: ${preset.name || '外部预设'}`);
+    
+    // 自动聚焦到文本输入框
+    await nextTick();
+    if (inputTextRef.value) {
+      inputTextRef.value.focus();
+    }
+  } catch (error) {
+    console.error('加载预设音频失败:', error);
+    showSnackbar('加载预设音频失败: ' + (error.message || '未知错误'));
+    throw error; // 重新抛出错误，让调用者可以处理
+  }
 };
 
 // 加载预设（从下拉框选择）
+// 处理预设选择变化
+const handlePresetSelectChange = () => {
+  // 如果用户选择了自己的预设，清除外部预设状态和URL
+  if (isExternalPreset.value && selectedPresetId.value) {
+    // 保存外部预设的URL，用于后续清除
+    const externalPresetUrl = externalPresetBackup.value.presetAudioUrl || currentPresetAudioUrl.value;
+    
+    // 用户选择了自己的预设，清除外部预设状态
+    isExternalPreset.value = false;
+    
+    // 清除外部预设的URL（无论是否匹配，只要之前是外部预设就清除）
+    if (externalPresetUrl && currentPresetAudioUrl.value === externalPresetUrl) {
+      currentPresetAudioUrl.value = null;
+    }
+    
+    // 清除外部预设备份（包括URL）
+    externalPresetBackup.value = {
+      refAudioFile: null,
+      presetAudioUrl: null, // 确保外部预设的URL被清除
+      promptText: '',
+      promptLanguage: ''
+    };
+    
+    // 清除地址栏中的预设URL参数
+    if (route.query.presetId || route.query.presetName || route.query.refAudioUrl || route.query.promptText || route.query.promptLanguage) {
+      router.replace({ path: '/custom-voice', query: {} });
+    }
+  }
+  
+  // 如果没有选择预设，但之前是外部预设，保持外部预设状态
+  if (isExternalPreset.value && !selectedPresetId.value) {
+    return;
+  }
+  
+  // 调用原来的 loadPreset 逻辑
+  loadPreset();
+};
+
 const loadPreset = () => {
   if (!selectedPresetId.value) {
     return;
@@ -1260,6 +1632,54 @@ const loadPreset = () => {
   const preset = presets.value.find(p => p.id === parseInt(selectedPresetId.value));
   if (preset) {
     selectPreset(preset);
+  }
+};
+
+// 分享/取消分享预设
+const toggleSharePreset = async (preset) => {
+  const currentUser = store.getters['auth/user'];
+  if (!currentUser || !currentUser.username) {
+    showSnackbar('请先登入');
+    router.replace('/login');
+    return;
+  }
+
+  try {
+    const currentShared = preset.is_shared == 1 || preset.is_shared === true;
+    const isShared = !currentShared;
+    
+    const response = await axios.put(
+      `${API_URLS.PRESET_SHARE}/${preset.id}/share`,
+      { is_shared: isShared },
+      {
+        headers: {
+          Authorization: `Bearer ${store.getters['auth/accessToken']}`
+        }
+      }
+    );
+
+    // 更新本地预设列表
+    const presetIndex = presets.value.findIndex(p => p.id === preset.id);
+    if (presetIndex !== -1) {
+      presets.value[presetIndex].is_shared = response.data.is_shared;
+    }
+
+    showSnackbar(response.data.message);
+  } catch (error) {
+    console.error('更新预设分享状态失败:', error);
+    if (error.response?.status === 401) {
+      try {
+        await store.dispatch('auth/refreshToken');
+        await toggleSharePreset(preset);
+        return;
+      } catch (refreshError) {
+        showSnackbar('登录已过期，请重新登录');
+        router.replace('/login');
+        return; 
+      }
+    }
+    const errorMessage = error.response?.data?.message || '更新分享状态失败';
+    showSnackbar(errorMessage);
   }
 };
 
@@ -1300,26 +1720,141 @@ const deletePreset = async (presetId) => {
   }
 };
 
-// 组件挂载时加载预设列表
-onMounted(() => {
-  loadPresets();
+// 从URL参数加载预设（从圈子页面跳转过来）
+const loadPresetFromQuery = async () => {
+  if (!route.query.presetId) {
+    return;
+  }
 
-  // 处理从圈子页面跳转过来的预设
-  if (route.query.presetId) {
-    const presetData = {
-      id: parseInt(route.query.presetId),
-      name: route.query.presetName,
-      ref_audio_url: route.query.refAudioUrl,
-      prompt_text: route.query.promptText,
-      prompt_language: route.query.promptLanguage
+  try {
+    // Vue Router 会自动解码 URL 参数，但如果参数是字符串，可能需要手动处理
+    const getQueryParam = (value) => {
+      if (!value) return '';
+      // 如果已经是字符串，直接返回；如果是编码的，尝试解码
+      if (typeof value === 'string') {
+        try {
+          // 尝试解码，如果已经是解码的，decodeURIComponent 不会报错
+          return decodeURIComponent(value);
+        } catch (e) {
+          // 如果解码失败，说明可能已经是解码的，直接返回
+          return value;
+        }
+      }
+      return String(value);
     };
     
-    // 等待预设列表加载完成后再选择预设
-    setTimeout(() => {
-      selectPreset(presetData);
-      // 清除URL参数
+    const presetData = {
+      id: parseInt(route.query.presetId),
+      name: getQueryParam(route.query.presetName),
+      ref_audio_url: getQueryParam(route.query.refAudioUrl),
+      prompt_text: getQueryParam(route.query.promptText),
+      prompt_language: getQueryParam(route.query.promptLanguage)
+    };
+
+    // 验证必要参数
+    if (!presetData.ref_audio_url || !presetData.prompt_text || !presetData.prompt_language) {
+      showSnackbar('预设参数不完整，无法加载');
       router.replace({ path: '/custom-voice', query: {} });
-    }, 500);
+      return;
+    }
+
+    // 直接加载预设，不依赖预设列表
+    await selectPreset(presetData);
+    
+    // 等待多个 nextTick 确保所有响应式更新完成
+    await nextTick();
+    await nextTick();
+    
+    // 验证预设是否真的加载成功
+    if (!refAudioFile.value || !promptText.value || !promptLanguage.value) {
+      showSnackbar('预设加载不完整，请重试');
+      return;
+    }
+    
+    // 再次验证并强制设置（防止响应式更新问题）
+    await nextTick();
+    if (!promptText.value && presetData.prompt_text) {
+      promptText.value = String(presetData.prompt_text).trim();
+    }
+    if (!promptLanguage.value && presetData.prompt_language) {
+      promptLanguage.value = String(presetData.prompt_language).trim();
+    }
+  } catch (error) {
+    showSnackbar('加载预设失败: ' + (error.message || '未知错误'));
+    router.replace({ path: '/custom-voice', query: {} });
+  }
+};
+
+// 处理从URL加载预设（用于 keepAlive 组件）
+const handlePresetFromQuery = async () => {
+  // 先处理从圈子页面跳转过来的预设（必须在加载用户预设列表之前）
+  if (route.query.presetId) {
+    try {
+      await loadPresetFromQuery();
+    } catch (error) {
+      console.error('加载外部预设失败:', error);
+      // 即使失败也继续加载用户预设列表
+    }
+  }
+};
+
+// 组件挂载时加载预设列表
+onMounted(async () => {
+  await handlePresetFromQuery();
+  
+  // 然后加载用户的预设列表（如果已登录）
+  try {
+    await loadPresets();
+    
+    // 加载预设列表后，检查并恢复值（防止预设列表加载后值被清空）
+    // 如果值丢失但备份存在，立即恢复
+    const hasBackup = externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl;
+    const needsRestore = hasBackup && (
+      (!refAudioFile.value && externalPresetBackup.value.refAudioFile) ||
+      (!currentPresetAudioUrl.value && externalPresetBackup.value.presetAudioUrl) ||
+      (!promptText.value && externalPresetBackup.value.promptText) ||
+      (!promptLanguage.value && externalPresetBackup.value.promptLanguage)
+    );
+    
+    if (needsRestore) {
+      restoreExternalPreset();
+      
+      // 等待一个 tick，确保恢复完成
+      await nextTick();
+    }
+  } catch (error) {
+    // 如果未登录，不影响外部预设的使用
+  }
+});
+
+// 组件激活时（keepAlive 场景）也检查URL参数
+onActivated(async () => {
+  // 如果组件被 keepAlive 缓存，激活时也需要检查URL参数
+  if (route.query.presetId) {
+    // 检查是否已经加载过这个预设（避免重复加载）
+    const expectedPromptText = route.query.promptText ? decodeURIComponent(route.query.promptText) : '';
+    
+    // 如果数据不匹配，说明需要重新加载
+    if (promptText.value !== expectedPromptText || !refAudioFile.value) {
+      await handlePresetFromQuery();
+    }
+  } else {
+    // URL 参数已被清除，但可能值还在，检查并恢复
+    // 如果值丢失但备份存在，立即恢复
+    const hasBackup = externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl;
+    const needsRestore = hasBackup && (
+      (!refAudioFile.value && externalPresetBackup.value.refAudioFile) ||
+      (!currentPresetAudioUrl.value && externalPresetBackup.value.presetAudioUrl) ||
+      (!promptText.value && externalPresetBackup.value.promptText) ||
+      (!promptLanguage.value && externalPresetBackup.value.promptLanguage)
+    );
+    
+    if (needsRestore) {
+      restoreExternalPreset();
+      
+      // 再次等待一个 tick，确保恢复完成
+      await nextTick();
+    }
   }
 });
 </script>
