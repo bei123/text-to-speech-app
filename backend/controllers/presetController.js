@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const fs = require('fs');
 const path = require('path');
+const CryptoJS = require('crypto-js');
 const { uploadToOSS } = require('../utils/ossUtils');
 
 // 初始化预设表（如果不存在）
@@ -32,8 +33,33 @@ const initPresetTable = async () => {
 const savePreset = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { name, prompt_text, prompt_language } = req.body;
+        
+        // 从表单数据中获取参数（支持加密和未加密两种方式）
+        let name, prompt_text, prompt_language, username;
         const ref_wav_file = req.file;
+
+        // 检查是否有加密数据
+        if (req.body.encryptedData && req.body.key) {
+            try {
+                // 解密数据
+                const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
+                const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+
+                // 从解密后的数据中提取参数
+                name = decryptedData.name;
+                prompt_text = decryptedData.prompt_text;
+                prompt_language = decryptedData.prompt_language;
+                username = decryptedData.username;
+            } catch (decryptError) {
+                console.error('解密请求数据失败:', decryptError);
+                return res.status(400).json({ message: '解密请求数据失败' });
+            }
+        } else {
+            // 兼容未加密的请求
+            name = req.body.name;
+            prompt_text = req.body.prompt_text;
+            prompt_language = req.body.prompt_language;
+        }
 
         // 验证必要参数
         if (!name || !prompt_text || !prompt_language || !ref_wav_file) {
@@ -50,7 +76,11 @@ const savePreset = async (req, res) => {
         // 获取用户信息
         const getUserQuery = 'SELECT username FROM users WHERE id = ?';
         const [userResults] = await pool.query(getUserQuery, [userId]);
-        const username = userResults[0].username;
+        
+        // 如果请求中没有提供用户名（从加密数据中），使用数据库中的用户名
+        if (!username) {
+            username = userResults[0].username;
+        }
 
         // 读取文件并上传到 OSS
         const fileBuffer = fs.readFileSync(ref_wav_file.path);
@@ -100,7 +130,28 @@ const getPresets = async (req, res) => {
         `;
         const [results] = await pool.query(query, [userId]);
 
-        res.json({ presets: results });
+        // 检查请求是否包含加密密钥（表示客户端支持加密）
+        if (req.query.key) {
+            try {
+                // 加密预设列表数据
+                const encryptedData = CryptoJS.AES.encrypt(
+                    JSON.stringify({ presets: results }),
+                    req.query.key
+                ).toString();
+                
+                res.json({ 
+                    encryptedData,
+                    key: req.query.key
+                });
+            } catch (encryptError) {
+                console.error('加密预设列表失败:', encryptError);
+                // 如果加密失败，返回未加密的数据（向后兼容）
+                res.json({ presets: results });
+            }
+        } else {
+            // 兼容未加密的请求
+            res.json({ presets: results });
+        }
     } catch (error) {
         console.error('获取预设列表失败:', error);
         res.status(500).json({ message: '获取预设列表失败' });

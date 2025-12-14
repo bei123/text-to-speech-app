@@ -313,6 +313,7 @@ import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue'
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import CryptoJS from 'crypto-js';
 import { API_URLS } from '@/constants/constants';
 import WaveSurfer from 'wavesurfer.js';
 
@@ -788,21 +789,44 @@ const generateSpeechWithReference = async () => {
   isLoading.value = true;
 
   try {
+    // 获取加密密钥
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 准备要加密的文本数据
+    const textData = {
+      text: inputText.value,
+      text_language: selectedLanguage.value,
+      prompt_text: promptText.value || '',
+      prompt_language: promptLanguage.value || '',
+      username: currentUser.username
+    };
+
+    // 如果使用预设，也包含 ref_audio_url
+    if (currentPresetAudioUrl.value) {
+      textData.ref_audio_url = currentPresetAudioUrl.value;
+    }
+
+    // 加密文本数据
+    const encryptedData = CryptoJS.AES.encrypt(
+      JSON.stringify(textData),
+      secretKey
+    ).toString();
+
     // 创建 FormData
     const formData = new FormData();
-    formData.append('text', inputText.value);
-    formData.append('text_language', selectedLanguage.value);
+    formData.append('encryptedData', encryptedData);
+    formData.append('key', secretKey);
     
-    // 如果使用预设，直接发送OSS URL；否则上传文件
-    if (currentPresetAudioUrl.value) {
-      formData.append('ref_audio_url', currentPresetAudioUrl.value);
-    } else {
+    // 如果使用预设，不发送文件；否则上传文件
+    if (!currentPresetAudioUrl.value) {
       formData.append('ref_wav_file', refAudioFile.value);
     }
-    
-    formData.append('prompt_text', promptText.value || '');
-    formData.append('prompt_language', promptLanguage.value || '');
-    formData.append('model_name', 'v2ProPlus');
 
     // 发送请求
     const speechResponse = await axios.post(
@@ -1013,12 +1037,41 @@ const canSavePreset = computed(() => {
 // 加载预设列表
 const loadPresets = async () => {
   try {
+    const currentUser = store.getters['auth/user'];
+    
+    if (!currentUser || !currentUser.username) {
+      return;
+    }
+
+    // 获取加密密钥
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 发送加密请求
     const response = await axios.get(API_URLS.PRESET_LIST, {
+      params: { key: secretKey },
       headers: {
         Authorization: `Bearer ${store.getters['auth/accessToken']}`
       }
     });
-    presets.value = response.data.presets || [];
+
+    // 解密响应数据
+    if (response.data.encryptedData) {
+      const decryptedBytes = CryptoJS.AES.decrypt(
+        response.data.encryptedData,
+        response.data.key || secretKey
+      );
+      const decryptedData = JSON.parse(decryptedBytes.toString(CryptoJS.enc.Utf8));
+      presets.value = decryptedData.presets || [];
+    } else {
+      // 兼容未加密的响应
+      presets.value = response.data.presets || [];
+    }
   } catch (error) {
     console.error('加载预设列表失败:', error);
     if (error.response?.status === 401) {
@@ -1063,13 +1116,43 @@ const savePreset = async () => {
     return;
   }
 
+  const currentUser = store.getters['auth/user'];
+  if (!currentUser || !currentUser.username) {
+    showSnackbar('请先登入');
+    router.replace('/login');
+    return;
+  }
+
   isSavingPreset.value = true;
 
   try {
+    // 获取加密密钥
+    const initialKey = 'text-to-speech-initial-key';
+    const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
+
+    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+      params: { encryptedUsername: encryptedUsernameForKey }
+    });
+    const secretKey = keyResponse.data.key;
+
+    // 准备要加密的文本数据
+    const textData = {
+      name: presetName.value.trim(),
+      prompt_text: promptText.value,
+      prompt_language: promptLanguage.value,
+      username: currentUser.username
+    };
+
+    // 加密文本数据
+    const encryptedData = CryptoJS.AES.encrypt(
+      JSON.stringify(textData),
+      secretKey
+    ).toString();
+
+    // 创建 FormData
     const formData = new FormData();
-    formData.append('name', presetName.value.trim());
-    formData.append('prompt_text', promptText.value);
-    formData.append('prompt_language', promptLanguage.value);
+    formData.append('encryptedData', encryptedData);
+    formData.append('key', secretKey);
     formData.append('ref_wav_file', refAudioFile.value);
 
     await axios.post(API_URLS.PRESET_SAVE, formData, {

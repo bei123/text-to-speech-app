@@ -244,6 +244,7 @@ const generateSpeechWithReference = async (req, res) => {
         console.log('收到参考音频请求:', {
             userId,
             body: req.body,
+            hasEncryptedData: !!req.body.encryptedData,
             file: req.file ? {
                 originalname: req.file.originalname,
                 mimetype: req.file.mimetype,
@@ -252,13 +253,36 @@ const generateSpeechWithReference = async (req, res) => {
             } : null
         });
         
-        // 从表单数据中获取参数
-        const text = req.body.text || '';
-        const text_language = req.body.text_language || '';
-        const prompt_text = req.body.prompt_text || '';
-        const prompt_language = req.body.prompt_language || '';
+        // 从表单数据中获取参数（支持加密和未加密两种方式）
+        let text, text_language, prompt_text, prompt_language, ref_audio_url, username;
         const model_name = 'v2ProPlus';
-        const ref_audio_url = req.body.ref_audio_url; // OSS URL（如果使用预设）
+        
+        // 检查是否有加密数据
+        if (req.body.encryptedData && req.body.key) {
+            try {
+                // 解密数据
+                const bytes = CryptoJS.AES.decrypt(req.body.encryptedData, req.body.key);
+                const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+
+                // 从解密后的数据中提取参数
+                text = decryptedData.text;
+                text_language = decryptedData.text_language;
+                prompt_text = decryptedData.prompt_text;
+                prompt_language = decryptedData.prompt_language;
+                ref_audio_url = decryptedData.ref_audio_url; // OSS URL（如果使用预设）
+                username = decryptedData.username;
+            } catch (decryptError) {
+                console.error('解密请求数据失败:', decryptError);
+                return res.status(400).json({ message: '解密请求数据失败' });
+            }
+        } else {
+            // 兼容未加密的请求
+            text = req.body.text || '';
+            text_language = req.body.text_language || '';
+            prompt_text = req.body.prompt_text || '';
+            prompt_language = req.body.prompt_language || '';
+            ref_audio_url = req.body.ref_audio_url; // OSS URL（如果使用预设）
+        }
         
         // 获取上传的文件（如果提供了文件）
         const ref_wav_file = req.file;
@@ -359,7 +383,11 @@ const generateSpeechWithReference = async (req, res) => {
         const getUserQuery = 'SELECT username, email FROM users WHERE id = ?';
         const [userResults] = await pool.query(getUserQuery, [userId]);
         const userInfo = userResults[0];
-        const username = userInfo.username;
+        
+        // 如果请求中没有提供用户名（从加密数据中），使用数据库中的用户名
+        if (!username) {
+            username = userInfo.username;
+        }
 
         // 插入初始状态为 pending 的任务
         const insertRequestQuery = `
