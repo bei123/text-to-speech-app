@@ -76,7 +76,7 @@ const generateSpeech = async (req, res) => {
             'pending'
         ]);
 
-        // 添加任务到队列
+        // 添加任务到队列（所有任务都在同一个队列中）
         const job = await speechQueue.add({
             text,
             text_language,
@@ -377,120 +377,63 @@ const generateSpeechWithReference = async (req, res) => {
 
         const requestId = requestResult.insertId;
         
+        // 使用 audioFilePath（无论是上传的文件还是从OSS下载的）
+        const audioFileName = ref_wav_file ? ref_wav_file.originalname : 'preset_audio.wav';
+        const audioMimeType = ref_wav_file ? ref_wav_file.mimetype : 'audio/wav';
+        
+        // 确定是否需要删除临时文件
+        // 如果是从OSS下载的，需要删除；如果是上传的文件，multer会处理，但为了安全也标记为需要删除
+        const needDeleteTempFile = shouldDeleteTempFile || (ref_wav_file && ref_wav_file.path);
+        
         try {
-            // 更新任务状态为 processing
-            await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
-
-            // 准备 FormData 用于调用外部 API
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('text_language', text_language);
-            
-            // 使用 audioFilePath（无论是上传的文件还是从OSS下载的）
-            const audioFileName = ref_wav_file ? ref_wav_file.originalname : 'preset_audio.wav';
-            const audioMimeType = ref_wav_file ? ref_wav_file.mimetype : 'audio/wav';
-            
-            formData.append('ref_wav_file', fs.createReadStream(audioFilePath), {
-                filename: audioFileName,
-                contentType: audioMimeType
-            });
-            formData.append('prompt_text', prompt_text);
-            formData.append('prompt_language', prompt_language);
-            formData.append('model_name', model_name);
-
-            // 调用外部语音生成 API
-            const V2PROPLUS_API_URL = process.env.V2PROPLUS_API_URL || 'http://127.0.0.1:6006/v2proplus';
-            
-            console.log('调用外部API:', {
-                url: V2PROPLUS_API_URL,
-                text: text.substring(0, 50) + '...',
+            // 添加任务到队列（所有任务都在同一个队列中）
+            const job = await speechQueue.add({
+                text,
                 text_language,
-                prompt_text: prompt_text ? prompt_text.substring(0, 50) + '...' : '',
+                prompt_text,
                 prompt_language,
                 model_name,
-                filePath: audioFilePath,
-                isFromPreset: !!ref_audio_url
+                userId,
+                userEmail: userInfo.email,
+                username,
+                requestId,
+                audioFilePath,
+                audioFileName,
+                audioMimeType,
+                shouldDeleteTempFile: needDeleteTempFile
             });
-            
-            // 注意：FastAPI 端点不需要 Authorization header
-            const response = await axios.post(V2PROPLUS_API_URL, formData, {
-                headers: {
-                    ...formData.getHeaders()
-                },
-                responseType: 'arraybuffer',
-                timeout: 300000, // 5分钟超时
-                maxContentLength: Infinity,
-                maxBodyLength: Infinity
+
+            // 更新任务 ID
+            await pool.query('UPDATE audio_requests SET job_id = ? WHERE id = ?', [job.id, requestId]);
+
+            console.log('参考音频任务已添加到队列:', {
+                jobId: job.id,
+                requestId,
+                filePath: audioFilePath
             });
-            
-            // 检查响应状态码
-            if (response.status !== 200) {
-                throw new Error(`外部API返回非200状态码: ${response.status}`);
-            }
-            
-            // 检查响应内容类型，如果是 JSON（错误响应），则解析错误
-            const contentType = response.headers['content-type'] || '';
-            if (contentType.includes('application/json')) {
+
+            // 等待任务完成
+            const downloadLink = await job.finished();
+
+            // 删除上传文件的临时文件（multer保存的）
+            // 注意：从OSS下载的文件会在队列处理器中删除
+            if (ref_wav_file && ref_wav_file.path && fs.existsSync(ref_wav_file.path)) {
                 try {
-                    const errorData = JSON.parse(Buffer.from(response.data).toString());
-                    throw new Error(errorData.message || errorData.detail || '外部API返回错误');
-                } catch (parseError) {
-                    if (parseError.message && parseError.message !== '外部API返回错误') {
-                        throw parseError;
-                    }
-                    // 如果解析失败，继续处理（可能是其他格式）
-                    console.warn('无法解析错误响应:', parseError);
+                    fs.unlinkSync(ref_wav_file.path);
+                    console.log('已删除上传的临时文件:', ref_wav_file.path);
+                } catch (unlinkError) {
+                    console.error('删除上传的临时文件失败:', unlinkError);
                 }
-            }
-            
-            // 验证响应数据大小
-            if (!response.data || response.data.length === 0) {
-                throw new Error('外部API返回空数据');
-            }
-            
-            console.log('外部API响应成功，数据大小:', response.data.length, 'Content-Type:', contentType);
-
-            // 生成文件名
-            const fileName = `speech_${requestId}.wav`;
-
-            // 上传到阿里云 OSS
-            const { uploadToOSS } = require('../utils/ossUtils');
-            const ossResult = await uploadToOSS(response.data, fileName, username, model_name);
-
-            // 更新任务状态为 completed
-            await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
-
-            // 处理音频文件
-            const audioFile = {
-                request_id: requestId,
-                file_name: fileName,
-                oss_url: ossResult.url
-            };
-
-            // 保存到数据库
-            await pool.query(
-                'INSERT INTO audio_files (request_id, file_name, oss_url) VALUES (?, ?, ?)',
-                [audioFile.request_id, audioFile.file_name, audioFile.oss_url]
-            );
-
-            // 删除临时文件
-            if (ref_wav_file && fs.existsSync(ref_wav_file.path)) {
-                fs.unlinkSync(ref_wav_file.path);
-            }
-            if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
-                fs.unlinkSync(audioFilePath);
             }
 
             // 返回下载链接
-            res.json({ downloadLink: ossResult.url });
+            res.json({ downloadLink });
         } catch (error) {
             console.error('生成语音失败:', error);
             console.error('错误详情:', {
                 message: error.message,
                 stack: error.stack,
-                response: error.response?.data,
-                status: error.response?.status,
-                requestId: requestId
+                requestId
             });
             
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
@@ -511,50 +454,8 @@ const generateSpeechWithReference = async (req, res) => {
                 }
             }
             
-            // 返回更详细的错误信息
-            let errorMessage = '生成语音失败';
-            if (error.response) {
-                // 外部API返回的错误
-                const status = error.response.status;
-                let responseData = error.response.data;
-                
-                // 尝试解析响应数据（可能是 Buffer 或字符串）
-                if (Buffer.isBuffer(responseData)) {
-                    try {
-                        const jsonData = JSON.parse(responseData.toString('utf-8'));
-                        responseData = jsonData;
-                    } catch (e) {
-                        // 如果不是 JSON，转换为字符串
-                        responseData = responseData.toString('utf-8').substring(0, 200);
-                    }
-                } else if (typeof responseData === 'string') {
-                    try {
-                        responseData = JSON.parse(responseData);
-                    } catch (e) {
-                        // 保持为字符串
-                    }
-                }
-                
-                // FastAPI 错误格式：{"code": 500, "message": "..."} 或 {"detail": "..."}
-                if (responseData && typeof responseData === 'object') {
-                    if (responseData.message) {
-                        errorMessage = `外部API错误: ${responseData.message}`;
-                    } else if (responseData.detail) {
-                        errorMessage = `外部API错误: ${responseData.detail}`;
-                    } else {
-                        errorMessage = `外部API错误 (${status}): ${JSON.stringify(responseData)}`;
-                    }
-                } else {
-                    errorMessage = `外部API错误 (${status}): ${String(responseData)}`;
-                }
-            } else if (error.request) {
-                // 请求发送失败（网络问题或外部API不可达）
-                errorMessage = `无法连接到外部API: ${V2PROPLUS_API_URL}。请确保服务正在运行。`;
-            } else {
-                // 其他错误
-                errorMessage = error.message || '未知错误';
-            }
-            
+            // 返回错误信息
+            const errorMessage = error.message || '生成语音失败';
             console.error('最终错误信息:', errorMessage);
             res.status(500).json({ message: errorMessage });
         }
