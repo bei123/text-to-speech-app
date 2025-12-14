@@ -15,6 +15,8 @@ export const API_URLS = {
     MODEL_PROMPT: `${API_BASE_URL}/models/model-prompt`,
     PRESET_SAVE: `${API_BASE_URL}/presets/save`,
     PRESET_LIST: `${API_BASE_URL}/presets/list`,
+    PRESET_PUBLIC: `${API_BASE_URL}/presets/public`,
+    PRESET_SHARE: `${API_BASE_URL}/presets`, // PUT /presets/:id/share
     PRESET_DELETE: `${API_BASE_URL}/presets`,
 };
 

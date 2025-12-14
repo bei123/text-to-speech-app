@@ -5,7 +5,8 @@
       <v-toolbar-title class="font-weight-bold">Ai语音生命</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn text to="/" class="mx-2">Home</v-btn>
-      <v-btn text to="/reference-audio" class="mx-2">自定义音色</v-btn>
+      <v-btn text to="/custom-voice" class="mx-2">自定义音色</v-btn>
+      <v-btn text to="/community" class="mx-2">音色圈子</v-btn>
       <v-btn text to="/history" class="mx-2">生成记录</v-btn>
       <v-btn text to="/sponsors" class="mx-2">为爱发电的人们</v-btn>
       <v-btn color="error" @click="logout" class="mx-2">
@@ -40,9 +41,13 @@
         <v-icon>mdi-home</v-icon>
         <span>Home</span>
       </v-btn>
-      <v-btn to="/reference-audio" value="reference">
+      <v-btn to="/custom-voice" value="reference">
         <v-icon>mdi-microphone</v-icon>
         <span>自定义音色</span>
+      </v-btn>
+      <v-btn to="/community" value="community">
+        <v-icon>mdi-account-group</v-icon>
+        <span>音色圈子</span>
       </v-btn>
       <v-btn to="/history" value="history">
         <v-icon>mdi-history</v-icon>

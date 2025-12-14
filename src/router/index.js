@@ -52,12 +52,26 @@ const routes = [
     },
   },
   {
-    path: '/reference-audio',
+    path: '/custom-voice',
     name: 'ReferenceAudioSpeech',
     component: () => import(/* webpackPreload: true */ '@/components/ReferenceAudioSpeech.vue'),
     meta: {
       requiresAuth: true,
       title: '自定义音色',
+      keepAlive: true,
+    },
+  },
+  {
+    path: '/reference-audio',
+    redirect: '/custom-voice'
+  },
+  {
+    path: '/community',
+    name: 'CommunityPage',
+    component: () => import(/* webpackPreload: true */ '@/components/CommunityPage.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '音色圈子',
       keepAlive: true,
     },
   },

@@ -14,16 +14,30 @@ const initPresetTable = async () => {
             ref_audio_url VARCHAR(500) NOT NULL,
             prompt_text TEXT NOT NULL,
             prompt_language VARCHAR(50) NOT NULL,
+            is_shared TINYINT(1) DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            INDEX idx_user_id (user_id)
+            INDEX idx_user_id (user_id),
+            INDEX idx_is_shared (is_shared)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     
     try {
         await pool.query(createTableQuery);
         console.log('预设表初始化成功');
+        
+        // 检查并添加 is_shared 字段（如果表已存在但没有该字段）
+        try {
+            await pool.query('ALTER TABLE voice_presets ADD COLUMN is_shared TINYINT(1) DEFAULT 0');
+            await pool.query('ALTER TABLE voice_presets ADD INDEX idx_is_shared (is_shared)');
+            console.log('已添加 is_shared 字段');
+        } catch (alterError) {
+            // 字段已存在，忽略错误
+            if (!alterError.message.includes('Duplicate column name')) {
+                console.warn('添加 is_shared 字段时出现警告:', alterError.message);
+            }
+        }
     } catch (error) {
         console.error('预设表初始化失败:', error);
     }
@@ -92,8 +106,8 @@ const savePreset = async (req, res) => {
 
         // 保存到数据库
         const insertQuery = `
-            INSERT INTO voice_presets (user_id, name, ref_audio_url, prompt_text, prompt_language)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO voice_presets (user_id, name, ref_audio_url, prompt_text, prompt_language, is_shared)
+            VALUES (?, ?, ?, ?, ?, 0)
         `;
         const [result] = await pool.query(insertQuery, [
             userId,
@@ -123,7 +137,7 @@ const getPresets = async (req, res) => {
         const userId = req.user.id;
 
         const query = `
-            SELECT id, name, ref_audio_url, prompt_text, prompt_language, created_at, updated_at
+            SELECT id, name, ref_audio_url, prompt_text, prompt_language, is_shared, created_at, updated_at
             FROM voice_presets
             WHERE user_id = ?
             ORDER BY updated_at DESC
@@ -186,12 +200,99 @@ const deletePreset = async (req, res) => {
     }
 };
 
+// 获取公开的预设列表（圈子）
+const getPublicPresets = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        const query = `
+            SELECT 
+                vp.id, 
+                vp.name, 
+                vp.ref_audio_url, 
+                vp.prompt_text, 
+                vp.prompt_language, 
+                vp.created_at, 
+                vp.updated_at,
+                u.username as author_name
+            FROM voice_presets vp
+            INNER JOIN users u ON vp.user_id = u.id
+            WHERE vp.is_shared = 1
+            ORDER BY vp.updated_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        const [results] = await pool.query(query, [limit, offset]);
+
+        // 获取总数
+        const countQuery = 'SELECT COUNT(*) as total FROM voice_presets WHERE is_shared = 1';
+        const [countResults] = await pool.query(countQuery);
+        const total = countResults[0].total;
+
+        // 检查请求是否包含加密密钥（表示客户端支持加密）
+        if (req.query.key) {
+            try {
+                // 加密预设列表数据
+                const encryptedData = CryptoJS.AES.encrypt(
+                    JSON.stringify({ presets: results, total, page, limit }),
+                    req.query.key
+                ).toString();
+                
+                res.json({ 
+                    encryptedData,
+                    key: req.query.key
+                });
+            } catch (encryptError) {
+                console.error('加密预设列表失败:', encryptError);
+                res.json({ presets: results, total, page, limit });
+            }
+        } else {
+            res.json({ presets: results, total, page, limit });
+        }
+    } catch (error) {
+        console.error('获取公开预设列表失败:', error);
+        res.status(500).json({ message: '获取公开预设列表失败' });
+    }
+};
+
+// 分享/取消分享预设
+const toggleSharePreset = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const presetId = req.params.id;
+        const { is_shared } = req.body;
+
+        // 验证预设是否属于当前用户
+        const checkQuery = 'SELECT id FROM voice_presets WHERE id = ? AND user_id = ?';
+        const [checkResults] = await pool.query(checkQuery, [presetId, userId]);
+
+        if (checkResults.length === 0) {
+            return res.status(404).json({ message: '预设不存在或无权访问' });
+        }
+
+        // 更新分享状态
+        const updateQuery = 'UPDATE voice_presets SET is_shared = ? WHERE id = ? AND user_id = ?';
+        await pool.query(updateQuery, [is_shared ? 1 : 0, presetId, userId]);
+
+        res.json({ 
+            message: is_shared ? '预设已分享到圈子' : '预设已取消分享',
+            is_shared: is_shared ? 1 : 0
+        });
+    } catch (error) {
+        console.error('更新预设分享状态失败:', error);
+        res.status(500).json({ message: '更新预设分享状态失败' });
+    }
+};
+
 // 初始化表（在模块加载时执行）
 initPresetTable();
 
 module.exports = {
     savePreset,
     getPresets,
-    deletePreset
+    deletePreset,
+    getPublicPresets,
+    toggleSharePreset
 };
 

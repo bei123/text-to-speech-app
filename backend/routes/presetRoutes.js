@@ -57,6 +57,12 @@ router.post('/save', authenticateToken, (req, res, next) => {
 // 获取预设列表
 router.get('/list', authenticateToken, presetController.getPresets);
 
+// 获取公开预设列表（圈子）
+router.get('/public', presetController.getPublicPresets);
+
+// 分享/取消分享预设
+router.put('/:id/share', authenticateToken, presetController.toggleSharePreset);
+
 // 删除预设
 router.delete('/:id', authenticateToken, presetController.deletePreset);
 

@@ -97,15 +97,21 @@
         <div class="help-text-group">
           <div class="help-text">
             <i class="fas fa-info-circle"></i>
-            时长必须在 <strong>3-10秒</strong> 之间，支持格式：WAV/MP3/M4A/AAC/OGG/FLAC，最大 50MB
-            <br>
-            <span style="color: #42b983; font-size: 11px;">
-              <i class="fas fa-magic"></i> 非 WAV 格式将自动转换为 WAV
-            </span>
+            <div class="help-text-content">
+              <div class="help-text-main">
+                时长必须在 <strong>3-10秒</strong> 之间，支持格式：WAV/MP3/M4A/AAC/OGG/FLAC，最大 50MB
+              </div>
+              <div class="help-text-sub">
+                <i class="fas fa-magic"></i>
+                <span>非 WAV 格式将自动转换为 WAV</span>
+              </div>
+            </div>
           </div>
           <div class="help-text quality-tip">
             <i class="fas fa-microphone-alt"></i>
-            <span><strong>质量要求：</strong>干净、无背景杂音、单人声音、清晰</span>
+            <div class="help-text-content">
+              <strong>质量要求：</strong>干净、无背景杂音、单人声音、清晰
+            </div>
           </div>
         </div>
         <div 
@@ -235,6 +241,15 @@
               <button @click="selectPreset(preset)" class="preset-action-btn" :class="{ 'active': selectedPresetId == preset.id }">
                 <i class="fas fa-check"></i> {{ selectedPresetId == preset.id ? '已使用' : '使用' }}
               </button>
+              <button 
+                @click="toggleSharePreset(preset)" 
+                class="preset-action-btn share-btn" 
+                :class="{ 'shared': preset.is_shared }"
+                :title="preset.is_shared ? '取消分享' : '分享到圈子'"
+              >
+                <i class="fas" :class="preset.is_shared ? 'fa-share-alt' : 'fa-share'"></i>
+                {{ preset.is_shared ? '已分享' : '分享' }}
+              </button>
               <button @click="deletePreset(preset.id)" class="preset-action-btn delete-btn" title="删除预设">
                 <i class="fas fa-trash"></i>
               </button>
@@ -311,7 +326,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import { API_URLS } from '@/constants/constants';
@@ -358,6 +373,7 @@ const languages = [
 ];
 
 const router = useRouter();
+const route = useRoute();
 const store = useStore();
 
 // 计算是否可以生成
@@ -1287,6 +1303,24 @@ const deletePreset = async (presetId) => {
 // 组件挂载时加载预设列表
 onMounted(() => {
   loadPresets();
+
+  // 处理从圈子页面跳转过来的预设
+  if (route.query.presetId) {
+    const presetData = {
+      id: parseInt(route.query.presetId),
+      name: route.query.presetName,
+      ref_audio_url: route.query.refAudioUrl,
+      prompt_text: route.query.promptText,
+      prompt_language: route.query.promptLanguage
+    };
+    
+    // 等待预设列表加载完成后再选择预设
+    setTimeout(() => {
+      selectPreset(presetData);
+      // 清除URL参数
+      router.replace({ path: '/custom-voice', query: {} });
+    }, 500);
+  }
 });
 </script>
 
@@ -1545,19 +1579,51 @@ onMounted(() => {
 .help-text {
   font-size: 12px;
   color: #666;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background-color: #f0f7ff;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
   border-left: 3px solid #42b983;
-  border-radius: 4px;
 }
 
 .help-text i {
   color: #42b983;
   font-size: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.help-text-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-text-main {
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.help-text-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #42b983;
+  margin-top: 2px;
+}
+
+.help-text-sub i {
+  font-size: 11px;
+  color: #42b983;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .help-text strong {
@@ -1573,10 +1639,16 @@ onMounted(() => {
 
 .quality-tip i {
   color: #ff9800;
+  margin-top: 2px;
 }
 
 .quality-tip strong {
   color: #ff9800;
+}
+
+.quality-tip .help-text-content {
+  line-height: 1.6;
+  word-break: break-word;
 }
 
 .input-error {
@@ -2186,6 +2258,126 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+/* 移动端优化 - help-text */
+@media (max-width: 768px) {
+  .help-text {
+    font-size: 11px;
+    padding: 8px 10px;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .help-text i {
+    font-size: 12px;
+  }
+
+  .help-text-content {
+    gap: 4px;
+  }
+
+  .help-text-main {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .help-text-sub {
+    font-size: 10px;
+    gap: 3px;
+  }
+
+  .help-text-sub i {
+    font-size: 10px;
+  }
+
+  .quality-tip {
+    margin-top: 6px;
+  }
+
+  .help-text-group {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .help-text {
+    font-size: 10px;
+    padding: 6px 8px;
+    gap: 5px;
+  }
+
+  .help-text i {
+    font-size: 11px;
+  }
+
+  .help-text-main {
+    font-size: 10px;
+  }
+
+  .help-text-sub {
+    font-size: 9px;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .help-text {
+    font-size: 11px;
+    padding: 8px 10px;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .help-text i {
+    font-size: 12px;
+  }
+
+  .help-text-content {
+    gap: 4px;
+  }
+
+  .help-text-main {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .help-text-sub {
+    font-size: 10px;
+    gap: 3px;
+  }
+
+  .help-text-sub i {
+    font-size: 10px;
+  }
+
+  .quality-tip {
+    margin-top: 6px;
+  }
+
+  .help-text-group {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .help-text {
+    font-size: 10px;
+    padding: 6px 8px;
+    gap: 5px;
+  }
+
+  .help-text i {
+    font-size: 11px;
+  }
+
+  .help-text-main {
+    font-size: 10px;
+  }
+
+  .help-text-sub {
+    font-size: 9px;
+  }
+}
+
 .help-text-inline {
   font-size: 11px;
   color: #666;
@@ -2446,6 +2638,22 @@ onMounted(() => {
 
 .preset-action-btn.delete-btn:hover {
   background-color: #ff1a1a;
+}
+
+.preset-action-btn.share-btn {
+  background-color: #6c757d;
+}
+
+.preset-action-btn.share-btn:hover {
+  background-color: #5a6268;
+}
+
+.preset-action-btn.share-btn.shared {
+  background-color: #42b983;
+}
+
+.preset-action-btn.share-btn.shared:hover {
+  background-color: #3aa876;
 }
 
 .no-presets {
