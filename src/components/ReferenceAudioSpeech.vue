@@ -74,6 +74,23 @@
       </button>
     </div>
 
+    <!-- 语音预览 -->
+    <div v-if="audioUrl" class="audio-preview">
+      <h2 class="preview-title">预览</h2>
+      <div class="waveform-container">
+        <div ref="waveformRef" class="waveform"></div>
+        <div class="waveform-controls">
+          <button @click="togglePlay" class="play-button">
+            <i :class="['fas', isPlaying ? 'fa-pause' : 'fa-play']"></i>
+          </button>
+          <div class="time-display">
+            <span>{{ currentTime }}</span> / <span>{{ duration }}</span>
+          </div>
+        </div>
+      </div>
+      <button @click="handleDownload" class="button button-primary download-button">下载语音</button>
+    </div>
+
     <!-- 音色配置区域（可折叠，使用预设时自动隐藏） -->
     <div class="config-section" :class="{ 'section-collapsed': selectedPresetId || isExternalPreset, 'section-disabled': selectedPresetId || isExternalPreset }">
       <div class="section-header-toggle" @click="toggleConfigSection">
@@ -307,23 +324,6 @@
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- 语音预览 -->
-    <div v-if="audioUrl" class="audio-preview">
-      <h2 class="preview-title">预览</h2>
-      <div class="waveform-container">
-        <div ref="waveformRef" class="waveform"></div>
-        <div class="waveform-controls">
-          <button @click="togglePlay" class="play-button">
-            <i :class="['fas', isPlaying ? 'fa-pause' : 'fa-play']"></i>
-          </button>
-          <div class="time-display">
-            <span>{{ currentTime }}</span> / <span>{{ duration }}</span>
-          </div>
-        </div>
-      </div>
-      <button @click="handleDownload" class="button button-primary download-button">下载语音</button>
     </div>
   </div>
 </template>
@@ -1165,6 +1165,9 @@ const clearPreset = () => {
   promptText.value = '';
   promptLanguage.value = '';
   
+  // 清除预览音频
+  audioUrl.value = '';
+  
   // 展开配置区域，允许手动配置
   showConfigSection.value = true;
   
@@ -1356,6 +1359,9 @@ const savePreset = async () => {
 // 选择预设
 const selectPreset = async (preset) => {
   try {
+    // 切换预设时，清除之前的预览音频
+    audioUrl.value = '';
+    
     // 如果之前是外部预设，现在选择用户自己的预设，清除外部预设状态和URL
     if (isExternalPreset.value && preset.id && presets.value.find(p => p.id === preset.id)) {
       // 保存外部预设的URL，用于后续清除
@@ -1436,12 +1442,12 @@ const selectPreset = async (preset) => {
           currentPresetAudioUrl.value = null;
         }
         // 清除外部预设备份（包括URL）
-        externalPresetBackup.value = {
-          refAudioFile: null,
+      externalPresetBackup.value = {
+        refAudioFile: null,
           presetAudioUrl: null, // 确保外部预设的URL被清除
-          promptText: '',
-          promptLanguage: ''
-        };
+        promptText: '',
+        promptLanguage: ''
+      };
       } else if (!externalPresetBackup.value.refAudioFile && !externalPresetBackup.value.presetAudioUrl) {
         // 只有在 externalPresetBackup 为空时才设置，避免覆盖已有的备份
         externalPresetBackup.value = {
@@ -1539,8 +1545,8 @@ const selectPreset = async (preset) => {
     }
     
     // 设置配置区域显示状态
-    // 如果是外部预设（从音色圈子跳转），默认折叠；如果是用户自己的预设，默认展开
-    showConfigSection.value = !isExternalPreset.value;
+    // 选择预设时，默认折叠配置区域（无论是外部预设还是用户自己的预设）
+    showConfigSection.value = false;
     
     // 最终验证所有数据
     await nextTick();
@@ -1589,6 +1595,18 @@ const selectPreset = async (preset) => {
 // 加载预设（从下拉框选择）
 // 处理预设选择变化
 const handlePresetSelectChange = () => {
+  // 如果用户选择了"不使用预设，手动配置"
+  if (!selectedPresetId.value) {
+    // 展开配置区域，允许手动配置
+    showConfigSection.value = true;
+    // 清除预设相关状态
+    clearPreset();
+    return;
+  }
+  
+  // 切换预设时，清除之前的预览音频
+  audioUrl.value = '';
+  
   // 如果用户选择了自己的预设，清除外部预设状态和URL
   if (isExternalPreset.value && selectedPresetId.value) {
     // 保存外部预设的URL，用于后续清除
@@ -1621,7 +1639,7 @@ const handlePresetSelectChange = () => {
     return;
   }
   
-  // 调用原来的 loadPreset 逻辑
+  // 调用原来的 loadPreset 逻辑（选择预设时会自动折叠配置区域）
   loadPreset();
 };
 
@@ -1838,7 +1856,7 @@ onActivated(async () => {
     if (promptText.value !== expectedPromptText || !refAudioFile.value) {
       await handlePresetFromQuery();
     }
-  } else {
+    } else {
     // URL 参数已被清除，但可能值还在，检查并恢复
     // 如果值丢失但备份存在，立即恢复
     const hasBackup = externalPresetBackup.value.refAudioFile || externalPresetBackup.value.presetAudioUrl;

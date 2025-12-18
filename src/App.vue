@@ -43,11 +43,11 @@
       </v-btn>
       <v-btn to="/custom-voice" value="reference">
         <v-icon>mdi-microphone</v-icon>
-        <span class="nav-label">音色</span>
+        <span class="nav-label">自定义音色</span>
       </v-btn>
       <v-btn to="/community" value="community">
         <v-icon>mdi-account-group</v-icon>
-        <span class="nav-label">圈子</span>
+        <span class="nav-label">音色圈子</span>
       </v-btn>
       <v-btn to="/history" value="history">
         <v-icon>mdi-history</v-icon>
