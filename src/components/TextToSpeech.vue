@@ -32,7 +32,10 @@
     <ModelModal v-if="showModelModal" :models="models" @select-model="selectModel" @close="closeModelModal" />
 
     <!-- 文本输入框 -->
-    <textarea v-model="inputText" placeholder="请输入文本" class="input-field"></textarea>
+    <textarea v-model="inputText" placeholder="请输入文本" class="input-field" maxlength="3000"></textarea>
+    <div class="text-length-hint" :class="{ 'text-over-limit': inputText.length > 3000 }">
+      <span>{{ inputText.length }} / 3000 字</span>
+    </div>
 
     <!-- 语言选择 -->
     <div class="form-group">
@@ -355,6 +358,13 @@ const generateSpeech = async () => {
     return;
   }
 
+  // 验证文本长度（最多3000字）
+  const MAX_TEXT_LENGTH = 3000;
+  if (inputText.value.length > MAX_TEXT_LENGTH) {
+    showSnackbar(`文本长度超过限制，最多支持${MAX_TEXT_LENGTH}字，当前为${inputText.value.length}字`);
+    return;
+  }
+
   const token = store.getters['auth/accessToken'];
   const currentUser = store.getters['auth/user'];
   console.log('当前登录状态：', {
@@ -415,6 +425,13 @@ const generateSpeech = async () => {
           textToGenerate = decryptedResponse.text;
         } else {
           textToGenerate = response.data.text;
+        }
+
+        // 验证AI处理后的文本长度（最多3000字）
+        const MAX_TEXT_LENGTH = 3000;
+        if (textToGenerate.length > MAX_TEXT_LENGTH) {
+          showSnackbar(`AI处理后的文本长度超过限制（${textToGenerate.length}字），最多支持${MAX_TEXT_LENGTH}字，将截断文本`);
+          textToGenerate = textToGenerate.substring(0, MAX_TEXT_LENGTH);
         }
       } catch (error) {
         console.error('AI处理失败:', error);
@@ -744,6 +761,19 @@ onMounted(() => {
 .input-field::placeholder {
   color: #999;
   font-style: italic;
+}
+
+.text-length-hint {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+  padding-right: 4px;
+}
+
+.text-length-hint.text-over-limit {
+  color: #f44336;
+  font-weight: 600;
 }
 
 /* 下拉框样式 */

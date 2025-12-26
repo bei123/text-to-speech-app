@@ -76,6 +76,7 @@ const initQueueProcessor = () => {
             let response;
             let fileName = `speech_${requestId}.wav`;
             let timeoutConfig; // 超时配置 { timeout, isLongText }
+            let fileStream = null; // 文件流引用，用于确保正确关闭
 
             if (isReferenceAudioTask) {
                 // 处理参考音频语音生成任务
@@ -98,9 +99,19 @@ const initQueueProcessor = () => {
 
                 // 准备 FormData 用于调用外部 API
                 const formData = new FormData();
+                fileStream = fs.createReadStream(audioFilePath);
+                
+                // 监听流错误，确保错误时关闭流
+                fileStream.on('error', (streamError) => {
+                    console.error('文件流读取错误:', streamError);
+                    if (!fileStream.destroyed) {
+                        fileStream.destroy();
+                    }
+                });
+                
                 formData.append('text', text);
                 formData.append('text_language', text_language);
-                formData.append('ref_wav_file', fs.createReadStream(audioFilePath), {
+                formData.append('ref_wav_file', fileStream, {
                     filename: audioFileName,
                     contentType: audioMimeType
                 });
@@ -160,10 +171,69 @@ const initQueueProcessor = () => {
                 }
 
                 // 调用外部语音生成 API
-                response = await axios.post(V2PROPLUS_API_URL, formData, axiosConfig);
-
-                // 清理临时文件
-                if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
+                // 关键优化：不要在 finally 中立即关闭流，让 FormData 自然完成流的读取
+                // FormData 会在请求发送时自动读取流，如果过早关闭会导致持续重试读取
+                try {
+                    response = await axios.post(V2PROPLUS_API_URL, formData, axiosConfig);
+                } catch (apiError) {
+                    // 请求失败时，确保流关闭
+                    if (fileStream && !fileStream.destroyed) {
+                        try {
+                            fileStream.destroy();
+                        } catch (streamError) {
+                            console.error('关闭文件流失败:', streamError);
+                        }
+                    }
+                    throw apiError;
+                }
+                
+                // 请求成功后，等待一小段时间确保 FormData 完全处理完流
+                // 然后关闭流和删除临时文件
+                // 注意：不要使用 finally，因为 finally 会在 axios 返回时立即执行
+                // 此时 FormData 可能还在读取流，导致持续读取
+                if (fileStream && !fileStream.destroyed) {
+                    // 等待流自然结束或一小段时间
+                    await new Promise((resolve) => {
+                        if (fileStream.readableEnded) {
+                            resolve();
+                        } else {
+                            // 监听流结束事件
+                            const onEnd = () => {
+                                fileStream.removeListener('error', onError);
+                                resolve();
+                            };
+                            const onError = () => {
+                                fileStream.removeListener('end', onEnd);
+                                resolve();
+                            };
+                            fileStream.once('end', onEnd);
+                            fileStream.once('error', onError);
+                            
+                            // 设置超时，避免无限等待
+                            setTimeout(() => {
+                                fileStream.removeListener('end', onEnd);
+                                fileStream.removeListener('error', onError);
+                                resolve();
+                            }, 1000); // 最多等待1秒
+                        }
+                    });
+                    
+                    // 现在安全地关闭流
+                    try {
+                        if (!fileStream.destroyed) {
+                            fileStream.destroy();
+                        }
+                    } catch (streamError) {
+                        // 忽略已关闭的流的错误
+                        if (!streamError.message || !streamError.message.includes('destroyed')) {
+                            console.error('关闭文件流失败:', streamError);
+                        }
+                    }
+                }
+                
+                // API调用完成后立即清理临时文件
+                // 这样可以尽快释放磁盘空间，特别是对于长文本任务
+                if (shouldDeleteTempFile && audioFilePath && fs.existsSync(audioFilePath)) {
                     try {
                         fs.unlinkSync(audioFilePath);
                         console.log('已删除临时文件:', audioFilePath);
@@ -259,7 +329,13 @@ const initQueueProcessor = () => {
             console.log('外部API响应成功，数据大小:', response.data.length, 'Content-Type:', contentType);
 
             // 上传到阿里云 OSS
-            const ossResult = await uploadToOSS(response.data, fileName, username, jobData.model_name || 'v2ProPlus');
+            // 将 ArrayBuffer 转换为 Buffer（OSS SDK 需要 Buffer）
+            // 对于大文件，uploadToOSS 会自动写入临时文件，避免 OSS SDK 多次读取
+            const audioBuffer = Buffer.from(response.data);
+            const ossResult = await uploadToOSS(audioBuffer, fileName, username, jobData.model_name || 'v2ProPlus');
+            
+            // 上传完成后，Buffer 会被 GC 回收
+            // 如果使用了临时文件，uploadToOSS 会自动清理
 
             // 清除超时检查定时器（如果存在）
             if (timeoutCheckTimer) {
@@ -307,12 +383,27 @@ const initQueueProcessor = () => {
 
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
 
-            // 清理临时文件（如果是参考音频任务）
+            // 确保文件流关闭（如果是参考音频任务）
+            // 注意：临时文件在 finally 块中已经清理，这里只确保流关闭
+            if (fileStream && !fileStream.destroyed) {
+                try {
+                    fileStream.destroy();
+                } catch (streamError) {
+                    console.error('关闭文件流失败:', streamError);
+                }
+            }
+
+            // 清理临时文件（如果是参考音频任务，且 finally 块中未清理）
+            // 这是一个额外的安全措施，确保临时文件被清理
             if (isReferenceAudioTask && jobData.shouldDeleteTempFile && jobData.audioFilePath && fs.existsSync(jobData.audioFilePath)) {
                 try {
                     fs.unlinkSync(jobData.audioFilePath);
+                    console.log('错误处理中已删除临时文件:', jobData.audioFilePath);
                 } catch (unlinkError) {
-                    console.error('删除临时文件失败:', unlinkError);
+                    // 文件可能已在 finally 块中删除，忽略错误
+                    if (!unlinkError.message.includes('ENOENT')) {
+                        console.error('删除临时文件失败:', unlinkError);
+                    }
                 }
             }
 

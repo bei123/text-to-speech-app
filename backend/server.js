@@ -101,6 +101,58 @@ if (!fs.existsSync(AUDIO_DIR)) {
     fs.mkdirSync(AUDIO_DIR);
 }
 
+// 定期清理临时文件（每小时清理一次超过1小时的临时文件）
+const TEMP_DIR = path.join(__dirname, '../audio_files/temp');
+const cleanupTempFiles = () => {
+    try {
+        if (!fs.existsSync(TEMP_DIR)) {
+            return;
+        }
+        
+        const files = fs.readdirSync(TEMP_DIR);
+        const now = Date.now();
+        const MAX_AGE = 60 * 60 * 1000; // 1小时
+        let cleanedCount = 0;
+        let totalSize = 0;
+        
+        files.forEach(file => {
+            const filePath = path.join(TEMP_DIR, file);
+            try {
+                // 使用 lstatSync 而不是 statSync，避免跟随符号链接
+                // 并且只读取必要的元数据，不读取文件内容
+                const stats = fs.lstatSync(filePath);
+                const age = now - stats.mtimeMs;
+                
+                // 删除超过1小时的临时文件
+                if (age > MAX_AGE) {
+                    const fileSize = stats.size;
+                    // 直接删除，不读取文件内容
+                    fs.unlinkSync(filePath);
+                    cleanedCount++;
+                    totalSize += fileSize;
+                }
+            } catch (error) {
+                // 文件可能已被删除或正在使用，忽略错误
+                if (error.code !== 'ENOENT') {
+                    console.warn('清理临时文件时出错:', filePath, error.message);
+                }
+            }
+        });
+        
+        if (cleanedCount > 0) {
+            console.log(`临时文件清理完成: 删除了 ${cleanedCount} 个文件，释放 ${(totalSize / 1024 / 1024).toFixed(2)} MB 空间`);
+        }
+    } catch (error) {
+        console.error('清理临时文件失败:', error);
+    }
+};
+
+// 启动时清理一次
+cleanupTempFiles();
+
+// 每小时清理一次
+setInterval(cleanupTempFiles, 60 * 60 * 1000);
+
 // 路由设置
 app.use('/', authRoutes);
 app.use('/models', modelRoutes);

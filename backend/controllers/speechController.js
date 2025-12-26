@@ -43,6 +43,14 @@ const generateSpeech = async (req, res) => {
             return res.status(400).json({ message: '缺少必要参数' });
         }
 
+        // 验证文本长度（最多3000字）
+        const MAX_TEXT_LENGTH = 3000;
+        if (text.length > MAX_TEXT_LENGTH) {
+            return res.status(400).json({ 
+                message: `文本长度超过限制，最多支持${MAX_TEXT_LENGTH}字，当前为${text.length}字` 
+            });
+        }
+
         // 缓存键
         const cacheKey = `speech:${userId}:${text}:${text_language}:${model_name}`;
 
@@ -299,6 +307,14 @@ const generateSpeechWithReference = async (req, res) => {
                     prompt_text: !!prompt_text,
                     prompt_language: !!prompt_language
                 }
+            });
+        }
+
+        // 验证文本长度（最多3000字）
+        const MAX_TEXT_LENGTH = 3000;
+        if (text.length > MAX_TEXT_LENGTH) {
+            return res.status(400).json({ 
+                message: `文本长度超过限制，最多支持${MAX_TEXT_LENGTH}字，当前为${text.length}字` 
             });
         }
         

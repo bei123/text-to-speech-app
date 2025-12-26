@@ -47,7 +47,11 @@
           placeholder="请输入要生成的文本..." 
           class="input-field main-textarea"
           rows="4"
+          maxlength="3000"
         ></textarea>
+        <div class="text-length-hint" :class="{ 'text-over-limit': inputText.length > 3000 }">
+          <span>{{ inputText.length }} / 3000 字</span>
+        </div>
         
         <div class="language-row">
           <label for="language-select" class="form-label inline-label">文本语言：</label>
@@ -909,6 +913,13 @@ const validateForm = () => {
 const generateSpeechWithReference = async () => {
   // 验证表单
   if (!validateForm()) {
+    return;
+  }
+
+  // 验证文本长度（最多3000字）
+  const MAX_TEXT_LENGTH = 3000;
+  if (inputText.value.length > MAX_TEXT_LENGTH) {
+    showSnackbar(`文本长度超过限制，最多支持${MAX_TEXT_LENGTH}字，当前为${inputText.value.length}字`);
     return;
   }
 
@@ -2573,6 +2584,19 @@ onActivated(async () => {
   border-color: #42b983;
   box-shadow: 0 0 0 4px rgba(66, 185, 131, 0.1);
   outline: none;
+}
+
+.text-length-hint {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+  padding-right: 4px;
+}
+
+.text-length-hint.text-over-limit {
+  color: #f44336;
+  font-weight: 600;
 }
 
 .language-row {
