@@ -11,22 +11,71 @@ require('dotenv').config();
 const API_URL = process.env.SPEECH_API_URL;
 const V2PROPLUS_API_URL = process.env.V2PROPLUS_API_URL || 'http://127.0.0.1:6006/v2proplus';
 
+// 超时配置（单位：毫秒）
+const TIMEOUT_CONFIG = {
+    // 短文本超时时间（500字以下统一使用5分钟）
+    SHORT_TEXT_TIMEOUT: parseInt(process.env.SPEECH_SHORT_TEXT_TIMEOUT) || 300000, // 默认5分钟
+    // 中长文本阈值（超过此长度不设置axios超时）
+    LONG_TEXT_THRESHOLD: parseInt(process.env.SPEECH_LONG_TEXT_THRESHOLD) || 500, // 默认500字
+    // 中长文本的最大等待时间（1小时后标记为失败）
+    LONG_TEXT_MAX_WAIT: parseInt(process.env.SPEECH_LONG_TEXT_MAX_WAIT) || 3600000 // 默认1小时
+};
+
+/**
+ * 根据文本长度计算超时时间
+ * @param {string} text - 要生成的文本
+ * @returns {object} { timeout: 超时时间（毫秒，null表示不设置超时）, isLongText: 是否中长文本 }
+ */
+const calculateTimeout = (text) => {
+    if (!text) {
+        return { timeout: TIMEOUT_CONFIG.SHORT_TEXT_TIMEOUT, isLongText: false };
+    }
+    
+    const textLength = text.length;
+    const isLongText = textLength >= TIMEOUT_CONFIG.LONG_TEXT_THRESHOLD;
+    
+    if (isLongText) {
+        // 中长文本不设置axios超时，但会在1小时后通过定时器检查标记为失败
+        console.log('中长文本检测:', {
+            textLength,
+            threshold: TIMEOUT_CONFIG.LONG_TEXT_THRESHOLD,
+            maxWait: `${(TIMEOUT_CONFIG.LONG_TEXT_MAX_WAIT / 1000 / 60).toFixed(1)}分钟`,
+            note: '不设置axios超时，将在1小时后检查任务状态'
+        });
+        return { timeout: null, isLongText: true };
+    }
+    
+    // 短文本统一使用5分钟超时
+    console.log('短文本超时设置:', {
+        textLength,
+        timeout: `${(TIMEOUT_CONFIG.SHORT_TEXT_TIMEOUT / 1000 / 60).toFixed(1)}分钟`
+    });
+    
+    return { timeout: TIMEOUT_CONFIG.SHORT_TEXT_TIMEOUT, isLongText: false };
+};
+
 // 初始化队列处理器
 // 所有任务（普通语音和参考音频）都在同一个队列中按顺序处理
+// 设置并发数为 1，确保必须等待上一个任务完成后才能开始下一个任务
 const initQueueProcessor = () => {
-    speechQueue.process(async (job) => {
+    speechQueue.process(1, async (job) => {
         const jobData = job.data;
         const { requestId, userId, userEmail, username } = jobData;
         
         // 判断任务类型：如果有 audioFilePath，则是参考音频任务
         const isReferenceAudioTask = !!jobData.audioFilePath;
 
+        // 记录任务开始时间（用于中长文本的1小时超时检查）
+        const taskStartTime = Date.now();
+        let timeoutCheckTimer = null;
+        
         try {
             // 更新任务状态为 processing
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
 
             let response;
             let fileName = `speech_${requestId}.wav`;
+            let timeoutConfig; // 超时配置 { timeout, isLongText }
 
             if (isReferenceAudioTask) {
                 // 处理参考音频语音生成任务
@@ -59,27 +108,59 @@ const initQueueProcessor = () => {
                 formData.append('prompt_language', prompt_language);
                 formData.append('model_name', model_name);
 
+                // 根据文本长度计算动态超时时间
+                timeoutConfig = calculateTimeout(text);
+                
                 console.log('队列任务调用外部API (参考音频):', {
                     url: V2PROPLUS_API_URL,
                     text: text.substring(0, 50) + '...',
+                    textLength: text.length,
                     text_language,
                     prompt_text: prompt_text ? prompt_text.substring(0, 50) + '...' : '',
                     prompt_language,
                     model_name,
                     filePath: audioFilePath,
-                    requestId
+                    requestId,
+                    timeout: timeoutConfig.timeout ? `${(timeoutConfig.timeout / 1000).toFixed(1)}秒` : '不设置（中长文本）',
+                    isLongText: timeoutConfig.isLongText
                 });
 
-                // 调用外部语音生成 API
-                response = await axios.post(V2PROPLUS_API_URL, formData, {
+                // 如果是中长文本，设置1小时超时检查定时器
+                if (timeoutConfig.isLongText) {
+                    timeoutCheckTimer = setTimeout(async () => {
+                        // 检查任务是否还在处理中
+                        const [statusResults] = await pool.query(
+                            'SELECT status FROM audio_requests WHERE id = ?',
+                            [requestId]
+                        );
+                        
+                        if (statusResults.length > 0 && statusResults[0].status === 'processing') {
+                            console.error(`任务 ${requestId} 超过1小时未完成，标记为失败`);
+                            await pool.query(
+                                'UPDATE audio_requests SET status = ? WHERE id = ?',
+                                ['failed', requestId]
+                            );
+                        }
+                    }, TIMEOUT_CONFIG.LONG_TEXT_MAX_WAIT);
+                }
+
+                // 准备axios配置
+                const axiosConfig = {
                     headers: {
                         ...formData.getHeaders()
                     },
                     responseType: 'arraybuffer',
-                    timeout: 300000, // 5分钟超时
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity
-                });
+                };
+                
+                // 只有非中长文本才设置timeout
+                if (timeoutConfig.timeout !== null) {
+                    axiosConfig.timeout = timeoutConfig.timeout;
+                }
+
+                // 调用外部语音生成 API
+                response = await axios.post(V2PROPLUS_API_URL, formData, axiosConfig);
 
                 // 清理临时文件
                 if (shouldDeleteTempFile && fs.existsSync(audioFilePath)) {
@@ -101,21 +182,54 @@ const initQueueProcessor = () => {
                     model_name
                 };
 
+                // 根据文本长度计算动态超时时间
+                timeoutConfig = calculateTimeout(text);
+                
                 console.log('队列任务调用外部API (普通语音):', {
                     url: API_URL,
                     text: text.substring(0, 50) + '...',
+                    textLength: text.length,
                     text_language,
                     model_name,
-                    requestId
+                    requestId,
+                    timeout: timeoutConfig.timeout ? `${(timeoutConfig.timeout / 1000).toFixed(1)}秒` : '不设置（中长文本）',
+                    isLongText: timeoutConfig.isLongText
                 });
 
-                // 调用语音生成 API
-                response = await axios.post(API_URL, requestData, {
+                // 如果是中长文本，设置1小时超时检查定时器
+                if (timeoutConfig.isLongText) {
+                    timeoutCheckTimer = setTimeout(async () => {
+                        // 检查任务是否还在处理中
+                        const [statusResults] = await pool.query(
+                            'SELECT status FROM audio_requests WHERE id = ?',
+                            [requestId]
+                        );
+                        
+                        if (statusResults.length > 0 && statusResults[0].status === 'processing') {
+                            console.error(`任务 ${requestId} 超过1小时未完成，标记为失败`);
+                            await pool.query(
+                                'UPDATE audio_requests SET status = ? WHERE id = ?',
+                                ['failed', requestId]
+                            );
+                        }
+                    }, TIMEOUT_CONFIG.LONG_TEXT_MAX_WAIT);
+                }
+
+                // 准备axios配置
+                const axiosConfig = {
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     responseType: 'arraybuffer'
-                });
+                };
+                
+                // 只有非中长文本才设置timeout
+                if (timeoutConfig.timeout !== null) {
+                    axiosConfig.timeout = timeoutConfig.timeout;
+                }
+
+                // 调用语音生成 API
+                response = await axios.post(API_URL, requestData, axiosConfig);
             }
 
             // 检查响应状态码
@@ -147,6 +261,12 @@ const initQueueProcessor = () => {
             // 上传到阿里云 OSS
             const ossResult = await uploadToOSS(response.data, fileName, username, jobData.model_name || 'v2ProPlus');
 
+            // 清除超时检查定时器（如果存在）
+            if (timeoutCheckTimer) {
+                clearTimeout(timeoutCheckTimer);
+                timeoutCheckTimer = null;
+            }
+
             // 更新任务状态为 completed
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['completed', requestId]);
 
@@ -163,6 +283,9 @@ const initQueueProcessor = () => {
                 [audioFile.request_id, audioFile.file_name, audioFile.oss_url]
             );
 
+            const taskDuration = ((Date.now() - taskStartTime) / 1000).toFixed(1);
+            console.log(`任务 ${requestId} 完成，耗时: ${taskDuration}秒`);
+
             // 返回 OSS 下载链接
             return ossResult.url;
         } catch (error) {
@@ -175,6 +298,12 @@ const initQueueProcessor = () => {
                 requestId,
                 taskType: isReferenceAudioTask ? '参考音频' : '普通语音'
             });
+
+            // 清除超时检查定时器（如果存在）
+            if (timeoutCheckTimer) {
+                clearTimeout(timeoutCheckTimer);
+                timeoutCheckTimer = null;
+            }
 
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['failed', requestId]);
 
