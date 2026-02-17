@@ -1,8 +1,10 @@
 <template>
-  <v-app>
+  <v-app :class="{ 'spring-festival': springFestivalTheme }">
     <!-- 顶部导航栏（桌面端） -->
     <v-app-bar v-if="isAuthenticated && !isMobile" app color="primary" dark elevation="4">
-      <v-toolbar-title class="font-weight-bold">Ai语音生命</v-toolbar-title>
+      <v-toolbar-title class="font-weight-bold">
+        {{ springFestivalTheme ? `Ai语音生命 · ${SPRING_FESTIVAL_ZODIAC}大吉` : 'Ai语音生命' }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn text to="/" class="mx-2">Home</v-btn>
       <v-btn text to="/custom-voice" class="mx-2">自定义音色</v-btn>
@@ -16,7 +18,17 @@
     </v-app-bar>
 
     <!-- 主要内容区域 -->
-    <v-main app>
+    <v-main app class="main-with-festival">
+      <!-- 春节装饰：灯笼 + 福字（仅主题开启时显示） -->
+      <template v-if="springFestivalTheme">
+        <div class="festival-lanterns">
+          <span v-for="i in 5" :key="i" class="lantern"></span>
+        </div>
+        <span class="fu-char fu-tl">福</span>
+        <span class="fu-char fu-tr">福</span>
+        <span class="fu-char fu-bl">福</span>
+        <span class="fu-char fu-br">福</span>
+      </template>
       <v-container fluid class="pa-6 main-content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -29,9 +41,12 @@
     </v-main>
 
     <!-- 底部页脚 -->
-    <v-footer color="primary" dark app inset>
+    <v-footer color="primary" dark app inset class="app-footer">
       <v-spacer></v-spacer>
-      <span class="font-weight-bold">© 2025 Ai 语音生命</span>
+      <div class="footer-inner">
+        <span v-if="springFestivalTheme" class="footer-blessing">祝各位新年快乐，万事如意！</span>
+        <span class="font-weight-bold">{{ springFestivalTheme ? `© 2025 Ai 语音生命 · ${SPRING_FESTIVAL_ZODIAC}大吉` : '© 2025 Ai 语音生命' }}</span>
+      </div>
       <v-spacer></v-spacer>
     </v-footer>
 
@@ -85,13 +100,21 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useDisplay } from 'vuetify';
 import { useStore } from 'vuex';
 import router from './router';
+import { SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC } from '@/constants/constants';
 
+const springFestivalTheme = ref(SPRING_FESTIVAL_THEME);
 const { mobile } = useDisplay();
 const store = useStore();
+
+onMounted(() => {
+  if (SPRING_FESTIVAL_THEME) {
+    document.title = `Ai语音生命 · ${SPRING_FESTIVAL_ZODIAC}大吉`;
+  }
+});
 
 // 使用 computed 优化性能
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated']);
@@ -140,6 +163,145 @@ console.log('isAuthenticated:', isAuthenticated.value);
   --bottom-nav-height: 56px;
   --primary-color: #1976d2;
   --error-color: #f44336;
+}
+
+/* 春节主题样式（SPRING_FESTIVAL_THEME 为 true 时生效） */
+.spring-festival .main-content {
+  background: linear-gradient(180deg, #fffbf5 0%, #fff5eb 50%, #fffbf5 100%);
+  min-height: 100%;
+}
+.spring-festival .v-app-bar {
+  background: linear-gradient(90deg, #c41e3a 0%, #a01830 100%) !important;
+}
+.spring-festival .v-footer {
+  background: linear-gradient(90deg, #a01830 0%, #c41e3a 100%) !important;
+}
+.spring-festival .bottom-nav {
+  background: linear-gradient(0deg, #c41e3a 0%, #a01830 100%) !important;
+}
+.spring-festival #app {
+  color: #2c3e50;
+}
+
+/* 春节装饰：灯笼 */
+.main-with-festival {
+  position: relative;
+}
+.festival-lanterns {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  z-index: 1;
+  pointer-events: none;
+}
+.lantern {
+  display: inline-block;
+  position: relative;
+  width: 32px;
+  height: 44px;
+  border-radius: 50% 50% 48% 48%;
+  background: linear-gradient(145deg, #e63946 0%, #c41e3a 40%, #8b1538 100%);
+  box-shadow: 0 2px 8px rgba(139, 21, 56, 0.4), inset -4px -4px 12px rgba(0,0,0,0.2), inset 4px 2px 12px rgba(255,220,180,0.35);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  transform-origin: top center;
+  animation: lantern-sway 2.5s ease-in-out infinite, lantern-glow 2s ease-in-out infinite;
+}
+.lantern:nth-child(1) { animation-delay: 0s, 0s; }
+.lantern:nth-child(2) { animation-delay: 0.2s, 0.4s; }
+.lantern:nth-child(3) { animation-delay: 0.4s, 0.8s; }
+.lantern:nth-child(4) { animation-delay: 0.2s, 0.4s; }
+.lantern:nth-child(5) { animation-delay: 0s, 0s; }
+.lantern::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 6px;
+  background: #d4af37;
+  border-radius: 2px;
+}
+.lantern::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 8px;
+  background: linear-gradient(180deg, #d4af37, #8b7355);
+}
+@keyframes lantern-sway {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes lantern-glow {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(139, 21, 56, 0.4), inset -4px -4px 12px rgba(0,0,0,0.2), inset 4px 2px 12px rgba(255,220,180,0.35), 0 0 12px rgba(212, 175, 55, 0.2);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(139, 21, 56, 0.5), inset -4px -4px 12px rgba(0,0,0,0.2), inset 4px 2px 12px rgba(255,220,180,0.4), 0 0 20px rgba(212, 175, 55, 0.45);
+  }
+}
+
+/* 春节装饰：福字 */
+.fu-char {
+  position: absolute;
+  font-size: 42px;
+  font-weight: bold;
+  color: #c41e3a;
+  text-shadow: 1px 1px 0 #d4af37, 2px 2px 4px rgba(0,0,0,0.2);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 1;
+  font-family: 'KaiTi', 'STKaiti', '楷体', serif;
+}
+.fu-tl { top: 56px;  left: 12px;  animation: fu-float 4s ease-in-out infinite, fu-glow 2.5s ease-in-out infinite; }
+.fu-tr { top: 56px;  right: 12px; animation: fu-float 4s ease-in-out infinite 0.5s, fu-glow 2.5s ease-in-out infinite 0.3s; }
+.fu-bl { bottom: 72px; left: 12px;  animation: fu-float-bl 4s ease-in-out infinite 0.3s, fu-glow 2.5s ease-in-out infinite 0.6s; }
+.fu-br { bottom: 72px; right: 12px; animation: fu-float-br 4s ease-in-out infinite 0.7s, fu-glow 2.5s ease-in-out infinite 0.2s; }
+@keyframes fu-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes fu-float-bl {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  50% { transform: translateY(-10px) rotate(-8deg); }
+}
+@keyframes fu-float-br {
+  0%, 100% { transform: translateY(0) rotate(180deg); }
+  50% { transform: translateY(-10px) rotate(180deg); }
+}
+@keyframes fu-glow {
+  0%, 100% {
+    text-shadow: 1px 1px 0 #d4af37, 2px 2px 4px rgba(0,0,0,0.2), 0 0 8px rgba(212, 175, 55, 0.3);
+  }
+  50% {
+    text-shadow: 1px 1px 0 #d4af37, 2px 2px 6px rgba(0,0,0,0.25), 0 0 16px rgba(212, 175, 55, 0.6), 0 0 24px rgba(196, 30, 58, 0.25);
+  }
+}
+@media (max-width: 600px) {
+  .fu-char { font-size: 28px; }
+  .fu-tl, .fu-tr { top: 48px; }
+  .festival-lanterns { gap: 12px; top: 4px; }
+  .lantern { width: 24px; height: 34px; }
+}
+
+/* 页脚祝福语 */
+.app-footer .footer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.app-footer .footer-blessing {
+  font-size: 1rem;
+  letter-spacing: 0.05em;
 }
 
 /* 主要内容区域底部内边距 */

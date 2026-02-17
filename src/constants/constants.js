@@ -1,4 +1,10 @@
 // constants.js
+
+/** 春节主题开关：设为 false 即可恢复平日样式 */
+export const SPRING_FESTIVAL_THEME = true;
+/** 生肖年文案（如：马年、龙年），用于春节主题展示 */
+export const SPRING_FESTIVAL_ZODIAC = '马年';
+
 export const API_BASE_URL = 'https://backend.2000gallery.art:5000';
 
 export const API_URLS = {

@@ -2,6 +2,10 @@
 
 ---
 
+**春节主题**：当前启用春节年味样式（中国红、金色、马年大吉等文案）。节后恢复平日样式：在 `src/constants/constants.js` 中将 `SPRING_FESTIVAL_THEME` 改为 `false` 后重新构建即可；生肖年文案由 `SPRING_FESTIVAL_ZODIAC`（如 `'马年'`）统一配置。
+
+---
+
 **体验地址**：[https://tts.2000gallery.art/#/](https://tts.2000gallery.art/#/)
 
 - 账号：`tiyan`

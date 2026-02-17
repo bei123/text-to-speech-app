@@ -1,6 +1,6 @@
 <template>
-  <div class="auth-container">
-    <h1>注册</h1>
+  <div class="auth-container" :class="{ 'spring-festival': springFestivalTheme }">
+    <h1>{{ springFestivalTheme ? `注册 · ${SPRING_FESTIVAL_ZODIAC}大吉` : '注册' }}</h1>
     <form @submit.prevent="register">
       <div class="form-group">
         <label for="username">用户名</label>
@@ -66,6 +66,9 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import Snackbar from './MySnackbar.vue';
 import CryptoJS from 'crypto-js';
+import { SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC } from '@/constants/constants';
+
+const springFestivalTheme = SPRING_FESTIVAL_THEME;
 
 const form = ref({
   username: '',
@@ -475,5 +478,26 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 春节主题点缀 */
+.auth-container.spring-festival {
+  border-top: 3px solid #c41e3a;
+  box-shadow: 0 4px 6px rgba(196, 30, 58, 0.15);
+}
+.auth-container.spring-festival h1 {
+  color: #c41e3a;
+}
+.auth-container.spring-festival button:not(:disabled) {
+  background: linear-gradient(180deg, #c41e3a 0%, #a01830 100%);
+}
+.auth-container.spring-festival button:not(:disabled):hover {
+  background: linear-gradient(180deg, #d42a45 0%, #c41e3a 100%);
+}
+.auth-container.spring-festival input:focus {
+  border-color: #d4af37;
+}
+.auth-container.spring-festival a {
+  color: #c41e3a;
 }
 </style>

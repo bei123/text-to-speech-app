@@ -1,6 +1,6 @@
 <template>
-    <div class="auth-container">
-        <h1>登录</h1>
+    <div class="auth-container" :class="{ 'spring-festival': springFestivalTheme }">
+        <h1>{{ springFestivalTheme ? `登录 · ${SPRING_FESTIVAL_ZODIAC}大吉` : '登录' }}</h1>
         <form @submit.prevent="submitLogin">
             <div class="form-group">
                 <label for="username">用户名或邮箱</label>
@@ -22,11 +22,12 @@ import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { API_URLS } from '@/constants/constants';
+import { API_URLS, SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC } from '@/constants/constants';
 
 export default {
     name: 'UserLogin',
     setup() {
+        const springFestivalTheme = SPRING_FESTIVAL_THEME;
         const store = useStore();
         const router = useRouter();
 
@@ -180,6 +181,8 @@ export default {
             password,
             loading,
             submitLogin,
+            springFestivalTheme,
+            SPRING_FESTIVAL_ZODIAC,
         };
     },
 };
@@ -259,5 +262,26 @@ a {
 
 a:hover {
     text-decoration: underline;
+}
+
+/* 春节主题点缀 */
+.auth-container.spring-festival {
+    border-top: 3px solid #c41e3a;
+    box-shadow: 0 4px 6px rgba(196, 30, 58, 0.15);
+}
+.auth-container.spring-festival h1 {
+    color: #c41e3a;
+}
+.auth-container.spring-festival button {
+    background: linear-gradient(180deg, #c41e3a 0%, #a01830 100%);
+}
+.auth-container.spring-festival button:hover {
+    background: linear-gradient(180deg, #d42a45 0%, #c41e3a 100%);
+}
+.auth-container.spring-festival input:focus {
+    border-color: #d4af37;
+}
+.auth-container.spring-festival a {
+    color: #c41e3a;
 }
 </style>
