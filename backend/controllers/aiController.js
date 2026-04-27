@@ -42,8 +42,11 @@ const callDeepseek = async (req, res) => {
                 { role: 'system', content: system },
                 { role: 'user', content: prompt },
             ],
-            model: "deepseek-chat",
-            max_tokens: 500,
+            model: "deepseek-v4-pro",
+            max_tokens: 8192,
+            thinking: { type: 'enabled' },
+            reasoning_effort: 'high',
+            stream: false,
         };
 
         const response = await axios.post(DEEPSEEK_API_URL, payload, { headers });
