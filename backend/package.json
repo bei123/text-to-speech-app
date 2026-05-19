@@ -16,7 +16,7 @@
     "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "music-metadata": "^7.14.0",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.1.1",
     "sequelize": "^6.37.1",
     "sqlite3": "^5.1.7",
     "uuid": "^9.0.1"
