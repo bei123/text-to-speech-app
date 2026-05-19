@@ -13,7 +13,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const https = require('https');
 const helmet = require('helmet');
 const { testConnection, syncDatabase } = require('./config/database');
 
@@ -30,12 +29,6 @@ const { initQueueProcessor } = require('./services/queueService');
 
 // 创建Express应用
 const app = express();
-
-// SSL证书配置
-const sslOptions = {
-    key: fs.readFileSync(process.env.SSL_KEY_PATH ),
-    cert: fs.readFileSync(process.env.SSL_CERT_PATH)
-};
 
 // 安全中间件设置
 app.use(helmet({
@@ -168,9 +161,9 @@ const initializeDatabase = async () => {
   await syncDatabase();
 };
 
-// 启动HTTPS服务器
+// 启动 HTTP 服务器（暂不启用 SSL）
 const PORT = process.env.PORT || 5000;
-https.createServer(sslOptions, app).listen(PORT, async () => {
-    console.log(`HTTPS服务器运行在 https://backend.2000gallery.art:${PORT}`);
+app.listen(PORT, async () => {
+    console.log(`HTTP 服务器运行在 http://0.0.0.0:${PORT}`);
     await initializeDatabase();
 });

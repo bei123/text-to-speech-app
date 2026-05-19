@@ -76,7 +76,7 @@ module.exports = defineConfig({
       chunks: ['chunk-vendors', 'chunk-common', 'index'],
       // 添加 DNS 预获取
       dns_prefetch: [
-        'https://backend.2000gallery.art:5000',
+        'https://backend.2000gallery.art',
         'https://2000gallery.art'
       ]
     }

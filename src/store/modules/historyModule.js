@@ -1,6 +1,6 @@
 import axios from 'axios';
 import router from '@/router';
-import { LOCAL_STORAGE_KEYS } from '@/constants/constants';
+import { LOCAL_STORAGE_KEYS, API_URLS } from '@/constants/constants';
 import CryptoJS from 'crypto-js';
 
 export default {
@@ -93,7 +93,7 @@ export default {
           headers: { ...requestConfig.headers, Authorization: 'Bearer [已隐藏]' }
         });
 
-        const response = await axios.get('https://backend.2000gallery.art:5000/history', requestConfig);
+        const response = await axios.get(API_URLS.HISTORY, requestConfig);
 
         // 解密响应数据
         const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);

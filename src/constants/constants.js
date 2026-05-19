@@ -5,7 +5,7 @@ export const SPRING_FESTIVAL_THEME = false;
 /** 生肖年文案（如：马年、龙年），用于春节主题展示 */
 export const SPRING_FESTIVAL_ZODIAC = '马年';
 
-export const API_BASE_URL = 'https://backend.2000gallery.art:5000';
+export const API_BASE_URL = 'https://backend.2000gallery.art';
 
 export const API_URLS = {
     API_BASE_URL,

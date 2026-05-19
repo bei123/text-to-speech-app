@@ -145,6 +145,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { debounce } from 'lodash';
 import CryptoJS from 'crypto-js';
+import { API_URLS } from '@/constants/constants';
 
 const store = useStore();
 const isLoading = ref(false);
@@ -220,7 +221,7 @@ const formatDate = (timestamp) => {
 // 获取模型列表
 const fetchModels = async () => {
     try {
-        const response = await fetch('https://backend.2000gallery.art:5000/models');
+        const response = await fetch(API_URLS.MODELS);
         const data = await response.json();
 
         // 解密响应数据
