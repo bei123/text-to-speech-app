@@ -15,6 +15,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const helmet = require('helmet');
 const { testConnection, syncDatabase } = require('./config/database');
+const { verifyClientSign } = require('./middleware/apiGuard');
+const { generalLimiter, speechLimiter } = require('./middleware/rateLimit');
 
 // 导入路由
 const authRoutes = require('./routes/authRoutes');
@@ -58,7 +60,9 @@ app.use(cors({
         'Content-Type',
         'Authorization',
         'X-QR-Identifier',
-        'X-Requested-With'
+        'X-Requested-With',
+        'X-Client-Timestamp',
+        'X-Client-Sign'
     ],
     credentials: true
 }));
@@ -66,10 +70,10 @@ app.use(cors({
 // 添加自定义 CORS 中间件
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:5173') {
+    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:8080' || origin === 'http://localhost:5173') {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Client-Timestamp, X-Client-Sign, Accept, Origin');
         res.header('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400');
@@ -84,6 +88,10 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json({ limit: '10mb' })); // 限制请求体大小
 app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(generalLimiter);
+app.use(['/generate-speech', '/v2proplus'], speechLimiter);
+app.use(verifyClientSign);
 
 // 初始化队列处理器
 initQueueProcessor();

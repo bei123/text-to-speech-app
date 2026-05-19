@@ -2,6 +2,7 @@ import axios from 'axios';
 import store from '@/store';
 import router from '@/router';
 import { API_BASE_URL, HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
+import { attachApiSignInterceptor } from '@/utils/apiSign';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -10,6 +11,8 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+attachApiSignInterceptor(api);
 
 // 请求拦截器：添加 Token
 api.interceptors.request.use(

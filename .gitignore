@@ -4,7 +4,16 @@ node_modules
 /audio_files
 /KEY
 
-
+*.env
+*.env.*
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.*
+*.log.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*
 # local env files
 .env.local
 .env.*.local
