@@ -336,9 +336,9 @@
 import { ref, computed, onBeforeUnmount, onMounted, onActivated, watch, watchEffect, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
-import axios from 'axios';
+import api from '@/utils/axios';
 import CryptoJS from 'crypto-js';
-import { API_URLS } from '@/constants/constants';
+import { API_PATHS } from '@/constants/constants';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -940,7 +940,7 @@ const generateSpeechWithReference = async () => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
@@ -976,15 +976,9 @@ const generateSpeechWithReference = async () => {
     }
 
     // 发送请求
-    const speechResponse = await axios.post(
-      API_URLS.GENERATE_SPEECH_WITH_REFERENCE,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${store.getters['auth/accessToken']}`
-        }
-      }
+    const speechResponse = await api.post(
+      API_PATHS.GENERATE_SPEECH_WITH_REFERENCE,
+      formData
     );
 
     audioUrl.value = speechResponse.data.downloadLink;
@@ -1223,17 +1217,14 @@ const loadPresets = async () => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
 
     // 发送加密请求
-    const response = await axios.get(API_URLS.PRESET_LIST, {
+    const response = await api.get(API_PATHS.PRESET_LIST, {
       params: { key: secretKey },
-      headers: {
-        Authorization: `Bearer ${store.getters['auth/accessToken']}`
-      }
     });
 
     // 解密响应数据
@@ -1312,7 +1303,7 @@ const savePreset = async () => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
@@ -1337,12 +1328,7 @@ const savePreset = async () => {
     formData.append('key', secretKey);
     formData.append('ref_wav_file', refAudioFile.value);
 
-    await axios.post(API_URLS.PRESET_SAVE, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${store.getters['auth/accessToken']}`
-      }
-    });
+    await api.post(API_PATHS.PRESET_SAVE, formData);
 
     showSnackbar('预设保存成功');
     closePresetModal();
@@ -1677,14 +1663,9 @@ const toggleSharePreset = async (preset) => {
     const currentShared = preset.is_shared == 1 || preset.is_shared === true;
     const isShared = !currentShared;
     
-    const response = await axios.put(
-      `${API_URLS.PRESET_SHARE}/${preset.id}/share`,
-      { is_shared: isShared },
-      {
-        headers: {
-          Authorization: `Bearer ${store.getters['auth/accessToken']}`
-        }
-      }
+    const response = await api.put(
+      `${API_PATHS.PRESET_SHARE}/${preset.id}/share`,
+      { is_shared: isShared }
     );
 
     // 更新本地预设列表
@@ -1719,11 +1700,7 @@ const deletePreset = async (presetId) => {
   }
 
   try {
-    await axios.delete(`${API_URLS.PRESET_DELETE}/${presetId}`, {
-      headers: {
-        Authorization: `Bearer ${store.getters['auth/accessToken']}`
-      }
-    });
+    await api.delete(`${API_PATHS.PRESET_DELETE}/${presetId}`);
 
     showSnackbar('预设删除成功');
     await loadPresets(); // 重新加载预设列表

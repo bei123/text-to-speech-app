@@ -46,10 +46,10 @@
 
 <script>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
+import api from '@/utils/axios';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
-import { API_BASE_URL } from '@/constants/constants';
+import { API_PATHS } from '@/constants/constants';
 
 export default {
   name: 'QQMusicLogin',
@@ -116,7 +116,7 @@ export default {
 
         console.log('正在获取二维码...');
         
-        const response = await axios.get(`${API_BASE_URL}/qqmusic/qrcode/identifier`, {
+        const response = await api.get(API_PATHS.QQMUSIC_QR_IDENTIFIER, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -190,7 +190,7 @@ export default {
           throw new Error('未登录');
         }
 
-        const response = await axios.get(`${API_BASE_URL}/qqmusic/credentials`, {
+        const response = await api.get(API_PATHS.QQMUSIC_CREDENTIALS, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -241,7 +241,7 @@ export default {
         }
 
         console.log('正在检查二维码状态，标识符:', qrIdentifier.value);
-        const response = await axios.get(`${API_BASE_URL}/qqmusic/qrcode/${qrIdentifier.value}/status`, {
+        const response = await api.get(`/qqmusic/qrcode/${qrIdentifier.value}/status`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

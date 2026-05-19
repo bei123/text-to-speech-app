@@ -105,12 +105,12 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/utils/axios';
 import ModelModal from './ModelModal.vue';
 import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
-import { API_URLS } from '@/constants/constants';
+import { API_PATHS } from '@/constants/constants';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -150,7 +150,7 @@ const store = useStore();
 // 获取模型数据
 const fetchModels = async () => {
   try {
-    const response = await axios.get(API_URLS.MODELS);
+    const response = await api.get(API_PATHS.MODELS);
 
     // 解密响应数据
     const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);
@@ -201,7 +201,7 @@ const fetchModelPrompt = async (modelValue) => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
@@ -219,8 +219,8 @@ const fetchModelPrompt = async (modelValue) => {
     ).toString();
 
     // 发送加密后的请求
-    const promptResponse = await axios.post(
-      API_URLS.MODEL_PROMPT,
+    const promptResponse = await api.post(
+      API_PATHS.MODEL_PROMPT,
       {
         encryptedData,
         key: secretKey
@@ -392,7 +392,7 @@ const generateSpeech = async () => {
         const initialKey = 'text-to-speech-initial-key';
         const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-        const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+        const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
           params: { encryptedUsername: encryptedUsernameForKey }
         });
         const aiSecretKey = keyResponse.data.key;
@@ -410,8 +410,8 @@ const generateSpeech = async () => {
         ).toString();
 
         // 发送加密后的请求
-        const response = await axios.post(
-          API_URLS.CALL_DEEPSEEK,
+        const response = await api.post(
+          API_PATHS.CALL_DEEPSEEK,
           {
             encryptedData: encryptedAiData,
             key: aiSecretKey
@@ -443,7 +443,7 @@ const generateSpeech = async () => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
@@ -463,8 +463,8 @@ const generateSpeech = async () => {
     ).toString();
 
     // 发送加密后的请求
-    const speechResponse = await axios.post(
-      API_URLS.GENERATE_SPEECH,
+    const speechResponse = await api.post(
+      API_PATHS.GENERATE_SPEECH,
       {
         encryptedData,
         key: secretKey

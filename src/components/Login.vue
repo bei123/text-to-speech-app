@@ -20,9 +20,9 @@
 import { ref } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/utils/axios';
 import CryptoJS from 'crypto-js';
-import { API_URLS, SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC } from '@/constants/constants';
+import { API_PATHS, SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC } from '@/constants/constants';
 
 export default {
     name: 'UserLogin',
@@ -109,7 +109,7 @@ export default {
                 const initialKey = 'text-to-speech-initial-key';
                 const encryptedUsernameForKey = CryptoJS.AES.encrypt(username.value, initialKey).toString();
 
-                const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+                const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
                     params: { encryptedUsername: encryptedUsernameForKey }
                 });
                 const secretKey = keyResponse.data.key;
@@ -119,7 +119,7 @@ export default {
                 const encryptedPassword = CryptoJS.AES.encrypt(password.value, secretKey).toString();
 
                 // 发送登录请求
-                const response = await axios.post(API_URLS.LOGIN, {
+                const response = await api.post(API_PATHS.LOGIN, {
                     encryptedUsername,
                     encryptedPassword,
                     key: secretKey

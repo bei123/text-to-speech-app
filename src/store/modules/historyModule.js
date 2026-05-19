@@ -1,6 +1,6 @@
-import axios from 'axios';
+import api from '@/utils/axios';
 import router from '@/router';
-import { LOCAL_STORAGE_KEYS, API_URLS } from '@/constants/constants';
+import { LOCAL_STORAGE_KEYS, API_PATHS } from '@/constants/constants';
 import CryptoJS from 'crypto-js';
 
 export default {
@@ -52,9 +52,6 @@ export default {
         }
 
         const requestConfig = {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
           params: {
             page,
             itemsPerPage
@@ -88,12 +85,9 @@ export default {
           requestConfig.params.status = status;
         }
 
-        console.log('发送请求配置:', {
-          ...requestConfig,
-          headers: { ...requestConfig.headers, Authorization: 'Bearer [已隐藏]' }
-        });
+        console.log('发送请求配置:', requestConfig);
 
-        const response = await axios.get(API_URLS.HISTORY, requestConfig);
+        const response = await api.get(API_PATHS.HISTORY, requestConfig);
 
         // 解密响应数据
         const decryptedData = CryptoJS.AES.decrypt(response.data.encryptedData, response.data.key);

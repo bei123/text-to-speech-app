@@ -1,5 +1,5 @@
-import { LOCAL_STORAGE_KEYS, API_URLS } from '@/constants/constants';
-import axios from 'axios';
+import { LOCAL_STORAGE_KEYS, API_PATHS } from '@/constants/constants';
+import http from '@/utils/http';
 
 // 安全解析 localStorage 数据
 function safeParseLocalStorage(key) {
@@ -64,7 +64,7 @@ export default {
           throw new Error('未找到 Refresh Token');
         }
 
-        const response = await axios.post(API_URLS.REFRESH_TOKEN, {
+        const response = await http.post(API_PATHS.REFRESH_TOKEN, {
           refreshToken,
         });
 

@@ -94,9 +94,9 @@
 import { ref, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/utils/axios';
 import CryptoJS from 'crypto-js';
-import { API_URLS } from '@/constants/constants';
+import { API_PATHS } from '@/constants/constants';
 import Snackbar from './AppSnackbar.vue';
 
 const store = useStore();
@@ -157,7 +157,7 @@ const loadPublicPresets = async (pageNum = 1) => {
       try {
         const initialKey = 'text-to-speech-initial-key';
         const encryptedUsernameForKey = CryptoJS.AES.encrypt(currentUser.username, initialKey).toString();
-        const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+        const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
           params: { encryptedUsername: encryptedUsernameForKey }
         });
         secretKey = keyResponse.data.key;
@@ -172,7 +172,7 @@ const loadPublicPresets = async (pageNum = 1) => {
       params.key = secretKey;
     }
 
-    const response = await axios.get(API_URLS.PRESET_PUBLIC, { params });
+    const response = await api.get(API_PATHS.PRESET_PUBLIC, { params });
 
     // 解密响应数据
     let data;
@@ -213,7 +213,7 @@ const usePreset = async (preset) => {
   try {
     // 增加预设使用次数（异步执行，不阻塞跳转）
     try {
-      await axios.post(`${API_URLS.PRESET_USE}/${preset.id}/use`);
+      await api.post(`${API_PATHS.PRESET_USE}/${preset.id}/use`);
       // 更新本地显示的使用次数
       preset.use_count = (preset.use_count || 0) + 1;
     } catch (countError) {

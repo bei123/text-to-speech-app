@@ -62,11 +62,11 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import axios from 'axios';
+import api from '@/utils/axios';
 import { useRouter } from 'vue-router';
 import Snackbar from './MySnackbar.vue';
 import CryptoJS from 'crypto-js';
-import { SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC, API_URLS } from '@/constants/constants';
+import { SPRING_FESTIVAL_THEME, SPRING_FESTIVAL_ZODIAC, API_PATHS } from '@/constants/constants';
 
 const springFestivalTheme = SPRING_FESTIVAL_THEME;
 
@@ -169,7 +169,7 @@ const register = async () => {
     const initialKey = 'text-to-speech-initial-key';
     const encryptedUsernameForKey = CryptoJS.AES.encrypt(form.value.username, initialKey).toString();
 
-    const keyResponse = await axios.get(API_URLS.ENCRYPTION_KEY, {
+    const keyResponse = await api.get(API_PATHS.ENCRYPTION_KEY, {
       params: { encryptedUsername: encryptedUsernameForKey }
     });
     const secretKey = keyResponse.data.key;
@@ -179,7 +179,7 @@ const register = async () => {
     const encryptedEmail = CryptoJS.AES.encrypt(form.value.email, secretKey).toString();
     const encryptedPassword = CryptoJS.AES.encrypt(form.value.password, secretKey).toString();
 
-    await axios.post(API_URLS.REGISTER, {
+    await api.post(API_PATHS.REGISTER, {
       encryptedUsername,
       encryptedEmail,
       encryptedPassword,

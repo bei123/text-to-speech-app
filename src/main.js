@@ -4,12 +4,8 @@ import vuetify from './plugins/vuetify'; // 引入 Vuetify 插件
 import router from './router'; // 引入路由
 import store from './store'; // 引入 Vuex 状态管理
 import '@fortawesome/fontawesome-free/css/all.css'; // 引入 FontAwesome 样式
-import axios from 'axios';
 import api from './utils/axios'; // 引入 Axios 实例
-import { attachApiSignInterceptor } from './utils/apiSign';
 import '@mdi/font/css/materialdesignicons.min.css';
-
-attachApiSignInterceptor(axios);
 
 // 创建 Vue 应用
 const app = createApp(App);

@@ -1,18 +1,14 @@
-import axios from 'axios';
 import store from '@/store';
 import router from '@/router';
-import { API_BASE_URL, HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
-import { attachApiSignInterceptor } from '@/utils/apiSign';
+import { HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
+import http from '@/utils/http';
 
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 10000, // 设置请求超时时间
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
+const api = http;
 
-attachApiSignInterceptor(api);
+function isRefreshTokenRequest(config) {
+    const url = config?.url || '';
+    return url.includes('/refresh-token');
+}
 
 // 请求拦截器：添加 Token
 api.interceptors.request.use(
@@ -35,31 +31,29 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // 如果是 401 错误且未重试过
-        if (error.response?.status === HTTP_STATUS_UNAUTHORIZED && !originalRequest._retry) {
+        if (
+            error.response?.status === HTTP_STATUS_UNAUTHORIZED
+            && originalRequest
+            && !originalRequest._retry
+            && !isRefreshTokenRequest(originalRequest)
+        ) {
             originalRequest._retry = true;
 
             try {
-                // 调用 Vuex Store 的 refreshToken 方法刷新 Token
                 const newAccessToken = await store.dispatch('refreshToken');
-
-                // 更新请求头中的 Access Token
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-                // 重试原始请求
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
 
-                // 如果是 refresh token 过期，清除用户状态并跳转到登录页
                 if (refreshError.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {
                     await store.dispatch('logout');
                     router.push({
                         path: '/login',
                         query: {
                             redirect: router.currentRoute.value.fullPath,
-                            message: '登录已过期，请重新登录'
-                        }
+                            message: '登录已过期，请重新登录',
+                        },
                     });
                 }
 
@@ -67,20 +61,16 @@ api.interceptors.response.use(
             }
         }
 
-        // 处理其他错误
         if (error.response) {
-            // 服务器响应错误
             console.error('服务器错误:', error.response.data);
             return Promise.reject(error.response.data);
-        } else if (error.request) {
-            // 请求未收到响应
+        }
+        if (error.request) {
             console.error('网络错误:', error.request);
             return Promise.reject({ message: '网络连接失败，请检查网络设置' });
-        } else {
-            // 请求配置错误
-            console.error('请求配置错误:', error.message);
-            return Promise.reject({ message: '请求配置错误' });
         }
+        console.error('请求配置错误:', error.message);
+        return Promise.reject({ message: '请求配置错误' });
     }
 );
 
