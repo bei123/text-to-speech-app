@@ -68,4 +68,7 @@ router.post('/v2proplus', authenticateToken, (req, res, next) => {
 // 获取历史记录
 router.get('/history', authenticateToken, speechController.getHistory);
 
+// 代理下载历史音频（同源 API，避免 OSS CORS）
+router.get('/history/audio/download', authenticateToken, speechController.downloadHistoryAudio);
+
 module.exports = router;

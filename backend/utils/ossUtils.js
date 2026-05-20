@@ -192,8 +192,38 @@ async function deleteFromOSS(fileName, username) {
 // 初始化时立即检查环境并创建客户端
 initOSSClient().catch(console.error);
 
+/**
+ * 从公网 URL 解析 OSS 对象路径（仅允许本站 bucket 域名）
+ */
+function parseOssPathFromUrl(urlString) {
+    const url = new URL(urlString);
+    const bucketHost = process.env.OSS_BUCKET && process.env.OSS_REGION
+        ? `${process.env.OSS_BUCKET}.oss-${process.env.OSS_REGION}.aliyuncs.com`
+        : '';
+    const allowedHosts = ['oss.2000gallery.art', bucketHost].filter(Boolean);
+    const hostOk = allowedHosts.some(
+        (host) => url.hostname === host || url.hostname.endsWith('.aliyuncs.com')
+    );
+    if (!hostOk) {
+        throw new Error('不允许的 OSS 地址');
+    }
+    return decodeURIComponent(url.pathname.replace(/^\//, ''));
+}
+
+/**
+ * 读取 OSS 对象为可读流
+ */
+async function getOssReadStream(ossPath) {
+    if (!client) {
+        await initOSSClient();
+    }
+    return client.getStream(ossPath);
+}
+
 module.exports = {
     uploadToOSS,
     deleteFromOSS,
-    generateUniqueFileName
+    generateUniqueFileName,
+    parseOssPathFromUrl,
+    getOssReadStream,
 }; 

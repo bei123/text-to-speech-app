@@ -326,35 +326,26 @@ const getProxyAudioUrl = (audioUrl) => {
     return audioUrl;
 };
 
-// 下载处理函数
+// 经后端代理下载，避免浏览器 fetch 直连 OSS 触发 CORS
 const handleDownload = async (record) => {
     try {
         if (!record.audioUrl) {
             throw new Error('没有可下载的音频文件');
         }
 
-        // 从URL中获取原始文件名
         const url = new URL(record.audioUrl);
-        const pathParts = url.pathname.split('/');
-        const originalFileName = pathParts[pathParts.length - 1];
+        const originalFileName = url.pathname.split('/').pop() || 'audio.wav';
 
-        // 直接从OSS下载
-        const response = await fetch(record.audioUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'audio/wav'
-            }
+        const response = await api.get(API_PATHS.HISTORY_AUDIO_DOWNLOAD, {
+            params: { url: record.audioUrl },
+            responseType: 'blob',
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const blob = await response.blob();
+        const blob = new Blob([response.data], { type: 'audio/wav' });
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = originalFileName; // 使用OSS中的原始文件名
+        link.download = originalFileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

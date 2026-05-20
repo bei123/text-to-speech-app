@@ -8,6 +8,7 @@ const pool = require('../config/db');
 const redisClient = require('../config/redis');
 const speechQueue = require('../config/queue');
 const { AUDIO_DIR } = require('../utils/constants');
+const { parseOssPathFromUrl, getOssReadStream } = require('../utils/ossUtils');
 
 // 生成语音
 const generateSpeech = async (req, res) => {
@@ -513,8 +514,69 @@ const generateSpeechWithReference = async (req, res) => {
     }
 };
 
+// 代理下载历史音频（避免浏览器直连 OSS 的 CORS 限制）
+const downloadHistoryAudio = async (req, res) => {
+    const userId = req.user.id;
+    const { url } = req.query;
+
+    if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: '缺少音频地址' });
+    }
+
+    let ossPath;
+    try {
+        ossPath = parseOssPathFromUrl(url);
+    } catch {
+        return res.status(400).json({ message: '无效的音频地址' });
+    }
+
+    if (!ossPath.startsWith('audio/')) {
+        return res.status(403).json({ message: '不允许访问该资源' });
+    }
+
+    try {
+        const [rows] = await pool.query(
+            `SELECT af.id
+             FROM audio_files af
+             INNER JOIN audio_requests ar ON af.request_id = ar.id
+             WHERE ar.user_id = ? AND (af.oss_url = ? OR af.oss_url LIKE CONCAT(?, '%'))
+             LIMIT 1`,
+            [userId, url, url.split('?')[0]]
+        );
+
+        if (!rows.length) {
+            return res.status(403).json({ message: '无权下载该文件' });
+        }
+
+        const fileName = ossPath.split('/').pop() || 'audio.wav';
+        const stream = await getOssReadStream(ossPath);
+
+        stream.on('error', (streamErr) => {
+            console.error('OSS 流读取失败:', streamErr);
+            if (!res.headersSent) {
+                res.status(500).json({ message: '下载失败' });
+            } else {
+                res.end();
+            }
+        });
+
+        res.setHeader('Content-Type', 'audio/wav');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileName)}"`
+        );
+        stream.pipe(res);
+    } catch (error) {
+        console.error('代理下载音频失败:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: '下载失败' });
+        }
+    }
+};
+
 module.exports = {
     generateSpeech,
     getHistory,
-    generateSpeechWithReference
+    generateSpeechWithReference,
+    downloadHistoryAudio,
 }; 

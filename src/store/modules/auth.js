@@ -1,5 +1,6 @@
 import { LOCAL_STORAGE_KEYS, API_PATHS } from '@/constants/constants';
 import http from '@/utils/http';
+import { syncArmsRumUser } from '@/plugins/armsRum';
 
 // 安全解析 localStorage 数据
 function safeParseLocalStorage(key) {
@@ -51,9 +52,11 @@ export default {
     async login({ commit }, { accessToken, refreshToken, user }) {
       commit('setTokens', { accessToken, refreshToken });
       commit('setUser', user);
+      syncArmsRumUser(user);
     },
     async logout({ commit }) {
       commit('clearAuth');
+      syncArmsRumUser(null);
     },
     async refreshToken({ commit, state, dispatch }) {
       try {
