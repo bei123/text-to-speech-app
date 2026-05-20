@@ -8,7 +8,7 @@ const pool = require('../config/db');
 const redisClient = require('../config/redis');
 const speechQueue = require('../config/queue');
 const { AUDIO_DIR } = require('../utils/constants');
-const { parseOssPathFromUrl, getOssReadStream } = require('../utils/ossUtils');
+const { parseOssPathFromUrl, getOssReadStream, downloadOssUrlToFile } = require('../utils/ossUtils');
 
 // 生成语音
 const generateSpeech = async (req, res) => {
@@ -325,25 +325,20 @@ const generateSpeechWithReference = async (req, res) => {
         // 如果提供了OSS URL，从OSS下载文件到临时目录
         if (ref_audio_url && !ref_wav_file) {
             try {
-                console.log('从OSS下载音频文件:', ref_audio_url);
-                const axios = require('axios');
-                const response = await axios.get(ref_audio_url, {
-                    responseType: 'arraybuffer'
-                });
-                
-                // 保存到临时文件
+                console.log('从 OSS 下载参考音频 (SDK):', ref_audio_url);
                 const tempDir = path.join(__dirname, '../../audio_files/temp');
                 if (!fs.existsSync(tempDir)) {
                     fs.mkdirSync(tempDir, { recursive: true });
                 }
                 audioFilePath = path.join(tempDir, `preset_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
-                fs.writeFileSync(audioFilePath, response.data);
+                await downloadOssUrlToFile(ref_audio_url, audioFilePath);
                 shouldDeleteTempFile = true;
-                
-                console.log('OSS音频文件已下载到:', audioFilePath);
+                console.log('OSS 参考音频已下载到:', audioFilePath);
             } catch (downloadError) {
-                console.error('从OSS下载音频文件失败:', downloadError);
-                return res.status(400).json({ message: '从OSS下载音频文件失败' });
+                console.error('从 OSS 下载参考音频失败:', downloadError);
+                return res.status(400).json({
+                    message: '从 OSS 下载参考音频失败，请检查预设音频是否可访问',
+                });
             }
         } else if (ref_wav_file) {
             // 使用上传的文件

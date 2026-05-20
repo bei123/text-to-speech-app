@@ -339,7 +339,12 @@ import { useRouter, useRoute } from 'vue-router';
 import api from '@/utils/axios';
 import CryptoJS from 'crypto-js';
 import { API_PATHS } from '@/constants/constants';
-import { fetchAudioBlob, fetchAudioFile } from '@/utils/audioProxy';
+import {
+  fetchAudioBlob,
+  fetchAudioFile,
+  createProxiedAudioObjectUrl,
+  revokeProxiedAudioObjectUrl,
+} from '@/utils/audioProxy';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -379,6 +384,7 @@ const isDragOver = ref(false); // 是否正在拖拽
 // 音频播放器相关
 const waveformRef = ref(null);
 const wavesurfer = ref(null);
+const playbackBlobUrl = ref(null);
 const isPlaying = ref(false);
 const currentTime = ref('0:00');
 const duration = ref('0:00');
@@ -971,8 +977,8 @@ const generateSpeechWithReference = async () => {
     formData.append('encryptedData', encryptedData);
     formData.append('key', secretKey);
     
-    // 如果使用预设，不发送文件；否则上传文件
-    if (!currentPresetAudioUrl.value) {
+    // 本地已有参考音频（含预设经代理拉取）时直接上传，避免服务端再下 OSS
+    if (refAudioFile.value) {
       formData.append('ref_wav_file', refAudioFile.value);
     }
 
@@ -1047,11 +1053,19 @@ const formatTime = (seconds) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// 初始化波形图
-const initWaveform = () => {
+// 初始化波形图（经后端代理拉取，避免 WaveSurfer fetch OSS 触发 CORS）
+const initWaveform = async () => {
+  if (!audioUrl.value || !waveformRef.value) {
+    return;
+  }
+
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
+    wavesurfer.value = null;
   }
+
+  revokeProxiedAudioObjectUrl(playbackBlobUrl.value);
+  playbackBlobUrl.value = null;
 
   wavesurfer.value = WaveSurfer.create({
     container: waveformRef.value,
@@ -1068,10 +1082,15 @@ const initWaveform = () => {
     partialRender: true,
   });
 
-  // 加载音频
-  wavesurfer.value.load(audioUrl.value);
+  try {
+    playbackBlobUrl.value = await createProxiedAudioObjectUrl(audioUrl.value);
+    await wavesurfer.value.load(playbackBlobUrl.value);
+  } catch (error) {
+    console.error('加载音频预览失败:', error);
+    showSnackbar('音频预览加载失败，请稍后重试');
+    return;
+  }
 
-  // 事件监听
   wavesurfer.value.on('ready', () => {
     duration.value = formatTime(wavesurfer.value.getDuration());
   });
@@ -1107,6 +1126,7 @@ onBeforeUnmount(() => {
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
   }
+  revokeProxiedAudioObjectUrl(playbackBlobUrl.value);
 });
 
 // ========== 预设管理功能 ==========

@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // 语音生成 API 地址
 const API_URL = process.env.SPEECH_API_URL;
-const V2PROPLUS_API_URL = process.env.V2PROPLUS_API_URL || 'http://127.0.0.1:6006/v2proplus';
+const V2PROPLUS_API_URL = process.env.V2PROPLUS_API_URL || 'http://autodl.2000gallery.art:11085/v2proplus';
 
 // 超时配置（单位：毫秒）
 const TIMEOUT_CONFIG = {
@@ -68,7 +68,8 @@ const initQueueProcessor = () => {
         // 记录任务开始时间（用于中长文本的1小时超时检查）
         const taskStartTime = Date.now();
         let timeoutCheckTimer = null;
-        
+        let fileStream = null; // 须在 try 外声明，catch 中才能安全关闭
+
         try {
             // 更新任务状态为 processing
             await pool.query('UPDATE audio_requests SET status = ? WHERE id = ?', ['processing', requestId]);
@@ -76,7 +77,6 @@ const initQueueProcessor = () => {
             let response;
             let fileName = `speech_${requestId}.wav`;
             let timeoutConfig; // 超时配置 { timeout, isLongText }
-            let fileStream = null; // 文件流引用，用于确保正确关闭
 
             if (isReferenceAudioTask) {
                 // 处理参考音频语音生成任务
@@ -439,9 +439,12 @@ const initQueueProcessor = () => {
                 } else {
                     errorMessage = `外部API错误 (${status}): ${String(responseData)}`;
                 }
+            } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+                const apiUrl = isReferenceAudioTask ? V2PROPLUS_API_URL : API_URL;
+                errorMessage = `语音服务未启动或不可达: ${apiUrl}（${error.code}）`;
             } else if (error.request) {
                 const apiUrl = isReferenceAudioTask ? V2PROPLUS_API_URL : API_URL;
-                errorMessage = `无法连接到外部API: ${apiUrl}。请确保服务正在运行。`;
+                errorMessage = `无法连接到语音服务: ${apiUrl}。请确认 AutoDL/推理服务已启动。`;
             } else {
                 errorMessage = error.message || '未知错误';
             }

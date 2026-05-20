@@ -111,7 +111,11 @@ import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
 import { API_PATHS } from '@/constants/constants';
-import { fetchAudioBlob } from '@/utils/audioProxy';
+import {
+  fetchAudioBlob,
+  createProxiedAudioObjectUrl,
+  revokeProxiedAudioObjectUrl,
+} from '@/utils/audioProxy';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -133,6 +137,7 @@ const snackbarMessage = ref('');
 // 音频播放器相关
 const waveformRef = ref(null);
 const wavesurfer = ref(null);
+const playbackBlobUrl = ref(null);
 const isPlaying = ref(false);
 const currentTime = ref('0:00');
 const duration = ref('0:00');
@@ -572,11 +577,19 @@ const formatTime = (seconds) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// 初始化波形图
-const initWaveform = () => {
+// 初始化波形图（经后端代理拉取，避免 WaveSurfer fetch OSS 触发 CORS）
+const initWaveform = async () => {
+  if (!audioUrl.value || !waveformRef.value) {
+    return;
+  }
+
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
+    wavesurfer.value = null;
   }
+
+  revokeProxiedAudioObjectUrl(playbackBlobUrl.value);
+  playbackBlobUrl.value = null;
 
   wavesurfer.value = WaveSurfer.create({
     container: waveformRef.value,
@@ -593,10 +606,15 @@ const initWaveform = () => {
     partialRender: true,
   });
 
-  // 加载音频
-  wavesurfer.value.load(audioUrl.value);
+  try {
+    playbackBlobUrl.value = await createProxiedAudioObjectUrl(audioUrl.value);
+    await wavesurfer.value.load(playbackBlobUrl.value);
+  } catch (error) {
+    console.error('加载音频预览失败:', error);
+    showSnackbar('音频预览加载失败，请稍后重试');
+    return;
+  }
 
-  // 事件监听
   wavesurfer.value.on('ready', () => {
     duration.value = formatTime(wavesurfer.value.getDuration());
   });
@@ -632,6 +650,7 @@ onBeforeUnmount(() => {
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
   }
+  revokeProxiedAudioObjectUrl(playbackBlobUrl.value);
 });
 
 onMounted(() => {

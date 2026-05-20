@@ -1,6 +1,8 @@
+const fs = require('fs');
 const OSS = require('ali-oss');
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
+const { pipeline } = require('stream/promises');
 
 /**
  * 检查是否在阿里云 ECS 环境中
@@ -224,10 +226,20 @@ async function getOssReadStream(ossPath) {
     return result.stream;
 }
 
+/**
+ * 将 OSS 公网 URL 对应对象下载到本地文件（走 SDK，不经 Cloudflare 自定义域名）
+ */
+async function downloadOssUrlToFile(urlString, destPath) {
+    const ossPath = parseOssPathFromUrl(urlString);
+    const stream = await getOssReadStream(ossPath);
+    await pipeline(stream, fs.createWriteStream(destPath));
+}
+
 module.exports = {
     uploadToOSS,
     deleteFromOSS,
     generateUniqueFileName,
     parseOssPathFromUrl,
     getOssReadStream,
+    downloadOssUrlToFile,
 }; 

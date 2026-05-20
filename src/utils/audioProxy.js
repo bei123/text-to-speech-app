@@ -26,3 +26,15 @@ export async function fetchAudioFile(ossUrl, fileName = 'audio.wav') {
     const type = blob.type || 'audio/wav';
     return new File([blob], fileName, { type });
 }
+
+/** 供 WaveSurfer 等播放器使用，避免直连 OSS 触发 CORS */
+export async function createProxiedAudioObjectUrl(ossUrl) {
+    const blob = await fetchAudioBlob(ossUrl);
+    return URL.createObjectURL(blob);
+}
+
+export function revokeProxiedAudioObjectUrl(objectUrl) {
+    if (objectUrl && objectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
