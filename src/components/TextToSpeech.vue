@@ -111,6 +111,7 @@ import SystemModal from './SystemModal.vue';
 import Snackbar from './AppSnackbar.vue';
 import CryptoJS from 'crypto-js';
 import { API_PATHS } from '@/constants/constants';
+import { fetchAudioBlob } from '@/utils/audioProxy';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -548,19 +549,7 @@ const handleDownload = async () => {
     const pathParts = url.pathname.split('/');
     const originalFileName = pathParts[pathParts.length - 1];
 
-    // 直接从OSS下载
-    const response = await fetch(audioUrl.value, {
-      method: 'GET',
-      headers: {
-        'Accept': 'audio/wav'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const blob = await response.blob();
+    const blob = await fetchAudioBlob(audioUrl.value);
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;

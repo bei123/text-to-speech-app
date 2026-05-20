@@ -228,11 +228,11 @@ const usePreset = async (preset) => {
       path: '/custom-voice',
       query: {
         presetId: preset.id,
-        presetName: encodeURIComponent(preset.name || ''),
-        refAudioUrl: encodeURIComponent(preset.ref_audio_url || ''),
-        promptText: encodeURIComponent(preset.prompt_text || ''),
-        promptLanguage: encodeURIComponent(preset.prompt_language || '')
-      }
+        presetName: preset.name || '',
+        refAudioUrl: preset.ref_audio_url || '',
+        promptText: preset.prompt_text || '',
+        promptLanguage: preset.prompt_language || '',
+      },
     });
     console.log('已跳转到自定义音色页面');
   } catch (error) {

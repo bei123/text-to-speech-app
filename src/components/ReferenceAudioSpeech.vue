@@ -339,6 +339,7 @@ import { useRouter, useRoute } from 'vue-router';
 import api from '@/utils/axios';
 import CryptoJS from 'crypto-js';
 import { API_PATHS } from '@/constants/constants';
+import { fetchAudioBlob, fetchAudioFile } from '@/utils/audioProxy';
 import WaveSurfer from 'wavesurfer.js';
 
 const inputText = ref('');
@@ -1023,19 +1024,7 @@ const handleDownload = async () => {
     const pathParts = url.pathname.split('/');
     const originalFileName = pathParts[pathParts.length - 1];
 
-    // 直接从OSS下载
-    const response = await fetch(audioUrl.value, {
-      method: 'GET',
-      headers: {
-        'Accept': 'audio/wav'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const blob = await response.blob();
+    const blob = await fetchAudioBlob(audioUrl.value);
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
@@ -1388,14 +1377,11 @@ const selectPreset = async (preset) => {
     // 保存预设的OSS URL，这样生成语音时可以直接使用，无需重新上传
     currentPresetAudioUrl.value = preset.ref_audio_url;
     
-    // 从 OSS URL 下载音频文件用于前端预览和时长检查
-    const response = await fetch(preset.ref_audio_url);
-    if (!response.ok) {
-      throw new Error(`下载音频失败: ${response.status} ${response.statusText}`);
-    }
-    
-    const blob = await response.blob();
-    const file = new File([blob], `preset_${preset.id || 'external'}.wav`, { type: 'audio/wav' });
+    // 经后端代理拉取参考音频（避免 OSS CORS）
+    const file = await fetchAudioFile(
+      preset.ref_audio_url,
+      `preset_${preset.id || 'external'}.wav`
+    );
     refAudioFile.value = file;
     
     // 关键：先设置值，再设置 disabled 状态

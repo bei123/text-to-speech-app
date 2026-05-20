@@ -514,25 +514,68 @@ const generateSpeechWithReference = async (req, res) => {
     }
 };
 
-// 代理下载历史音频（避免浏览器直连 OSS 的 CORS 限制）
-const downloadHistoryAudio = async (req, res) => {
-    const userId = req.user.id;
-    const { url } = req.query;
-
+function parseAndValidateOssAudioUrl(url) {
     if (!url || typeof url !== 'string') {
-        return res.status(400).json({ message: '缺少音频地址' });
+        return { error: { status: 400, message: '缺少音频地址' } };
     }
-
     let ossPath;
     try {
         ossPath = parseOssPathFromUrl(url);
     } catch {
-        return res.status(400).json({ message: '无效的音频地址' });
+        return { error: { status: 400, message: '无效的音频地址' } };
+    }
+    if (!ossPath.startsWith('audio/')) {
+        return { error: { status: 403, message: '不允许访问该资源' } };
+    }
+    return { ossPath, fileName: ossPath.split('/').pop() || 'audio.wav' };
+}
+
+async function pipeOssAudioToResponse(res, ossPath, fileName, disposition = 'inline') {
+    const stream = await getOssReadStream(ossPath);
+
+    stream.on('error', (streamErr) => {
+        console.error('OSS 流读取失败:', streamErr);
+        if (!res.headersSent) {
+            res.status(500).json({ message: '读取音频失败' });
+        } else {
+            res.end();
+        }
+    });
+
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader(
+        'Content-Disposition',
+        `${disposition}; filename="${encodeURIComponent(fileName)}"`
+    );
+    stream.pipe(res);
+}
+
+// 通用 OSS 音频代理（预设参考音频、预览等，需登录）
+const proxyAudio = async (req, res) => {
+    const parsed = parseAndValidateOssAudioUrl(req.query.url);
+    if (parsed.error) {
+        return res.status(parsed.error.status).json({ message: parsed.error.message });
     }
 
-    if (!ossPath.startsWith('audio/')) {
-        return res.status(403).json({ message: '不允许访问该资源' });
+    try {
+        await pipeOssAudioToResponse(res, parsed.ossPath, parsed.fileName, 'inline');
+    } catch (error) {
+        console.error('代理音频失败:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: '读取音频失败' });
+        }
     }
+};
+
+// 历史记录下载（校验归属权）
+const downloadHistoryAudio = async (req, res) => {
+    const userId = req.user.id;
+    const parsed = parseAndValidateOssAudioUrl(req.query.url);
+    if (parsed.error) {
+        return res.status(parsed.error.status).json({ message: parsed.error.message });
+    }
+
+    const { url } = req.query;
 
     try {
         const [rows] = await pool.query(
@@ -548,24 +591,7 @@ const downloadHistoryAudio = async (req, res) => {
             return res.status(403).json({ message: '无权下载该文件' });
         }
 
-        const fileName = ossPath.split('/').pop() || 'audio.wav';
-        const stream = await getOssReadStream(ossPath);
-
-        stream.on('error', (streamErr) => {
-            console.error('OSS 流读取失败:', streamErr);
-            if (!res.headersSent) {
-                res.status(500).json({ message: '下载失败' });
-            } else {
-                res.end();
-            }
-        });
-
-        res.setHeader('Content-Type', 'audio/wav');
-        res.setHeader(
-            'Content-Disposition',
-            `attachment; filename="${encodeURIComponent(fileName)}"`
-        );
-        stream.pipe(res);
+        await pipeOssAudioToResponse(res, parsed.ossPath, parsed.fileName, 'attachment');
     } catch (error) {
         console.error('代理下载音频失败:', error);
         if (!res.headersSent) {
@@ -578,5 +604,6 @@ module.exports = {
     generateSpeech,
     getHistory,
     generateSpeechWithReference,
+    proxyAudio,
     downloadHistoryAudio,
 }; 
