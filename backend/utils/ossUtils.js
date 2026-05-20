@@ -211,13 +211,17 @@ function parseOssPathFromUrl(urlString) {
 }
 
 /**
- * 读取 OSS 对象为可读流
+ * 读取 OSS 对象为可读流（ali-oss getStream 返回 { stream, res }）
  */
 async function getOssReadStream(ossPath) {
     if (!client) {
         await initOSSClient();
     }
-    return client.getStream(ossPath);
+    const result = await client.getStream(ossPath);
+    if (!result?.stream) {
+        throw new Error('OSS getStream 未返回有效流');
+    }
+    return result.stream;
 }
 
 module.exports = {

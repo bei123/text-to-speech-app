@@ -339,6 +339,7 @@ const handleDownload = async (record) => {
         const response = await api.get(API_PATHS.HISTORY_AUDIO_DOWNLOAD, {
             params: { url: record.audioUrl },
             responseType: 'blob',
+            timeout: 120000,
         });
 
         const blob = new Blob([response.data], { type: 'audio/wav' });
