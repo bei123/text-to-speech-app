@@ -54,7 +54,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: ['https://tts.2000gallery.art', 'http://localhost:8080'],
+    origin: ['https://tts.2000gallery.art', 'http://localhost:8080','https://ttspage.2000gallery.art'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
         'Content-Type',
@@ -70,7 +70,7 @@ app.use(cors({
 // 添加自定义 CORS 中间件
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:8080' || origin === 'http://localhost:5173') {
+    if (origin === 'https://tts.2000gallery.art' || origin === 'http://localhost:8080' || origin === 'https://ttspage.2000gallery.art') {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Client-Timestamp, X-Client-Sign, Accept, Origin');
