@@ -32,6 +32,9 @@ const { initQueueProcessor } = require('./services/queueService');
 // 创建Express应用
 const app = express();
 
+// 信任反向代理（nginx 等），使 rate limit 能正确识别客户端 IP
+app.set('trust proxy', process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : 1);
+
 // 安全中间件设置
 app.use(helmet({
     contentSecurityPolicy: {
