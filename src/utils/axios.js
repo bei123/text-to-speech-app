@@ -4,10 +4,41 @@ import { HTTP_STATUS_UNAUTHORIZED } from '@/constants/constants';
 import http from '@/utils/http';
 
 const api = http;
+let refreshPromise = null;
+let isRedirectingToLogin = false;
 
 function isRefreshTokenRequest(config) {
     const url = config?.url || '';
     return url.includes('/refresh-token');
+}
+
+function refreshAccessToken() {
+    if (!refreshPromise) {
+        refreshPromise = store.dispatch('refreshToken')
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+    return refreshPromise;
+}
+
+async function redirectToLogin() {
+    if (isRedirectingToLogin) return;
+
+    isRedirectingToLogin = true;
+    const redirect = router.currentRoute.value.fullPath;
+    await store.dispatch('logout');
+
+    if (router.currentRoute.value.path !== '/login') {
+        await router.push({
+            path: '/login',
+            query: {
+                redirect,
+                message: '登录已过期，请重新登录',
+            },
+        });
+    }
+    isRedirectingToLogin = false;
 }
 
 // 请求拦截器：添加 Token
@@ -40,21 +71,19 @@ api.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const newAccessToken = await store.dispatch('refreshToken');
+                const newAccessToken = await refreshAccessToken();
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
 
-                if (refreshError.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {
-                    await store.dispatch('logout');
-                    router.push({
-                        path: '/login',
-                        query: {
-                            redirect: router.currentRoute.value.fullPath,
-                            message: '登录已过期，请重新登录',
-                        },
-                    });
+                const refreshErrorCode = refreshError.response?.data?.code;
+                if (
+                    refreshErrorCode === 'REFRESH_TOKEN_EXPIRED'
+                    || refreshError.response?.status === HTTP_STATUS_UNAUTHORIZED
+                    || refreshError.response?.status === 403
+                ) {
+                    await redirectToLogin();
                 }
 
                 return Promise.reject(refreshError);
@@ -63,7 +92,7 @@ api.interceptors.response.use(
 
         if (error.response) {
             console.error('服务器错误:', error.response.data);
-            return Promise.reject(error.response.data);
+            return Promise.reject(error);
         }
         if (error.request) {
             console.error('网络错误:', error.request);

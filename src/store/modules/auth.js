@@ -78,7 +78,11 @@ export default {
 
         return response.data.accessToken;
       } catch (error) {
-        if (error.response?.data?.code === 'REFRESH_TOKEN_EXPIRED') {
+        if (
+          error.response?.data?.code === 'REFRESH_TOKEN_EXPIRED'
+          || error.response?.status === 401
+          || error.response?.status === 403
+        ) {
           await dispatch('logout');
         }
         throw error;
