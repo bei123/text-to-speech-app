@@ -21,6 +21,44 @@ const TIMEOUT_CONFIG = {
     LONG_TEXT_MAX_WAIT: parseInt(process.env.SPEECH_LONG_TEXT_MAX_WAIT) || 3600000 // 默认1小时
 };
 
+const TRANSIENT_RETRY_CONFIG = {
+    retries: parseInt(process.env.SPEECH_API_RETRIES, 10) || 2,
+    delay: parseInt(process.env.SPEECH_API_RETRY_DELAY, 10) || 2000
+};
+
+const isTransientResponseError = (error) => {
+    const transientCodes = new Set([
+        'ECONNABORTED',
+        'ECONNRESET',
+        'EPIPE',
+        'ETIMEDOUT',
+        'ERR_BAD_RESPONSE'
+    ]);
+
+    return transientCodes.has(error.code) ||
+        /stream has been aborted|aborted|socket hang up|premature close/i.test(error.message || '');
+};
+
+const postWithTransientRetry = async (url, data, config, requestId) => {
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            return await axios.post(url, data, config);
+        } catch (error) {
+            if (!isTransientResponseError(error) || attempt >= TRANSIENT_RETRY_CONFIG.retries) {
+                throw error;
+            }
+
+            const delay = TRANSIENT_RETRY_CONFIG.delay * (attempt + 1);
+            console.warn(`语音 API 响应中断，任务 ${requestId} 将进行第 ${attempt + 1} 次重试，等待 ${delay}ms`, {
+                code: error.code,
+                message: error.message,
+                status: error.response?.status
+            });
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+};
+
 /**
  * 根据文本长度计算超时时间
  * @param {string} text - 要生成的文本
@@ -299,7 +337,7 @@ const initQueueProcessor = () => {
                 }
 
                 // 调用语音生成 API
-                response = await axios.post(API_URL, requestData, axiosConfig);
+                response = await postWithTransientRetry(API_URL, requestData, axiosConfig, requestId);
             }
 
             // 检查响应状态码
@@ -409,7 +447,9 @@ const initQueueProcessor = () => {
 
             // 返回更详细的错误信息
             let errorMessage = '生成语音失败';
-            if (error.response) {
+            if (isTransientResponseError(error)) {
+                errorMessage = `语音服务响应传输中断，已重试 ${TRANSIENT_RETRY_CONFIG.retries} 次仍未成功: ${error.message}`;
+            } else if (error.response) {
                 const status = error.response.status;
                 let responseData = error.response.data;
                 
