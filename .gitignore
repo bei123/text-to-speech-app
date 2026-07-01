@@ -2,6 +2,7 @@
 node_modules
 /dist
 /audio_files
+backend/audio_files
 /KEY
 
 *.env

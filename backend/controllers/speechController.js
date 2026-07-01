@@ -7,7 +7,7 @@ const { parseFile } = require('music-metadata');
 const pool = require('../config/db');
 const redisClient = require('../config/redis');
 const speechQueue = require('../config/queue');
-const { AUDIO_DIR } = require('../utils/constants');
+const { TEMP_DIR } = require('../utils/constants');
 const { parseOssPathFromUrl, getOssReadStream, downloadOssUrlToFile } = require('../utils/ossUtils');
 
 // 生成语音
@@ -326,11 +326,7 @@ const generateSpeechWithReference = async (req, res) => {
         if (ref_audio_url && !ref_wav_file) {
             try {
                 console.log('从 OSS 下载参考音频 (SDK):', ref_audio_url);
-                const tempDir = path.join(__dirname, '../../audio_files/temp');
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
-                }
-                audioFilePath = path.join(tempDir, `preset_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
+                audioFilePath = path.join(TEMP_DIR, `preset_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
                 await downloadOssUrlToFile(ref_audio_url, audioFilePath);
                 shouldDeleteTempFile = true;
                 console.log('OSS 参考音频已下载到:', audioFilePath);

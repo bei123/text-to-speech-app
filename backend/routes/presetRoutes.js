@@ -5,15 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const presetController = require('../controllers/presetController');
 const { authenticateToken } = require('../middleware/auth');
+const { TEMP_DIR } = require('../utils/constants');
 
 // 配置 multer 用于文件上传
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, '../../audio_files/temp');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
+        cb(null, TEMP_DIR);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

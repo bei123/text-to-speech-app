@@ -1,5 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const OSS = require('ali-oss');
+const { TEMP_DIR } = require('./constants');
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
 const { pipeline } = require('stream/promises');
@@ -101,11 +103,7 @@ const uploadToOSS = async (file, fileName, username, modelName) => {
         if (Buffer.isBuffer(file)) {
             if (file.length > LARGE_FILE_THRESHOLD) {
                 // 大文件：先写入临时文件
-                const tempDir = path.join(__dirname, '../../audio_files/temp');
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
-                }
-                tempFilePath = path.join(tempDir, `oss_upload_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
+                tempFilePath = path.join(TEMP_DIR, `oss_upload_${Date.now()}_${Math.round(Math.random() * 1E9)}.wav`);
                 fs.writeFileSync(tempFilePath, file);
                 shouldDeleteTempFile = true;
                 

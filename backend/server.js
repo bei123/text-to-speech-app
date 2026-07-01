@@ -99,14 +99,9 @@ app.use(verifyClientSign);
 // 初始化队列处理器
 initQueueProcessor();
 
-// 音频文件保存路径
-const AUDIO_DIR = path.join(__dirname, '../audio_files');
-if (!fs.existsSync(AUDIO_DIR)) {
-    fs.mkdirSync(AUDIO_DIR);
-}
+const { TEMP_DIR } = require('./utils/constants');
 
 // 定期清理临时文件（每小时清理一次超过1小时的临时文件）
-const TEMP_DIR = path.join(__dirname, '../audio_files/temp');
 const cleanupTempFiles = () => {
     try {
         if (!fs.existsSync(TEMP_DIR)) {
