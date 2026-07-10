@@ -36,7 +36,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Verify signing secret
+      run: |
+        if [ -z "${{ secrets.CLIENT_SIGN_SECRET }}" ]; then
+          echo "::error::请在 GitHub Secrets 中配置 CLIENT_SIGN_SECRET（与后端 backend/.env 一致）"
+          exit 1
+        fi
+
     - name: Build project
+      env:
+        VUE_APP_CLIENT_SIGN_SECRET: ${{ secrets.CLIENT_SIGN_SECRET }}
       run: npm run build
 
     - name: Compress artifacts

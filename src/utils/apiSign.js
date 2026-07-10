@@ -3,6 +3,14 @@ import { API_BASE_URL } from '@/constants/constants';
 
 // Vue CLI 在构建时注入 process.env
 const SIGN_SECRET = process.env.VUE_APP_CLIENT_SIGN_SECRET || ''; // eslint-disable-line no-undef
+const IS_PROD = process.env.NODE_ENV === 'production'; // eslint-disable-line no-undef
+
+if (IS_PROD && !SIGN_SECRET) {
+    // 生产构建未注入密钥时，所有 API 请求将缺少签名头并被后端拒绝
+    console.warn(
+        '[apiSign] 未设置 VUE_APP_CLIENT_SIGN_SECRET，生产环境 API 请求将不带签名'
+    );
+}
 
 function resolveRequestPath(config) {
     const base = config.baseURL || API_BASE_URL;

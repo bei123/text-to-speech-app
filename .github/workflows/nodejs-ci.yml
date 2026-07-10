@@ -25,4 +25,6 @@ jobs:
 
 
     - name: Build project
+      env:
+        VUE_APP_CLIENT_SIGN_SECRET: ${{ secrets.CLIENT_SIGN_SECRET }}
       run: npm run build

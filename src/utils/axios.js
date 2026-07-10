@@ -73,6 +73,9 @@ api.interceptors.response.use(
             try {
                 const newAccessToken = await refreshAccessToken();
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                // 重试前清除旧签名，由 http 拦截器重新生成
+                delete originalRequest.headers['X-Client-Timestamp'];
+                delete originalRequest.headers['X-Client-Sign'];
                 return api(originalRequest);
             } catch (refreshError) {
                 console.error('刷新 Token 失败:', refreshError);
